@@ -1,0 +1,2 @@
+ALTER TABLE sim_portfolios 
+ADD COLUMN IF NOT EXISTS is_ai_auto_trade BOOLEAN DEFAULT FALSE;

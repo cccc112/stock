@@ -10,6 +10,9 @@ class Settings(BaseSettings):
 
     # Gemini AI
     gemini_api_key: str = ""
+    
+    # FinMind
+    finmind_api_key: str = ""
 
     # Redis
     redis_url: str = "redis://localhost:6379"

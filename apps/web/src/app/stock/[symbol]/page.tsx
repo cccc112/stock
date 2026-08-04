@@ -12,6 +12,8 @@ import { Sparkles } from "lucide-react";
 
 // Dynamically import lightweight-charts component to avoid SSR issues
 const CandlestickChart = dynamic(() => import('@/components/charts/CandlestickChart'), { ssr: false });
+const RevenueChart = dynamic(() => import('@/components/charts/RevenueChart'), { ssr: false });
+const InstitutionalChart = dynamic(() => import('@/components/charts/InstitutionalChart'), { ssr: false });
 
 // Mock data
 const mockVAP = [
@@ -130,6 +132,26 @@ export default function StockDetailPage({ params }: { params: { symbol: string }
                           <li><strong>總結：</strong> 短期偏多看待，建議回測 5 日線可作為加碼點。停損設於月線。</li>
                         </ul>
                       </div>
+                    </div>
+                  )
+                },
+                {
+                  id: 'revenue',
+                  label: '營收表現',
+                  content: (
+                    <div className="pt-2">
+                      <h3 className="font-semibold mb-4">每月營收與年增率</h3>
+                      <RevenueChart symbol={symbol} />
+                    </div>
+                  )
+                },
+                {
+                  id: 'institutional',
+                  label: '籌碼分析',
+                  content: (
+                    <div className="pt-2">
+                      <h3 className="font-semibold mb-4">三大法人買賣超</h3>
+                      <InstitutionalChart symbol={symbol} market={market} />
                     </div>
                   )
                 }

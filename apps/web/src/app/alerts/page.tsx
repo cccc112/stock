@@ -16,9 +16,9 @@ export default function AlertsPage() {
 
       <div className="space-y-4">
         {[
-          { symbol: '2330', name: '台積電', condition: '價格大於', value: '960', status: 'active' },
-          { symbol: 'AAPL', name: 'Apple Inc.', condition: '跌破', value: '季線', status: 'triggered' },
-          { symbol: 'NVDA', name: 'NVIDIA', condition: '成交量大於', value: '50M', status: 'inactive' },
+          { symbol: '2330', name: '台積電', condition: 'AI 量價異常偵測', value: '爆量上漲 (大於月均 2 倍)', status: 'active' },
+          { symbol: 'AAPL', name: 'Apple Inc.', condition: 'AI 異常偵測', value: '交易量大於月均 3 倍', status: 'triggered' },
+          { symbol: 'NVDA', name: 'NVIDIA', condition: 'AI 籌碼動向', value: '大戶買超異常', status: 'inactive' },
         ].map((alert, i) => (
           <Card key={i} className="flex flex-row items-center justify-between p-4">
             <div className="flex items-center gap-4">

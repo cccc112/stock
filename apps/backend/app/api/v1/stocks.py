@@ -51,6 +51,20 @@ async def get_orderbook(symbol: str):
         raise HTTPException(status_code=404, detail="Orderbook not found")
     return ob
 
+from app.services.finmind import finmind_service
+
 @router.get("/search", response_model=List[dict])
 async def search_stocks(q: str):
     return yahoo_service.search(q)
+
+@router.get("/{symbol}/financials")
+async def get_financials(symbol: str, years: int = 3):
+    return await finmind_service.get_financial_statements(symbol, years)
+
+@router.get("/{symbol}/institutional")
+async def get_institutional(symbol: str, days: int = 30):
+    return await finmind_service.get_institutional_investors(symbol, days)
+
+@router.get("/{symbol}/news")
+async def get_news(symbol: str, days: int = 30):
+    return await finmind_service.get_news(symbol, days)

@@ -10,14 +10,20 @@ import {
   Bell, 
   Settings,
   Menu,
-  X
+  X,
+  Star,
+  Newspaper,
+  PieChart
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { name: "戰情總覽", href: "/dashboard", icon: LayoutDashboard },
+  { name: "自選股", href: "/watchlist", icon: Star },
   { name: "個股分析", href: "/stock", icon: LineChart },
+  { name: "ETF", href: "/etf", icon: PieChart },
+  { name: "新聞", href: "/news", icon: Newspaper },
   { name: "投資組合", href: "/portfolio", icon: Wallet },
   { name: "模擬交易", href: "/simulator", icon: FlaskConical },
   { name: "智慧警報", href: "/alerts", icon: Bell },

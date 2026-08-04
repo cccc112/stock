@@ -14,11 +14,13 @@ async def get_alerts(db=Depends(get_supabase)):
 
 @router.post("", response_model=Alert)
 async def create_alert(alert: AlertCreate, db=Depends(get_supabase)):
+    if alert.condition != "VOLUME_ANOMALY":
+        raise HTTPException(status_code=400, detail="Only VOLUME_ANOMALY is supported")
+        
     new_alert = {
         "id": str(uuid.uuid4()),
         "symbol": alert.symbol,
         "condition": alert.condition,
-        "target_value": alert.target_value,
         "is_active": True,
         "created_at": datetime.utcnow().isoformat()
     }

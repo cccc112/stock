@@ -70,3 +70,13 @@ async def request_review(portfolio_id: str):
         # Simplification: we might just return a note to call the AI endpoint
         pass
     return {"message": "Review triggered. Check the AI endpoint."}
+
+@router.put("/{portfolio_id}/toggle_ai", response_model=SimPortfolio)
+async def toggle_ai_auto_trade(portfolio_id: str, db=Depends(get_supabase)):
+    res = db.table("sim_portfolios").select("is_ai_auto_trade").eq("id", portfolio_id).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+        
+    current_status = res.data[0].get('is_ai_auto_trade', False)
+    res = db.table("sim_portfolios").update({"is_ai_auto_trade": not current_status}).eq("id", portfolio_id).execute()
+    return SimPortfolio(**res.data[0])

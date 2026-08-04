@@ -1,11 +1,15 @@
 "use client";
+import { useState } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import TradeForm from "@/components/simulator/TradeForm";
 import ReviewReport from "@/components/simulator/ReviewReport";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
+import { Bot } from "lucide-react";
 
 export default function SimulatorPage() {
+  const [aiAutoTrading, setAiAutoTrading] = useState(false);
+
   return (
     <div className="animate-fade-in max-w-6xl mx-auto space-y-6">
       <div className="flex justify-between items-center mb-6">
@@ -18,7 +22,24 @@ export default function SimulatorPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-6">
-          <Card title="模擬帳戶概況" variant="accent-border">
+          <Card 
+            title="模擬帳戶概況" 
+            variant="accent-border"
+            headerAction={
+              <button 
+                onClick={() => setAiAutoTrading(!aiAutoTrading)}
+                className={cn(
+                  "flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-colors border",
+                  aiAutoTrading 
+                    ? "bg-accent-light text-accent border-accent" 
+                    : "bg-[var(--bg-tertiary)] text-secondary border-[var(--border)]"
+                )}
+              >
+                <Bot size={14} />
+                AI 自動交易 {aiAutoTrading ? 'ON' : 'OFF'}
+              </button>
+            }
+          >
             <div className="text-secondary text-sm mb-1">可用資金</div>
             <div className="text-3xl font-bold mb-4">{formatCurrency(1000000, 'TWD')}</div>
             <div className="flex justify-between text-sm py-2 border-t border-[var(--border)]">

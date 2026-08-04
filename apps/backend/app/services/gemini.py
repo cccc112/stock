@@ -49,4 +49,18 @@ class GeminiService:
         )
         return response.text
 
+    async def auto_trade_decision(self, symbol: str, quote_data: dict, api_key: str = None) -> str:
+        client = genai.Client(api_key=api_key) if api_key else self.client
+        
+        prompt = f"""You are an AI trading bot. Make a BUY, SELL, or HOLD decision for {symbol}.
+        Current Quote Data: {json.dumps(quote_data, default=str)}
+        
+        Respond with ONLY one word: BUY, SELL, or HOLD.
+        """
+        response = client.models.generate_content(
+            model='gemini-2.5-pro',
+            contents=prompt,
+        )
+        return response.text
+
 gemini_service = GeminiService()

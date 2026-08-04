@@ -77,8 +77,7 @@ class PnLSummary(BaseModel):
 
 class AlertCreate(BaseModel):
     symbol: str
-    condition: str
-    target_value: float
+    condition: str = "VOLUME_ANOMALY"
 
 class Alert(AlertCreate):
     id: str
@@ -89,6 +88,7 @@ class SimPortfolio(BaseModel):
     id: str
     name: str
     cash_balance: float
+    is_ai_auto_trade: bool = False
     created_at: datetime
 
 class SimTransaction(BaseModel):
