@@ -6,7 +6,7 @@ import json
 
 from app.scheduler.jobs import start_scheduler, stop_scheduler
 from app.services.cache import cache_service
-from app.api.v1 import stocks, watchlist, portfolio, quant, alerts, ai, simulator
+from app.api.v1 import stocks, watchlist, portfolio, quant, alerts, ai, simulator, market
 
 # Initialize application state
 class ConnectionManager:
@@ -56,6 +56,7 @@ app.include_router(quant.router, prefix="/api/v1/quant", tags=["quant"])
 app.include_router(alerts.router, prefix="/api/v1/alerts", tags=["alerts"])
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
 app.include_router(simulator.router, prefix="/api/v1/simulator", tags=["simulator"])
+app.include_router(market.router, prefix="/api/v1/market", tags=["market"])
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

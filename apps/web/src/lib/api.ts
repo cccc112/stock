@@ -64,4 +64,9 @@ export const apiSimulator = {
   requestReview: (id: string) => api.post(`/simulator/portfolios/${id}/review`),
 };
 
+export const apiMarket = {
+  getTrending: () => api.get('/market/trending'),
+  getPopularETFs: () => api.get('/market/etfs'),
+};
+
 export default api;

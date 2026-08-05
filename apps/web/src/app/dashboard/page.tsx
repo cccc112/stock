@@ -2,6 +2,7 @@ import MarketOverview from "@/components/dashboard/MarketOverview";
 import WatchlistPanel from "@/components/dashboard/WatchlistPanel";
 import AlertFeed from "@/components/dashboard/AlertFeed";
 import AIInsightCard from "@/components/dashboard/AIInsightCard";
+import TrendingPanel from "@/components/dashboard/TrendingPanel";
 
 export default function DashboardPage() {
   return (
@@ -14,10 +15,11 @@ export default function DashboardPage() {
       <MarketOverview />
 
       <div className="dashboard-grid h-[calc(100vh-280px)] min-h-[500px]">
-        <div className="h-full">
+        <div className="flex flex-col h-full overflow-y-auto pr-2 hide-scrollbar space-y-6">
+          <TrendingPanel />
           <WatchlistPanel />
         </div>
-        <div className="flex flex-col h-full overflow-y-auto pr-2 hide-scrollbar">
+        <div className="flex flex-col h-full overflow-y-auto pr-2 hide-scrollbar space-y-6">
           <AlertFeed />
           <AIInsightCard />
         </div>
