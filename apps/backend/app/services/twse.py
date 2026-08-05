@@ -12,7 +12,9 @@ class TWSEService:
     async def fetch_realtime_quote(self, symbol: str) -> Optional[StockQuote]:
         # TWSE MIS requires a session cookie, so we hit the index first if needed, 
         # or we can just make the request and usually it works with a single request.
-        url = f"{self.base_url}/getStockInfo.jsp?ex_ch=tse_{symbol}.tw"
+        clean_symbol = symbol.replace('.TW', '').replace('.TWO', '')
+        prefix = "otc" if symbol.endswith('.TWO') else "tse"
+        url = f"{self.base_url}/getStockInfo.jsp?ex_ch={prefix}_{clean_symbol}.tw"
         try:
             response = await self.session.get(url)
             data = response.json()
@@ -42,7 +44,9 @@ class TWSEService:
             return None
 
     async def fetch_orderbook(self, symbol: str) -> Optional[OrderBook]:
-        url = f"{self.base_url}/getStockInfo.jsp?ex_ch=tse_{symbol}.tw"
+        clean_symbol = symbol.replace('.TW', '').replace('.TWO', '')
+        prefix = "otc" if symbol.endswith('.TWO') else "tse"
+        url = f"{self.base_url}/getStockInfo.jsp?ex_ch={prefix}_{clean_symbol}.tw"
         try:
             response = await self.session.get(url)
             data = response.json()

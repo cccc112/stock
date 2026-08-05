@@ -39,8 +39,11 @@ class YahooFinanceService:
             
             market = MarketType.TW if formatted_symbol.endswith('.TW') or formatted_symbol.endswith('.TWO') else MarketType.US
             
+            name = ticker.info.get('shortName', symbol) if hasattr(ticker, 'info') else symbol
+            
             return StockQuote(
                 symbol=symbol,
+                name=name,
                 price=price,
                 change=change,
                 change_pct=change_pct,
