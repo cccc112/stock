@@ -4,19 +4,30 @@ from typing import Optional, List
 from app.core.config import get_settings
 from app.models.schemas import StockQuote, KlineBar
 
+import redis.exceptions
+
 class CacheService:
     def __init__(self):
         settings = get_settings()
         self.redis = redis.from_url(settings.redis_url, decode_responses=True)
 
     async def get(self, key: str) -> Optional[str]:
-        return await self.redis.get(key)
+        try:
+            return await self.redis.get(key)
+        except redis.exceptions.ConnectionError:
+            return None
 
     async def set(self, key: str, value: str, ttl: int):
-        await self.redis.set(key, value, ex=ttl)
+        try:
+            await self.redis.set(key, value, ex=ttl)
+        except redis.exceptions.ConnectionError:
+            pass
 
     async def delete(self, key: str):
-        await self.redis.delete(key)
+        try:
+            await self.redis.delete(key)
+        except redis.exceptions.ConnectionError:
+            pass
 
     async def get_quote_cache(self, symbol: str) -> Optional[StockQuote]:
         data = await self.get(f"quote:{symbol}")

@@ -6,7 +6,7 @@ from datetime import datetime
 import uuid
 
 async def scan_alerts():
-    db = next(get_supabase())
+    db = get_supabase()
     res = db.table("alerts").select("*").eq("is_active", True).execute()
     
     for alert in res.data:
@@ -22,7 +22,7 @@ async def scan_alerts():
             print(f"Error processing alert {alert['id']}: {e}")
 
 async def scan_volume_anomalies():
-    db = next(get_supabase())
+    db = get_supabase()
     res = db.table("watchlist").select("symbol").execute()
     symbols = [item['symbol'] for item in res.data]
     
@@ -39,7 +39,7 @@ async def update_market_summary():
     try:
         summary = await gemini_service.market_summary()
         
-        db = next(get_supabase())
+        db = get_supabase()
         new_entry = {
             "id": str(uuid.uuid4()),
             "type": "market_summary",
@@ -52,7 +52,7 @@ async def update_market_summary():
         print(f"Error updating market summary: {e}")
 
 async def execute_ai_trades():
-    db = next(get_supabase())
+    db = get_supabase()
     # Query portfolios with is_ai_auto_trade=True
     portfolios_res = db.table("sim_portfolios").select("*").eq("is_ai_auto_trade", True).execute()
     portfolios = portfolios_res.data
@@ -125,7 +125,7 @@ async def execute_ai_trades():
 
 async def sync_market_symbols():
     try:
-        db = next(get_supabase())
+        db = get_supabase()
         info_data = await finmind_service.get_stock_info()
         if not info_data:
             return
