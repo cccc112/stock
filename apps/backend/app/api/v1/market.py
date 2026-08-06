@@ -18,7 +18,8 @@ async def fetch_single_quote(symbol: str) -> StockQuote | None:
         quote = await twse_service.fetch_realtime_quote(symbol)
         
     if not quote:
-        quote = yahoo_service.get_quote(symbol)
+        loop = asyncio.get_event_loop()
+        quote = await loop.run_in_executor(None, yahoo_service.get_quote, symbol)
         
     if quote:
         await cache_service.set_quote_cache(symbol, quote)
