@@ -71,3 +71,7 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.send_text(f"Message received: {data}")
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "service": "AI Stock Monitor API"}
