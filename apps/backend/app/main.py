@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 import asyncio
 import json
 
-from app.scheduler.jobs import start_scheduler, stop_scheduler
 from app.services.cache import cache_service
 from app.api.v1 import stocks, watchlist, portfolio, quant, alerts, ai, simulator, market
 
@@ -31,12 +30,15 @@ manager = ConnectionManager()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    start_scheduler()
+    # Startup: scheduler disabled (requires real Supabase)
+    # start_scheduler()
     yield
     # Shutdown
-    stop_scheduler()
-    await cache_service.redis.close()
+    if cache_service._redis:
+        try:
+            await cache_service._redis.close()
+        except Exception:
+            pass
 
 app = FastAPI(title="AI Stock Monitor API", lifespan=lifespan)
 

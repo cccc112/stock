@@ -7,12 +7,19 @@ from app.models.schemas import StockQuote, OrderBook, OrderBookEntry, MarketType
 class TWSEService:
     def __init__(self):
         self.base_url = "https://mis.twse.com.tw/stock/api"
-        self.session = httpx.AsyncClient()
+        self.session = httpx.AsyncClient(timeout=8.0)
+
+    def _safe_float(self, val: str, default: float = 0.0) -> float:
+        """Parse TWSE price string safely (handles '-' for no data)."""
+        if not val or val == '-':
+            return default
+        try:
+            return float(val)
+        except (ValueError, TypeError):
+            return default
 
     async def fetch_realtime_quote(self, symbol: str) -> Optional[StockQuote]:
-        # TWSE MIS requires a session cookie, so we hit the index first if needed, 
-        # or we can just make the request and usually it works with a single request.
-        clean_symbol = symbol.replace('.TW', '').replace('.TWO', '')
+        clean_symbol = symbol.replace('.TW', '').replace('.TWO', '').replace('.tw', '')
         prefix = "otc" if symbol.endswith('.TWO') else "tse"
         url = f"{self.base_url}/getStockInfo.jsp?ex_ch={prefix}_{clean_symbol}.tw"
         try:
@@ -22,29 +29,40 @@ class TWSEService:
                 return None
             
             info = data["msgArray"][0]
-            current_price = float(info.get("z", info.get("y", 0)))
-            prev_close = float(info.get("y", 0))
-            change = current_price - prev_close
-            change_pct = (change / prev_close) * 100 if prev_close else 0
+            prev_close = self._safe_float(info.get("y", "0"))
             
+            # z = current price during trading hours, "-" when closed
+            z_val = info.get("z", "-")
+            if z_val and z_val != "-":
+                current_price = self._safe_float(z_val, prev_close)
+            else:
+                # Market closed: use prev_close as current price
+                current_price = prev_close
+
+            if current_price == 0:
+                return None
+
+            change = current_price - prev_close
+            change_pct = (change / prev_close * 100) if prev_close else 0
+
             return StockQuote(
                 symbol=symbol,
-                name=info.get("n", ""),
+                name=info.get("n", symbol),
                 price=current_price,
                 change=change,
                 change_pct=change_pct,
-                volume=float(info.get("v", 0)),
-                high=float(info.get("h", current_price)),
-                low=float(info.get("l", current_price)),
-                open=float(info.get("o", current_price)),
+                volume=self._safe_float(info.get("v", "0")),
+                high=self._safe_float(info.get("h", str(current_price)), current_price),
+                low=self._safe_float(info.get("l", str(current_price)), current_price),
+                open=self._safe_float(info.get("o", str(current_price)), current_price),
                 prev_close=prev_close,
                 market=MarketType.TW
             )
-        except Exception:
+        except Exception as e:
             return None
 
     async def fetch_orderbook(self, symbol: str) -> Optional[OrderBook]:
-        clean_symbol = symbol.replace('.TW', '').replace('.TWO', '')
+        clean_symbol = symbol.replace('.TW', '').replace('.TWO', '').replace('.tw', '')
         prefix = "otc" if symbol.endswith('.TWO') else "tse"
         url = f"{self.base_url}/getStockInfo.jsp?ex_ch={prefix}_{clean_symbol}.tw"
         try:
@@ -58,27 +76,29 @@ class TWSEService:
             asks = []
             
             b_prices = info.get("b", "").split("_")[:-1]
-            b_vols = info.get("g", "").split("_")[:-1] # g is actually bid volume in some mappings, let's use f and g carefully
-            # Usually: b=bid prices, g=bid volumes, a=ask prices, f=ask volumes
-            # Let's map it based on TWSE MIS standard: b=bid price, g=bid vol, a=ask price, f=ask vol
-            
+            b_vols = info.get("g", "").split("_")[:-1]
             a_prices = info.get("a", "").split("_")[:-1]
             a_vols = info.get("f", "").split("_")[:-1]
             
             for p, v in zip(b_prices, b_vols):
-                if p and v:
-                    bids.append(OrderBookEntry(price=float(p), volume=int(v)))
+                if p and v and p != "-":
+                    try:
+                        bids.append(OrderBookEntry(price=float(p), volume=int(v)))
+                    except (ValueError, TypeError):
+                        pass
             
             for p, v in zip(a_prices, a_vols):
-                if p and v:
-                    asks.append(OrderBookEntry(price=float(p), volume=int(v)))
+                if p and v and p != "-":
+                    try:
+                        asks.append(OrderBookEntry(price=float(p), volume=int(v)))
+                    except (ValueError, TypeError):
+                        pass
                     
             return OrderBook(bids=bids, asks=asks)
         except Exception:
             return None
 
     async def fetch_all_quotes(self) -> List[StockQuote]:
-        # Dummy implementation for index stocks
         return []
 
 twse_service = TWSEService()
