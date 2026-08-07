@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from typing import List
+import asyncio
 from app.models.schemas import StockQuote, KlineBar, OrderBook
 from app.services.twse import twse_service
 from app.services.yahoo import yahoo_service
@@ -13,17 +14,26 @@ async def get_quote(symbol: str):
     if cached:
         return cached
 
-    # Try TWSE first if it's a Taiwan stock
     quote = None
-    if symbol.isnumeric() or symbol.endswith('.TW') or symbol.endswith('.TWO'):
+    # Try TWSE first for Taiwan listed stocks (not indices like ^TWII)
+    is_tw_stock = (symbol.isnumeric() or symbol.endswith('.TW') or symbol.endswith('.TWO')) and not symbol.startswith('^')
+    if is_tw_stock:
         quote = await twse_service.fetch_realtime_quote(symbol)
-        
+
+    # Fallback: yfinance (handles US stocks, TW ETFs, and indices like ^TWII, ^GSPC)
     if not quote:
-        quote = yahoo_service.get_quote(symbol)
-        
+        loop = asyncio.get_event_loop()
+        try:
+            quote = await asyncio.wait_for(
+                loop.run_in_executor(None, yahoo_service.get_quote, symbol),
+                timeout=10.0
+            )
+        except asyncio.TimeoutError:
+            pass
+
     if not quote:
-        raise HTTPException(status_code=404, detail="Stock not found")
-        
+        raise HTTPException(status_code=404, detail=f"Stock not found: {symbol}")
+
     await cache_service.set_quote_cache(symbol, quote)
     return quote
 

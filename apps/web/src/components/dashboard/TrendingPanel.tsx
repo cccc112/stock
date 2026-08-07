@@ -13,8 +13,7 @@ interface TrendingStock {
   name: string;
   price: number;
   change: number;
-  changePercent?: number;
-  change_percent?: number;
+  change_pct: number;
   volume: number;
   market: 'TW' | 'US';
 }
@@ -70,7 +69,7 @@ export default function TrendingPanel() {
             </thead>
             <tbody>
               {trending.map(stock => {
-                const changePct = stock.changePercent ?? stock.change_percent ?? 0;
+                const changePct = stock.change_pct ?? 0;
                 return (
                   <tr 
                     key={stock.symbol} 

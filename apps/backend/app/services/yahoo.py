@@ -7,6 +7,13 @@ import pandas as pd
 class YahooFinanceService:
     
     def _format_symbol(self, symbol: str) -> str:
+        # Don't modify index symbols (^TWII, ^GSPC, etc.)
+        if symbol.startswith('^'):
+            return symbol
+        # Already has suffix
+        if symbol.endswith('.TW') or symbol.endswith('.TWO'):
+            return symbol
+        # Pure number = TW listed stock
         if symbol.isnumeric():
             return f"{symbol}.TW"
         return symbol
