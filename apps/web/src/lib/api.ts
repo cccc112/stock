@@ -1,10 +1,15 @@
 import axios from 'axios';
 
+const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Ensure /api/v1 suffix - strip trailing slash then append
+const baseURL = BASE.replace(/\/+$/, '').replace(/\/api\/v1$/, '') + '/api/v1';
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 15000,
 });
 
 api.interceptors.request.use((config) => {

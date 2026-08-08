@@ -44,7 +44,7 @@ export default function WatchlistPanel() {
                   {stock.change > 0 ? '+' : ''}{stock.change}
                 </td>
                 <td className="text-right">
-                  <Badge value={stock.changePercent} market={stock.market} />
+                  <Badge value={stock.change_pct} market={stock.market} />
                 </td>
                 <td className="text-right text-secondary">{formatVolume(stock.volume)}</td>
                 <td className="text-right">
