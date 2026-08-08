@@ -1,61 +1,130 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, use } from "react";
 import dynamic from 'next/dynamic';
 import Tabs from "@/components/ui/Tabs";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
-import VAPChart from "@/components/charts/VAPChart";
-import { formatNumber, getChangeColorClass } from "@/lib/utils";
-import { Sparkles } from "lucide-react";
+import { formatNumber, formatVolume, getChangeColorClass } from "@/lib/utils";
+import { Sparkles, Plus, Check } from "lucide-react";
+import { apiStocks } from "@/lib/api";
 
-// Dynamically import lightweight-charts component to avoid SSR issues
 const CandlestickChart = dynamic(() => import('@/components/charts/CandlestickChart'), { ssr: false });
-const RevenueChart = dynamic(() => import('@/components/charts/RevenueChart'), { ssr: false });
-const InstitutionalChart = dynamic(() => import('@/components/charts/InstitutionalChart'), { ssr: false });
 
-// Mock data
-const mockVAP = [
-  { price: 900, volume: 1200 },
-  { price: 910, volume: 2500 },
-  { price: 920, volume: 8000, isPeak: true },
-  { price: 930, volume: 4500 },
-  { price: 940, volume: 3000 },
-  { price: 950, volume: 9500, isPeak: true },
-  { price: 960, volume: 2000 },
-];
+const STORAGE_KEY = 'watchlist_symbols';
 
-export default function StockDetailPage({ params }: { params: { symbol: string } }) {
-  const symbol = params.symbol.toUpperCase();
-  const isTW = /^\d+$/.test(symbol);
-  const market = isTW ? 'TW' : 'US';
-  
-  // Mock current info
-  const currentPrice = isTW ? 950 : 150.25;
-  const change = isTW ? 15 : 2.5;
-  const changePercent = isTW ? 1.6 : 1.69;
+function getStoredSymbols(): string[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+}
+
+function addToWatchlist(symbol: string) {
+  const list = getStoredSymbols();
+  if (!list.includes(symbol)) {
+    list.push(symbol);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  }
+}
+
+function removeFromWatchlist(symbol: string) {
+  const list = getStoredSymbols().filter(s => s !== symbol);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+interface StockData {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  change_pct: number;
+  volume: number;
+  high: number;
+  low: number;
+  open: number;
+  prev_close: number;
+  market: 'TW' | 'US';
+}
+
+export default function StockDetailPage({ params }: { params: Promise<{ symbol: string }> }) {
+  const { symbol: rawSymbol } = use(params);
+  const symbol = decodeURIComponent(rawSymbol);
+
+  const [stock, setStock] = useState<StockData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [inWatchlist, setInWatchlist] = useState(false);
+
+  useEffect(() => {
+    setInWatchlist(getStoredSymbols().includes(symbol));
+
+    const fetchQuote = async () => {
+      try {
+        const res = await apiStocks.getQuote(symbol);
+        setStock(res.data);
+      } catch (e) {
+        console.error("Failed to fetch quote", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchQuote();
+    const timer = setInterval(fetchQuote, 30000);
+    return () => clearInterval(timer);
+  }, [symbol]);
+
+  const toggleWatchlist = () => {
+    if (inWatchlist) {
+      removeFromWatchlist(symbol);
+      setInWatchlist(false);
+    } else {
+      addToWatchlist(symbol);
+      setInWatchlist(true);
+    }
+  };
+
+  const market = stock?.market ?? (symbol.match(/^\d/) ? 'TW' : 'US');
+
+  if (loading) {
+    return (
+      <div className="animate-fade-in flex items-center justify-center h-64">
+        <div className="text-secondary">載入中...</div>
+      </div>
+    );
+  }
+
+  if (!stock) {
+    return (
+      <div className="animate-fade-in flex items-center justify-center h-64">
+        <div className="text-secondary">找不到此股票：{symbol}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in flex flex-col h-full gap-6">
       {/* Header */}
-      <div className="flex justify-between items-end">
+      <div className="flex justify-between items-end flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-3xl font-bold">{symbol}</h1>
-            <span className="text-xl text-secondary">{isTW ? '台積電' : 'Sample Corp'}</span>
-            <Badge value={0} className="bg-[var(--bg-tertiary)] text-primary">{market}</Badge>
+            <h1 className="text-3xl font-bold">{stock.symbol}</h1>
+            <span className="text-xl text-secondary">{stock.name}</span>
+            <span className="text-xs px-2 py-1 rounded-md bg-[var(--bg-tertiary)] text-primary">{market}</span>
           </div>
           <div className="flex items-baseline gap-3">
-            <span className="text-4xl font-bold">{formatNumber(currentPrice, isTW ? 0 : 2)}</span>
-            <span className={`text-xl font-medium ${getChangeColorClass(change, market)}`}>
-              {change > 0 ? '+' : ''}{change} ({change > 0 ? '+' : ''}{changePercent}%)
+            <span className="text-4xl font-bold">{formatNumber(stock.price, market === 'TW' ? 0 : 2)}</span>
+            <span className={`text-xl font-medium ${getChangeColorClass(stock.change, market)}`}>
+              {stock.change > 0 ? '+' : ''}{stock.change.toFixed(2)} ({stock.change_pct > 0 ? '+' : ''}{stock.change_pct.toFixed(2)}%)
             </span>
           </div>
         </div>
-        <div>
-          <Button variant="secondary" className="mr-2">+ 加自選</Button>
-          <Button>模擬交易</Button>
+        <div className="flex gap-2">
+          <Button 
+            variant={inWatchlist ? "secondary" : "primary"} 
+            onClick={toggleWatchlist}
+          >
+            {inWatchlist ? <Check size={16} className="mr-1" /> : <Plus size={16} className="mr-1" />}
+            {inWatchlist ? '已加自選' : '加自選'}
+          </Button>
         </div>
       </div>
 
@@ -82,38 +151,6 @@ export default function StockDetailPage({ params }: { params: { symbol: string }
                   )
                 },
                 {
-                  id: 'quant',
-                  label: '量化分析',
-                  content: (
-                    <div className="grid grid-cols-2 gap-6 pt-2">
-                      <div>
-                        <h3 className="font-semibold mb-4">價量分佈 (VAP)</h3>
-                        <VAPChart data={mockVAP} currentPrice={currentPrice} />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold mb-4">技術指標</h3>
-                        <div className="space-y-4">
-                          <div className="flex justify-between p-3 bg-[var(--bg-tertiary)] rounded-md">
-                            <span className="text-secondary">RSI (14)</span>
-                            <span className="font-medium text-warning">65.4</span>
-                          </div>
-                          <div className="flex justify-between p-3 bg-[var(--bg-tertiary)] rounded-md">
-                            <span className="text-secondary">MACD</span>
-                            <span className="font-medium text-up-tw">黃金交叉</span>
-                          </div>
-                          <div className="flex justify-between p-3 bg-[var(--bg-tertiary)] rounded-md">
-                            <span className="text-secondary">外資動向</span>
-                            <span className="font-medium text-up-tw">連 3 買</span>
-                          </div>
-                          <Badge value={1} isPercent={false} size="lg" className="w-full mt-4 bg-accent-light text-accent border border-accent/30 py-2">
-                            發現量價異常！(成交量放大 3 倍)
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                },
-                {
                   id: 'ai',
                   label: 'AI 診斷',
                   content: (
@@ -125,33 +162,8 @@ export default function StockDetailPage({ params }: { params: { symbol: string }
                         <Button size="sm"><Sparkles size={14} className="mr-2"/> 重新生成</Button>
                       </div>
                       <div className="prose prose-invert max-w-none text-sm bg-[var(--bg-tertiary)] p-6 rounded-lg">
-                        <p>根據最新的技術面與籌碼面分析：</p>
-                        <ul>
-                          <li><strong>技術面：</strong> 股價突破前波高點，均線呈多頭排列。目前 RSI 尚未進入超買區，動能持續。</li>
-                          <li><strong>籌碼面：</strong> 法人籌碼持續集中，外資與投信同步站在買方。</li>
-                          <li><strong>總結：</strong> 短期偏多看待，建議回測 5 日線可作為加碼點。停損設於月線。</li>
-                        </ul>
+                        <p>AI 分析功能開發中，敬請期待。</p>
                       </div>
-                    </div>
-                  )
-                },
-                {
-                  id: 'revenue',
-                  label: '營收表現',
-                  content: (
-                    <div className="pt-2">
-                      <h3 className="font-semibold mb-4">每月營收與年增率</h3>
-                      <RevenueChart symbol={symbol} />
-                    </div>
-                  )
-                },
-                {
-                  id: 'institutional',
-                  label: '籌碼分析',
-                  content: (
-                    <div className="pt-2">
-                      <h3 className="font-semibold mb-4">三大法人買賣超</h3>
-                      <InstitutionalChart symbol={symbol} market={market} />
                     </div>
                   )
                 }
@@ -162,32 +174,13 @@ export default function StockDetailPage({ params }: { params: { symbol: string }
 
         {/* Sidebar */}
         <div className="lg:col-span-1 space-y-6">
-          <Card title="五檔報價" className="h-[300px]">
-            <div className="flex flex-col h-full text-sm">
-              <div className="flex-1 flex flex-col justify-end text-down-tw">
-                <div className="flex justify-between py-1"><span className="text-secondary">賣5</span><span>955</span><span>120</span></div>
-                <div className="flex justify-between py-1"><span className="text-secondary">賣4</span><span>954</span><span>85</span></div>
-                <div className="flex justify-between py-1"><span className="text-secondary">賣3</span><span>953</span><span>234</span></div>
-                <div className="flex justify-between py-1"><span className="text-secondary">賣2</span><span>952</span><span>156</span></div>
-                <div className="flex justify-between py-1 border-b border-[var(--border)] pb-2"><span className="text-secondary">賣1</span><span>951</span><span>45</span></div>
-              </div>
-              <div className="flex-1 flex flex-col pt-2 text-up-tw">
-                <div className="flex justify-between py-1"><span className="text-secondary">買1</span><span>950</span><span>342</span></div>
-                <div className="flex justify-between py-1"><span className="text-secondary">買2</span><span>949</span><span>156</span></div>
-                <div className="flex justify-between py-1"><span className="text-secondary">買3</span><span>948</span><span>890</span></div>
-                <div className="flex justify-between py-1"><span className="text-secondary">買4</span><span>947</span><span>120</span></div>
-                <div className="flex justify-between py-1"><span className="text-secondary">買5</span><span>946</span><span>55</span></div>
-              </div>
-            </div>
-          </Card>
-          
           <Card title="基本資料">
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-secondary">開盤</span><span>945</span></div>
-              <div className="flex justify-between"><span className="text-secondary">最高</span><span>955</span></div>
-              <div className="flex justify-between"><span className="text-secondary">最低</span><span>940</span></div>
-              <div className="flex justify-between"><span className="text-secondary">昨收</span><span>935</span></div>
-              <div className="flex justify-between"><span className="text-secondary">總量</span><span>34,500</span></div>
+              <div className="flex justify-between"><span className="text-secondary">開盤</span><span>{formatNumber(stock.open, market === 'TW' ? 0 : 2)}</span></div>
+              <div className="flex justify-between"><span className="text-secondary">最高</span><span>{formatNumber(stock.high, market === 'TW' ? 0 : 2)}</span></div>
+              <div className="flex justify-between"><span className="text-secondary">最低</span><span>{formatNumber(stock.low, market === 'TW' ? 0 : 2)}</span></div>
+              <div className="flex justify-between"><span className="text-secondary">昨收</span><span>{formatNumber(stock.prev_close, market === 'TW' ? 0 : 2)}</span></div>
+              <div className="flex justify-between"><span className="text-secondary">成交量</span><span>{formatVolume(stock.volume)}</span></div>
             </div>
           </Card>
         </div>
