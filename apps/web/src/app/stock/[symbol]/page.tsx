@@ -139,13 +139,6 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                   label: 'K線圖',
                   content: (
                     <div className="pt-2">
-                      <div className="flex gap-2 mb-4">
-                        {['1M', '3M', '6M', '1Y', '5Y'].map(p => (
-                          <button key={p} className="px-3 py-1 text-xs rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--border)] transition-colors">
-                            {p}
-                          </button>
-                        ))}
-                      </div>
                       <CandlestickChart symbol={symbol} market={market} />
                     </div>
                   )
