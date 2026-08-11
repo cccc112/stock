@@ -84,6 +84,7 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
     chart.subscribeCrosshairMove((param) => {
       if (
         !param.time ||
+        !param.point ||
         param.point.x < 0 ||
         param.point.x > chartContainerRef.current!.clientWidth ||
         param.point.y < 0 ||
