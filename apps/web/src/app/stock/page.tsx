@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Card from "@/components/ui/Card";
 import Link from "next/link";
 import { Search } from "lucide-react";
@@ -12,20 +16,34 @@ const popularStocks = [
 ];
 
 export default function StockIndexPage() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const router = useRouter();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      let symbol = searchQuery.trim().toUpperCase();
+      router.push(`/stock/${symbol}`);
+    }
+  };
+
   return (
     <div className="animate-fade-in max-w-4xl mx-auto mt-10">
       <h1 className="text-3xl font-bold text-center mb-8">個股分析</h1>
       
-      <div className="relative mb-12">
+      <form onSubmit={handleSearch} className="relative mb-12">
         <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
           <Search className="text-secondary" />
         </div>
         <input 
           type="text" 
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="輸入股票代號或名稱 (e.g. 2330, AAPL)" 
           className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] rounded-full py-4 pl-12 pr-6 text-lg focus:outline-none focus:border-accent transition-colors shadow-lg"
         />
-      </div>
+        <button type="submit" className="hidden">Search</button>
+      </form>
 
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">熱門標的</h2>
