@@ -10,6 +10,8 @@ import { formatNumber, formatVolume, getChangeColorClass } from "@/lib/utils";
 import { Sparkles, Plus, Check } from "lucide-react";
 import { apiStocks } from "@/lib/api";
 import QuantDashboard from "@/components/dashboard/QuantDashboard";
+import NewsSection from "@/components/dashboard/NewsSection";
+import InstitutionalSection from "@/components/dashboard/InstitutionalSection";
 
 const CandlestickChart = dynamic(() => import('@/components/charts/CandlestickChart'), { ssr: false });
 
@@ -165,6 +167,16 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                       </div>
                     </div>
                   )
+                },
+                {
+                  id: 'news',
+                  label: '即時新聞',
+                  content: <NewsSection symbol={symbol} />
+                },
+                {
+                  id: 'institutional',
+                  label: '法人籌碼',
+                  content: <InstitutionalSection symbol={symbol} />
                 }
               ]}
             />

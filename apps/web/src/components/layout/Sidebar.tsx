@@ -13,7 +13,8 @@ import {
   X,
   Star,
   Newspaper,
-  PieChart
+  PieChart,
+  Activity
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ const navItems = [
   { name: "自選股", href: "/watchlist", icon: Star },
   { name: "個股分析", href: "/stock", icon: LineChart },
   { name: "ETF", href: "/etf", icon: PieChart },
+  { name: "量化掃描", href: "/quant", icon: Activity },
   { name: "新聞", href: "/news", icon: Newspaper },
   { name: "投資組合", href: "/portfolio", icon: Wallet },
   { name: "模擬交易", href: "/simulator", icon: FlaskConical },
