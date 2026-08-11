@@ -1,9 +1,10 @@
 import { cn } from "@/lib/utils";
 
 interface VAPData {
-  price: number;
+  price_range_start: number;
+  price_range_end: number;
   volume: number;
-  isPeak?: boolean;
+  is_peak: boolean;
 }
 
 interface VAPChartProps {
@@ -18,10 +19,10 @@ export default function VAPChart({ data, currentPrice, className }: VAPChartProp
   const maxVolume = Math.max(...data.map(d => d.volume));
   
   // Sort data by price ascending
-  const sortedData = [...data].sort((a, b) => a.price - b.price);
+  const sortedData = [...data].sort((a, b) => a.price_range_start - b.price_range_start);
   
-  const minPrice = sortedData[0].price;
-  const maxPrice = sortedData[sortedData.length - 1].price;
+  const minPrice = sortedData[0].price_range_start;
+  const maxPrice = sortedData[sortedData.length - 1].price_range_end;
   
   // Calculate relative position of current price
   const pricePercent = ((currentPrice - minPrice) / (maxPrice - minPrice)) * 100;
@@ -52,18 +53,19 @@ export default function VAPChart({ data, currentPrice, className }: VAPChartProp
         <div className="absolute inset-y-2 left-0 right-0 flex flex-col justify-between">
           {sortedData.map((d, i) => {
             const widthPercent = (d.volume / maxVolume) * 100;
+            const avgPrice = (d.price_range_start + d.price_range_end) / 2;
             return (
               <div key={i} className="flex-1 flex items-center group relative">
                 <div 
                   className={cn(
                     "h-[80%] rounded-r transition-all duration-300",
-                    d.isPeak ? "bg-[var(--accent)]/60" : "bg-[var(--bg-tertiary)] group-hover:bg-[var(--border-hover)]"
+                    d.is_peak ? "bg-[var(--accent)]/60" : "bg-[var(--bg-tertiary)] group-hover:bg-[var(--border-hover)]"
                   )}
                   style={{ width: `${widthPercent}%` }}
                 />
                 {/* Tooltip */}
                 <div className="hidden group-hover:block absolute left-full ml-2 bg-secondary border border-border p-1 rounded text-xs z-20 whitespace-nowrap">
-                  P: {d.price.toFixed(1)} | V: {d.volume}
+                  P: {avgPrice.toFixed(1)} | V: {(d.volume / 1000).toFixed(0)}k
                 </div>
               </div>
             );

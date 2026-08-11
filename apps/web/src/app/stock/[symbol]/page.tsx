@@ -9,6 +9,7 @@ import Button from "@/components/ui/Button";
 import { formatNumber, formatVolume, getChangeColorClass } from "@/lib/utils";
 import { Sparkles, Plus, Check } from "lucide-react";
 import { apiStocks } from "@/lib/api";
+import QuantDashboard from "@/components/dashboard/QuantDashboard";
 
 const CandlestickChart = dynamic(() => import('@/components/charts/CandlestickChart'), { ssr: false });
 
@@ -142,6 +143,11 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                       <CandlestickChart symbol={symbol} market={market} />
                     </div>
                   )
+                },
+                {
+                  id: 'quant',
+                  label: '量化分析',
+                  content: <QuantDashboard symbol={symbol} currentPrice={stock.price} />
                 },
                 {
                   id: 'ai',
