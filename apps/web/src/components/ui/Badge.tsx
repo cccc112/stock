@@ -20,7 +20,7 @@ export default function Badge({
   const isPositive = value > 0;
   const isZero = value === 0;
 
-  const bgClasses = isZero ? "bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"
+  const bgClasses = isZero ? "bg-[var(--bg-tertiary)] text-secondary"
     : market === 'TW'
       ? isPositive ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-green-500/10 text-green-500 border border-green-500/20"
       : isPositive ? "bg-green-500/10 text-green-500 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20";

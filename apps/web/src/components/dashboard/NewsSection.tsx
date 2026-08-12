@@ -32,7 +32,7 @@ export default function NewsSection({ symbol }: { symbol: string }) {
         <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" className="block p-4 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/80 border border-transparent hover:border-accent/50 transition-all group">
           <div className="flex justify-between items-start gap-4">
             <div>
-              <h3 className="font-semibold text-[var(--text-primary)] group-hover:text-accent transition-colors mb-1">{item.title}</h3>
+              <h3 className="font-semibold text-primary group-hover:text-accent transition-colors mb-1">{item.title}</h3>
               <div className="text-xs text-secondary flex gap-3">
                 <span>{item.source}</span>
                 <span>{new Date(item.date).toLocaleDateString()}</span>

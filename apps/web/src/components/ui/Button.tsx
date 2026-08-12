@@ -21,10 +21,10 @@ export default function Button({
   const baseStyles = "inline-flex items-center justify-center font-medium rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)] focus:ring-accent disabled:opacity-50 disabled:cursor-not-allowed";
   
   const variants = {
-    primary: "bg-gradient-accent text-white shadow-md hover:shadow-lg border border-transparent",
-    secondary: "bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:bg-[var(--border)] border border-[var(--border)]",
-    danger: "bg-danger text-white hover:bg-red-600 border border-transparent",
-    ghost: "bg-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+    primary: "bg-gradient-accent text-white hover:brightness-110",
+    secondary: "bg-[var(--bg-tertiary)] text-primary hover:bg-[var(--border)] border border-[var(--border)]",
+    danger: "bg-danger text-white hover:bg-red-600",
+    ghost: "bg-transparent text-secondary hover:text-primary hover:bg-[var(--bg-tertiary)]"
   };
 
   const sizes = {

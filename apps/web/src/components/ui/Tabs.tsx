@@ -30,8 +30,8 @@ export default function Tabs({ tabs, defaultTab, className }: TabsProps) {
             className={cn(
               "pb-3 text-sm font-medium transition-colors relative",
               activeTab === tab.id 
-                ? "text-[var(--accent)]" 
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                ? "text-accent" 
+                : "text-secondary hover:text-primary"
             )}
           >
             {tab.label}

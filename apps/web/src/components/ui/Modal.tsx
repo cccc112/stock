@@ -36,11 +36,11 @@ export default function Modal({ isOpen, onClose, title, children, className }: M
         "relative z-10 glass-card w-full max-w-md mx-4 animate-slide-up bg-[var(--bg-secondary)] shadow-2xl",
         className
       )}>
-        <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
-          <h3 className="font-semibold text-lg">{title}</h3>
+        <div className="flex justify-between items-center mb-4 border-b border-[var(--border)] pb-4 p-4">
+          <h2 className="text-xl font-bold text-primary">{title}</h2>
           <button 
             onClick={onClose}
-            className="text-[var(--text-secondary)] hover:text-white transition-colors p-1 rounded-md hover:bg-[var(--bg-tertiary)]"
+            className="text-secondary hover:text-white transition-colors p-1 rounded-md hover:bg-[var(--bg-tertiary)]"
           >
             <X size={20} />
           </button>
