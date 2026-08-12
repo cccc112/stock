@@ -55,7 +55,10 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
       },
       crosshair: { mode: 1 },
       rightPriceScale: { borderColor: 'rgba(42, 46, 63, 0.8)' },
-      timeScale: { borderColor: 'rgba(42, 46, 63, 0.8)', timeVisible: false },
+      timeScale: { 
+        borderColor: 'rgba(42, 46, 63, 0.8)', 
+        timeVisible: activePeriod === '1d' || activePeriod === '5d' 
+      },
     });
 
     chartRef.current = chart;
@@ -122,28 +125,48 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
           return;
         }
 
-        const uniqueBars = new Map();
-        bars.forEach((bar: any) => {
-          const d = new Date(bar.time);
-          const timeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          uniqueBars.set(timeStr, { ...bar, timeStr });
-        });
-        
-        const sortedUniqueBars = Array.from(uniqueBars.values()).sort((a, b) => a.timeStr.localeCompare(b.timeStr));
+        const isIntraday = activePeriod === '1d' || activePeriod === '5d';
 
-        const candleData = sortedUniqueBars.map((bar: any) => ({
-          time: bar.timeStr as Time,
-          open: bar.open,
-          high: bar.high,
-          low: bar.low,
-          close: bar.close,
-        }));
+        let candleData: any[] = [];
+        let volumeData: any[] = [];
 
-        const volumeData = sortedUniqueBars.map((bar: any) => ({
-          time: bar.timeStr as Time,
-          value: bar.volume,
-          color: bar.close >= bar.open ? upColor + '80' : downColor + '80',
-        }));
+        if (isIntraday) {
+          candleData = bars.map((bar: any) => ({
+            time: Math.floor(new Date(bar.time).getTime() / 1000) as Time,
+            open: bar.open,
+            high: bar.high,
+            low: bar.low,
+            close: bar.close,
+          }));
+          volumeData = bars.map((bar: any) => ({
+            time: Math.floor(new Date(bar.time).getTime() / 1000) as Time,
+            value: bar.volume,
+            color: bar.close >= bar.open ? upColor + '80' : downColor + '80',
+          }));
+        } else {
+          const uniqueBars = new Map();
+          bars.forEach((bar: any) => {
+            const d = new Date(bar.time);
+            const timeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            uniqueBars.set(timeStr, { ...bar, timeStr });
+          });
+          
+          const sortedUniqueBars = Array.from(uniqueBars.values()).sort((a, b) => a.timeStr.localeCompare(b.timeStr));
+
+          candleData = sortedUniqueBars.map((bar: any) => ({
+            time: bar.timeStr as Time,
+            open: bar.open,
+            high: bar.high,
+            low: bar.low,
+            close: bar.close,
+          }));
+
+          volumeData = sortedUniqueBars.map((bar: any) => ({
+            time: bar.timeStr as Time,
+            value: bar.volume,
+            color: bar.close >= bar.open ? upColor + '80' : downColor + '80',
+          }));
+        }
 
         mainSeries.setData(candleData);
         volumeSeries.setData(volumeData);
@@ -227,7 +250,11 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
         {/* Tooltip */}
         {tooltipData && (
           <div className="absolute top-10 left-4 z-20 bg-[var(--bg-tertiary)]/90 backdrop-blur border border-[var(--border)] p-2 rounded-md shadow-xl text-xs font-mono pointer-events-none transition-opacity">
-            <div className="text-secondary mb-1">{tooltipData.time}</div>
+            <div className="text-secondary mb-1">
+              {typeof tooltipData.time === 'number' 
+                ? new Date(tooltipData.time * 1000).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+                : tooltipData.time}
+            </div>
             <div className="flex gap-3">
               <div className="flex flex-col">
                 <span className="text-secondary">O</span>

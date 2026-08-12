@@ -39,6 +39,10 @@ async def get_quote(symbol: str):
 
 @router.get("/{symbol}/history", response_model=List[KlineBar])
 async def get_history(symbol: str, period: str = "1mo", interval: str = "1d"):
+    # Map periods to suitable intervals if not specified
+    if period in ["1d", "5d"]:
+        interval = "5m"
+        
     cached = await cache_service.get_kline_cache(symbol, f"{period}_{interval}")
     if cached:
         return cached
