@@ -38,6 +38,7 @@ body {
 
 a { color: inherit; text-decoration: none; }
 button { background: none; border: none; cursor: pointer; font-family: inherit; }
+input, select, textarea { color: inherit; font-family: inherit; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }

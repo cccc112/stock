@@ -182,6 +182,7 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
   }, [symbol, market, activePeriod, upColor, downColor]);
 
   const periods = [
+    { label: '日線', value: '1d' },
     { label: '5天', value: '5d' },
     { label: '1月', value: '1mo' },
     { label: '3月', value: '3mo' },

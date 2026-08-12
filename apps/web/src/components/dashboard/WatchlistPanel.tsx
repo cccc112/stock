@@ -49,7 +49,7 @@ export default function WatchlistPanel() {
                 <td className="text-right text-secondary">{formatVolume(stock.volume)}</td>
                 <td className="text-right">
                   <button 
-                    onClick={(e) => { e.stopPropagation(); removeItem(stock.symbol); }}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeItem(stock.symbol); }}
                     className="p-1 text-secondary hover:text-danger rounded"
                   >
                     <X size={16} />
