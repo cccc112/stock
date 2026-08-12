@@ -43,11 +43,11 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
     }
 
     const chart = createChart(chartContainerRef.current, {
-      width: chartContainerRef.current.clientWidth,
-      height: 400,
+      autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
         textColor: '#8b8f9a',
+        attributionLogo: false,
       },
       grid: {
         vertLines: { color: 'rgba(42, 46, 63, 0.5)' },
@@ -55,9 +55,15 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
       },
       crosshair: { mode: 1 },
       rightPriceScale: { borderColor: 'rgba(42, 46, 63, 0.8)' },
+      leftPriceScale: {
+        visible: true,
+        borderColor: 'rgba(42, 46, 63, 0.8)',
+      },
       timeScale: { 
         borderColor: 'rgba(42, 46, 63, 0.8)', 
-        timeVisible: activePeriod === '1d' || activePeriod === '5d' 
+        timeVisible: activePeriod === '1d' || activePeriod === '5d',
+        fixLeftEdge: true,
+        fixRightEdge: true,
       },
     });
 
@@ -73,16 +79,17 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
 
     const volumeSeries = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' },
-      priceScaleId: '',
+      priceScaleId: 'left',
     });
 
     volumeSeries.priceScale().applyOptions({
       scaleMargins: { top: 0.8, bottom: 0 },
     });
 
-    const ma5Series = chart.addSeries(LineSeries, { color: '#6366f1', lineWidth: 1, title: '5MA', crosshairMarkerVisible: false });
-    const ma20Series = chart.addSeries(LineSeries, { color: '#f59e0b', lineWidth: 1, title: '20MA', crosshairMarkerVisible: false });
-    const ma60Series = chart.addSeries(LineSeries, { color: '#10b981', lineWidth: 1, title: '60MA', crosshairMarkerVisible: false });
+    const maOptions = { lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false };
+    const ma5Series = chart.addSeries(LineSeries, { color: '#6366f1', title: '5MA', ...maOptions });
+    const ma20Series = chart.addSeries(LineSeries, { color: '#f59e0b', title: '20MA', ...maOptions });
+    const ma60Series = chart.addSeries(LineSeries, { color: '#10b981', title: '60MA', ...maOptions });
 
     chart.subscribeCrosshairMove((param) => {
       if (
