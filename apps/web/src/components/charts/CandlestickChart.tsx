@@ -43,7 +43,8 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
     }
 
     const chart = createChart(chartContainerRef.current, {
-      autoSize: true,
+      width: chartContainerRef.current.clientWidth,
+      height: chartContainerRef.current.clientHeight,
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
         textColor: '#8b8f9a',
@@ -197,6 +198,7 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
       if (chartContainerRef.current && chartRef.current) {
         chartRef.current.applyOptions({
           width: chartContainerRef.current.clientWidth,
+          height: chartContainerRef.current.clientHeight,
         });
       }
     };
