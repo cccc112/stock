@@ -27,7 +27,7 @@ export default function HoldingTable({ holdings }: HoldingTableProps) {
         <tbody>
           {holdings.map((h, i) => {
             const isTW = h.market === 'TW';
-            const decimals = isTW ? 0 : 2;
+            const decimals = 2;
             const pnlClass = getChangeColorClass(h.pnl, h.market);
             
             return (

@@ -86,7 +86,7 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
       scaleMargins: { top: 0.8, bottom: 0 },
     });
 
-    const maOptions = { lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false };
+    const maOptions = { lineWidth: 1 as const, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false };
     const ma5Series = chart.addSeries(LineSeries, { color: '#6366f1', title: '5MA', ...maOptions });
     const ma20Series = chart.addSeries(LineSeries, { color: '#f59e0b', title: '20MA', ...maOptions });
     const ma60Series = chart.addSeries(LineSeries, { color: '#10b981', title: '60MA', ...maOptions });

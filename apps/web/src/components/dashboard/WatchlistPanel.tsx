@@ -39,7 +39,7 @@ export default function WatchlistPanel() {
               >
                 <td className="font-medium">{stock.symbol}</td>
                 <td className="text-secondary">{stock.name}</td>
-                <td className="text-right font-medium">{formatNumber(stock.price, stock.market === 'TW' ? 0 : 2)}</td>
+                <td className="text-right font-medium">{formatNumber(stock.price, 2)}</td>
                 <td className={`text-right ${getChangeColorClass(stock.change, stock.market)}`}>
                   {stock.change > 0 ? '+' : ''}{stock.change}
                 </td>

@@ -114,7 +114,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
             <span className="text-xs px-2 py-1 rounded-md bg-[var(--bg-tertiary)] text-primary">{market}</span>
           </div>
           <div className="flex items-baseline gap-3">
-            <span className="text-4xl font-bold">{formatNumber(stock.price, market === 'TW' ? 0 : 2)}</span>
+            <span className="text-4xl font-bold">{formatNumber(stock.price, 2)}</span>
             <span className={`text-xl font-medium ${getChangeColorClass(stock.change, market)}`}>
               {stock.change > 0 ? '+' : ''}{stock.change.toFixed(2)} ({stock.change_pct > 0 ? '+' : ''}{stock.change_pct.toFixed(2)}%)
             </span>
@@ -187,10 +187,10 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         <div className="lg:col-span-1 space-y-6">
           <Card title="基本資料">
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-secondary">開盤</span><span>{formatNumber(stock.open, market === 'TW' ? 0 : 2)}</span></div>
-              <div className="flex justify-between"><span className="text-secondary">最高</span><span>{formatNumber(stock.high, market === 'TW' ? 0 : 2)}</span></div>
-              <div className="flex justify-between"><span className="text-secondary">最低</span><span>{formatNumber(stock.low, market === 'TW' ? 0 : 2)}</span></div>
-              <div className="flex justify-between"><span className="text-secondary">昨收</span><span>{formatNumber(stock.prev_close, market === 'TW' ? 0 : 2)}</span></div>
+              <div className="flex justify-between"><span className="text-secondary">開盤</span><span>{formatNumber(stock.open, 2)}</span></div>
+              <div className="flex justify-between"><span className="text-secondary">最高</span><span>{formatNumber(stock.high, 2)}</span></div>
+              <div className="flex justify-between"><span className="text-secondary">最低</span><span>{formatNumber(stock.low, 2)}</span></div>
+              <div className="flex justify-between"><span className="text-secondary">昨收</span><span>{formatNumber(stock.prev_close, 2)}</span></div>
               <div className="flex justify-between"><span className="text-secondary">成交量</span><span>{formatVolume(stock.volume)}</span></div>
             </div>
           </Card>
