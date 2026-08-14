@@ -43,8 +43,8 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
     }
 
     const chart = createChart(chartContainerRef.current, {
-      width: chartContainerRef.current.clientWidth,
-      height: chartContainerRef.current.clientHeight,
+      width: chartContainerRef.current.clientWidth || 800,
+      height: chartContainerRef.current.clientHeight || 398,
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
         textColor: '#8b8f9a',
@@ -194,18 +194,24 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
 
     fetchData();
 
-    const handleResize = () => {
-      if (chartContainerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-          height: chartContainerRef.current.clientHeight,
-        });
+    const handleResize = (width: number, height: number) => {
+      if (chartRef.current && width > 0 && height > 0) {
+        chartRef.current.applyOptions({ width, height });
       }
     };
-    window.addEventListener('resize', handleResize);
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (entries.length === 0 || entries[0].target !== chartContainerRef.current) return;
+      const { width, height } = entries[0].contentRect;
+      handleResize(width, height);
+    });
+
+    if (chartContainerRef.current) {
+      resizeObserver.observe(chartContainerRef.current);
+    }
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       if (chartRef.current) {
         chartRef.current.remove();
         chartRef.current = null;
