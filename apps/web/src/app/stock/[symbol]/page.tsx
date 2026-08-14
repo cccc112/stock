@@ -12,6 +12,7 @@ import { apiStocks } from "@/lib/api";
 import QuantDashboard from "@/components/dashboard/QuantDashboard";
 import NewsSection from "@/components/dashboard/NewsSection";
 import InstitutionalSection from "@/components/dashboard/InstitutionalSection";
+import TransactionForm from "@/components/portfolio/TransactionForm";
 
 const CandlestickChart = dynamic(() => import('@/components/charts/CandlestickChart'), { ssr: false });
 
@@ -56,6 +57,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   const [stock, setStock] = useState<StockData | null>(null);
   const [loading, setLoading] = useState(true);
   const [inWatchlist, setInWatchlist] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   useEffect(() => {
     setInWatchlist(getStoredSymbols().includes(symbol));
@@ -122,6 +124,12 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         </div>
         <div className="flex gap-2">
           <Button 
+            variant="secondary"
+            onClick={() => setIsFormOpen(true)}
+          >
+            <span className="font-medium">交易</span>
+          </Button>
+          <Button 
             variant={inWatchlist ? "secondary" : "primary"} 
             onClick={toggleWatchlist}
           >
@@ -130,6 +138,12 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
           </Button>
         </div>
       </div>
+
+      <TransactionForm 
+        isOpen={isFormOpen} 
+        onClose={() => setIsFormOpen(false)}
+        defaultSymbol={symbol}
+      />
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-[500px]">
         {/* Main Content Area */}
