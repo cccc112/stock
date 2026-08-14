@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Tabs from "@/components/ui/Tabs";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -7,14 +7,32 @@ import PnLSummary from "@/components/portfolio/PnLSummary";
 import HoldingTable from "@/components/portfolio/HoldingTable";
 import TransactionForm from "@/components/portfolio/TransactionForm";
 import { Plus } from "lucide-react";
-
-const mockHoldings = [
-  { symbol: '2330', name: '台積電', avgCost: 850, qty: 1000, currentPrice: 950, pnl: 100000, pnlPercent: 11.76, market: 'TW' },
-  { symbol: 'AAPL', name: 'Apple Inc.', avgCost: 180.5, qty: 100, currentPrice: 215.3, pnl: 3480, pnlPercent: 19.28, market: 'US' },
-];
+import { apiPortfolio } from "@/lib/api";
 
 export default function PortfolioPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [holdings, setHoldings] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchHoldings = async () => {
+    try {
+      const [holdingsRes, summaryRes] = await Promise.all([
+        apiPortfolio.getHoldings(),
+        apiPortfolio.getSummary()
+      ]);
+      setHoldings(holdingsRes.data);
+      setSummary(summaryRes.data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHoldings();
+  }, []);
 
   return (
     <div className="animate-fade-in max-w-6xl mx-auto space-y-6">
@@ -26,7 +44,7 @@ export default function PortfolioPage() {
         <Button onClick={() => setIsFormOpen(true)}><Plus size={16} className="mr-2" /> 新增交易</Button>
       </div>
 
-      <PnLSummary />
+      <PnLSummary summary={summary} holdings={holdings} />
 
       <Card className="min-h-[400px]">
         <Tabs 
@@ -34,14 +52,14 @@ export default function PortfolioPage() {
             {
               id: 'holdings',
               label: '庫存總覽',
-              content: <HoldingTable holdings={mockHoldings} />
+              content: loading ? <div className="text-center py-12 text-secondary">載入中...</div> : <HoldingTable holdings={holdings} onUpdate={fetchHoldings} />
             },
             {
               id: 'history',
               label: '交易紀錄',
               content: (
                 <div className="text-center py-12 text-secondary">
-                  載入中...
+                  功能開發中...
                 </div>
               )
             }
@@ -49,7 +67,10 @@ export default function PortfolioPage() {
         />
       </Card>
 
-      <TransactionForm isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} />
+      <TransactionForm isOpen={isFormOpen} onClose={() => {
+        setIsFormOpen(false);
+        fetchHoldings();
+      }} />
     </div>
   );
 }

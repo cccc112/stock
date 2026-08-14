@@ -2,13 +2,29 @@
 import { formatNumber, formatPercent, getChangeColorClass } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
+import { Trash2 } from "lucide-react";
+import { apiPortfolio } from "@/lib/api";
 
 interface HoldingTableProps {
   holdings: any[];
+  onUpdate?: () => void;
 }
 
-export default function HoldingTable({ holdings }: HoldingTableProps) {
+export default function HoldingTable({ holdings, onUpdate }: HoldingTableProps) {
   const router = useRouter();
+
+  const handleDelete = async (e: React.MouseEvent, symbol: string) => {
+    e.stopPropagation();
+    if (confirm(`確定要刪除 ${symbol} 的所有庫存紀錄嗎？`)) {
+      try {
+        await apiPortfolio.deleteHolding(symbol);
+        if (onUpdate) onUpdate();
+      } catch (err) {
+        console.error("Failed to delete holding", err);
+        alert("刪除失敗");
+      }
+    }
+  };
 
   return (
     <div className="overflow-x-auto">
@@ -36,17 +52,26 @@ export default function HoldingTable({ holdings }: HoldingTableProps) {
                   <div className="font-medium">{h.symbol}</div>
                   <div className="text-xs text-secondary">{h.name}</div>
                 </td>
-                <td className="text-right">{formatNumber(h.avgCost, decimals)}</td>
-                <td className="text-right">{formatNumber(h.qty, 0)}</td>
-                <td className="text-right font-medium">{formatNumber(h.currentPrice, decimals)}</td>
+                <td className="text-right">{formatNumber(h.avg_price || h.avgCost, decimals)}</td>
+                <td className="text-right">{formatNumber(h.shares || h.qty, 0)}</td>
+                <td className="text-right font-medium">{formatNumber(h.current_price || h.currentPrice, decimals)}</td>
                 <td className={`text-right font-medium ${pnlClass}`}>
                   {h.pnl > 0 ? '+' : ''}{formatNumber(h.pnl, decimals)}
                 </td>
                 <td className={`text-right ${pnlClass}`}>
-                  {formatPercent(h.pnlPercent)}
+                  {formatPercent(h.pnl_pct || h.pnlPercent)}
                 </td>
                 <td className="text-right">
-                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); /* open trade modal */ }}>交易</Button>
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); /* open trade modal */ }}>交易</Button>
+                    <button 
+                      onClick={(e) => handleDelete(e, h.symbol)}
+                      className="text-secondary hover:text-danger p-1 rounded-md transition-colors"
+                      title="刪除庫存"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             );

@@ -88,9 +88,9 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
     });
 
     const maOptions = { lineWidth: 1 as const, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false };
-    const ma5Series = chart.addSeries(LineSeries, { color: '#6366f1', title: '5MA', ...maOptions });
-    const ma20Series = chart.addSeries(LineSeries, { color: '#f59e0b', title: '20MA', ...maOptions });
-    const ma60Series = chart.addSeries(LineSeries, { color: '#10b981', title: '60MA', ...maOptions });
+    const ma5Series = chart.addSeries(LineSeries, { color: '#6366f1', ...maOptions });
+    const ma20Series = chart.addSeries(LineSeries, { color: '#f59e0b', ...maOptions });
+    const ma60Series = chart.addSeries(LineSeries, { color: '#10b981', ...maOptions });
 
     chart.subscribeCrosshairMove((param) => {
       if (

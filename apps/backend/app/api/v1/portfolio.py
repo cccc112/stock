@@ -79,3 +79,8 @@ async def get_summary(db=Depends(get_supabase)):
     pnl_usd = sum(h.pnl for h in holdings if h.market == 'US')
     
     return PnLSummary(total_pnl_twd=pnl_twd, total_pnl_usd=pnl_usd)
+
+@router.delete("/holdings/{symbol}")
+async def delete_holding(symbol: str, db=Depends(get_supabase)):
+    res = db.table("portfolio_transactions").delete().eq("symbol", symbol).execute()
+    return {"status": "success", "deleted_symbol": symbol}

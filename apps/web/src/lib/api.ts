@@ -39,6 +39,7 @@ export const apiPortfolio = {
   addTransaction: (data: any) => api.post('/portfolio/transactions', data),
   getTransactions: () => api.get('/portfolio/transactions'),
   getSummary: () => api.get('/portfolio/summary'),
+  deleteHolding: (symbol: string) => api.delete(`/portfolio/holdings/${symbol}`),
 };
 
 export const apiQuant = {
