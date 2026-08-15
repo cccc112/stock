@@ -25,10 +25,10 @@ export default function NewsPage() {
           setNews(res.slice(0, 10));
         } else {
           setNews([
-            { headline: '台積電營收創新高', source: '經濟日報', datetime: Date.now(), url: '#' },
-            { headline: '蘋果發表新一代AI晶片', source: '科技新報', datetime: Date.now() - 3600000, url: '#' },
-            { headline: '輝達財報超乎預期，盤後大漲5%', source: 'Yahoo 財經', datetime: Date.now() - 7200000, url: '#' },
-            { headline: '聯準會維持利率不變', source: 'Bloomberg', datetime: Date.now() - 86400000, url: '#' },
+            { headline: '台積電營收創新高', source: '經濟日報', datetime: Date.now(), url: 'https://money.udn.com/money/index' },
+            { headline: '蘋果發表新一代AI晶片', source: '科技新報', datetime: Date.now() - 3600000, url: 'https://technews.tw/' },
+            { headline: '輝達財報超乎預期，盤後大漲5%', source: 'Yahoo 財經', datetime: Date.now() - 7200000, url: 'https://tw.stock.yahoo.com/' },
+            { headline: '聯準會維持利率不變', source: 'Bloomberg', datetime: Date.now() - 86400000, url: 'https://www.bloomberg.com/' },
           ]);
         }
       } catch (err) {
