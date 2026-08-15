@@ -107,7 +107,7 @@ class SimTradeRequest(BaseModel):
     shares: float
     
 class AIAnalysisRequest(BaseModel):
-    symbol: str
+    symbol: Optional[str] = None
     period: str = "3mo"
     api_key: Optional[str] = None
 
@@ -147,3 +147,4 @@ class QuantAnalysis(BaseModel):
     volume_anomaly: VolumeAnomalyResult
     support_resistance: List[SupportResistanceLevel]
     indicators: Dict[str, Any]
+    strategies: Optional[List[Dict[str, Any]]] = None

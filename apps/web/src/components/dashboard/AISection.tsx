@@ -16,7 +16,7 @@ export default function AISection({ symbol }: { symbol: string }) {
       const res = await apiAi.analyzeStock(symbol);
       setData(res.data);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'AI 分析失敗');
+      setError(err?.response?.data?.detail || err?.response?.data?.message || 'AI 分析失敗，請稍後再試');
     } finally {
       setLoading(false);
     }

@@ -18,17 +18,41 @@ async def get_market_summary(db=Depends(get_supabase)):
     summary = await gemini_service.market_summary()
     return {"summary": summary, "generated_at": datetime.utcnow().isoformat()}
 
+from fastapi import Header
+from typing import Optional
+
 @router.post("/analyze/{symbol}", response_model=AIAnalysisResponse)
-async def analyze_stock(symbol: str, req: AIAnalysisRequest):
+async def analyze_stock(symbol: str, req: AIAnalysisRequest = None, authorization: Optional[str] = Header(None)):
     try:
-        quant_data = await get_full_analysis(symbol, req.period)
+        period = req.period if req else "3mo"
+        api_key = None
+        if req and req.api_key:
+            api_key = req.api_key
+        elif authorization and authorization.startswith("Bearer "):
+            api_key = authorization.replace("Bearer ", "")
+
+        quant_data = await get_full_analysis(symbol, period)
+        
+        # Get recent kline summary
+        from app.services.yahoo import yahoo_service
+        history = yahoo_service.get_history(symbol, period=period)
+        kline_summary = []
+        if history is not None and not history.empty:
+            recent = history.tail(5)
+            kline_summary = recent.reset_index().to_dict('records')
+            # convert timestamps to strings for JSON serializability
+            for row in kline_summary:
+                if 'Date' in row:
+                    row['Date'] = row['Date'].isoformat()
+                elif 'Datetime' in row:
+                    row['Datetime'] = row['Datetime'].isoformat()
         
         analysis = await gemini_service.analyze_stock(
             symbol=symbol,
-            kline_data=[], # omit full kline data to save context, or pass a summary
+            kline_data=kline_summary,
             indicators=quant_data.indicators,
             vap=[v.dict() for v in quant_data.vap],
-            api_key=req.api_key
+            api_key=api_key
         )
         
         return AIAnalysisResponse(
@@ -53,3 +77,19 @@ async def review_trades(portfolio_id: str, db=Depends(get_supabase)):
     )
     
     return {"review": review}
+
+@router.get("/trade-suggestions")
+async def get_trade_suggestions(db=Depends(get_supabase), authorization: Optional[str] = Header(None)):
+    # Get watchlist symbols
+    res = db.table("watchlist").select("symbol").execute()
+    symbols = [r['symbol'] for r in (res.data or [])]
+    if not symbols:
+        symbols = ['2330.TW', '2454.TW', '2317.TW']  # defaults
+    
+    api_key = None
+    if authorization and authorization.startswith("Bearer "):
+        api_key = authorization.replace("Bearer ", "")
+    
+    from app.services.ai_trader import ai_trader
+    suggestions = await ai_trader.generate_suggestions(symbols[:5], api_key=api_key)
+    return {"suggestions": suggestions}

@@ -48,10 +48,47 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
     return <div className="p-8 text-center text-secondary">{error}</div>;
   }
 
-  const { vap, volume_anomaly, support_resistance, indicators } = data;
+  const { vap, volume_anomaly, support_resistance, indicators, strategies } = data;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+    <div className="flex flex-col gap-6 pt-2">
+      {/* 策略訊號 Section */}
+      <div>
+        <h3 className="font-semibold mb-4 text-lg">策略訊號</h3>
+        {strategies && strategies.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {strategies.map((sig: any, i: number) => {
+              const isBuy = sig.direction === 'BUY';
+              const isSell = sig.direction === 'SELL';
+              const borderClass = isBuy ? 'border-up-tw' : isSell ? 'border-down-tw' : 'border-[var(--bg-tertiary)]';
+              const textClass = isBuy ? 'text-up-tw' : isSell ? 'text-down-tw' : 'text-secondary';
+              
+              return (
+                <div key={i} className={`p-4 bg-[var(--bg-tertiary)] border-l-4 rounded-md shadow-sm ${borderClass}`}>
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="font-medium">{sig.strategy}</span>
+                    <span 
+                      className={`px-2 py-1 text-xs rounded-md ${isBuy ? 'bg-up-tw/20 text-up-tw' : isSell ? 'bg-down-tw/20 text-down-tw' : 'bg-secondary/20 text-secondary'}`}
+                    >
+                      {sig.direction === 'BUY' ? '買進' : sig.direction === 'SELL' ? '賣出' : '中立'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-primary mb-3">{sig.description}</p>
+                  <div className="text-xs text-secondary flex justify-between">
+                    <span>信心度: {(sig.confidence * 100).toFixed(0)}%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-sm text-secondary bg-[var(--bg-tertiary)] p-4 rounded-md text-center">
+            目前無觸發訊號
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left Column: VAP & Anomaly */}
       <div className="space-y-6">
         <div>
@@ -168,6 +205,7 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }

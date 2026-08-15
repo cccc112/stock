@@ -47,6 +47,7 @@ export const apiQuant = {
   getVAP: (symbol: string) => api.get(`/quant/${symbol}/vap`),
   scanStock: (symbol: string) => api.get(`/quant/${symbol}/scan`),
   scanAll: () => api.get('/quant/scan/all'),
+  screenStocks: (strategies: string) => api.get('/quant/screen', { params: { strategies } }),
 };
 
 export const apiAlerts = {
@@ -58,8 +59,9 @@ export const apiAlerts = {
 
 export const apiAi = {
   getMarketSummary: () => api.get('/ai/market-summary'),
-  analyzeStock: (symbol: string) => api.post(`/ai/analyze/${symbol}`),
+  analyzeStock: (symbol: string) => api.post(`/ai/analyze/${symbol}`, { symbol, period: '3mo' }),
   reviewTrades: (portfolioId: string) => api.post(`/ai/review/${portfolioId}`),
+  getTradeSuggestions: () => api.get('/ai/trade-suggestions'),
 };
 
 export const apiSimulator = {

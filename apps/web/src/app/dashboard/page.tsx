@@ -3,6 +3,7 @@ import WatchlistPanel from "@/components/dashboard/WatchlistPanel";
 import AlertFeed from "@/components/dashboard/AlertFeed";
 import AIInsightCard from "@/components/dashboard/AIInsightCard";
 import TrendingPanel from "@/components/dashboard/TrendingPanel";
+import AITradeCard from "@/components/dashboard/AITradeCard";
 
 export default function DashboardPage() {
   return (
@@ -20,6 +21,7 @@ export default function DashboardPage() {
           <WatchlistPanel />
         </div>
         <div className="flex flex-col h-full overflow-y-auto pr-2 hide-scrollbar space-y-6">
+          <AITradeCard />
           <AlertFeed />
           <AIInsightCard />
         </div>
