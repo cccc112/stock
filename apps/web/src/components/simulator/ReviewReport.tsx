@@ -1,48 +1,83 @@
-import { Sparkles, CheckCircle, AlertTriangle } from "lucide-react";
+"use client";
+import { useState } from "react";
+import { Sparkles, CheckCircle, AlertTriangle, Loader2 } from "lucide-react";
+import Button from "@/components/ui/Button";
+import { apiSimulator } from "@/lib/api";
 
-export default function ReviewReport() {
+interface ReviewReportProps {
+  portfolioId?: string;
+}
+
+export default function ReviewReport({ portfolioId }: ReviewReportProps) {
+  const [review, setReview] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchReview = async () => {
+    if (!portfolioId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await apiSimulator.requestReview(portfolioId);
+      setReview(data.review || data.analysis || JSON.stringify(data));
+    } catch (e: any) {
+      setError("無法取得 AI 覆盤報告");
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!portfolioId) {
+    return (
+      <div className="text-center py-8 text-secondary">
+        請先選擇一個投資組合
+      </div>
+    );
+  }
+
+  if (!review && !loading) {
+    return (
+      <div className="text-center py-8 space-y-4">
+        <Sparkles size={32} className="mx-auto text-accent" />
+        <p className="text-secondary">讓 AI 幫你分析這個組合的交易表現</p>
+        <Button onClick={fetchReview}>
+          <Sparkles size={14} className="mr-2" /> 開始 AI 覆盤
+        </Button>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="text-center py-12 space-y-4">
+        <Loader2 size={32} className="mx-auto text-accent animate-spin" />
+        <p className="text-secondary">AI 正在分析您的交易紀錄...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8 space-y-4">
+        <p className="text-danger">{error}</p>
+        <Button variant="secondary" onClick={fetchReview}>重試</Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
         <h3 className="text-lg font-semibold flex items-center gap-2 text-accent">
           <Sparkles size={20} /> AI 交易覆盤報告
         </h3>
-        <div className="flex items-center gap-2">
-          <span className="text-secondary text-sm">評分：</span>
-          <span className="text-2xl font-bold text-success">85</span>
-          <span className="text-secondary">/ 100</span>
-        </div>
+        <Button size="sm" variant="ghost" onClick={fetchReview}>重新分析</Button>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg">
-          <h4 className="flex items-center gap-2 text-success font-medium mb-3">
-            <CheckCircle size={18} /> 做得好的地方
-          </h4>
-          <ul className="list-disc list-inside text-sm text-secondary space-y-2">
-            <li>進場點位優良，精準捕捉到突破均線的時機。</li>
-            <li>有考量到籌碼面外資連續買超的因素，邏輯合理。</li>
-            <li>資金控管得宜，單筆交易未超過總資金的 10%。</li>
-          </ul>
-        </div>
-
-        <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg">
-          <h4 className="flex items-center gap-2 text-warning font-medium mb-3">
-            <AlertTriangle size={18} /> 可改善的空間
-          </h4>
-          <ul className="list-disc list-inside text-sm text-secondary space-y-2">
-            <li>未設定明確的停損點，若行情反轉風險較高。</li>
-            <li>出場理由稍顯薄弱，建議配合技術指標(如 KD 死叉)作為輔助。</li>
-          </ul>
-        </div>
-      </div>
-
-      <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg">
-        <h4 className="font-medium mb-2">AI 總評</h4>
-        <p className="text-sm text-secondary leading-relaxed">
-          本次交易邏輯清晰，結合了技術面與籌碼面的優勢。然而在風險控管上仍有進步空間。建議未來在寫下交易理由時，一併設定好預期報酬率與停損點，以維持長期交易的穩定性。
-        </p>
+      <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg prose prose-invert max-w-none text-sm whitespace-pre-wrap leading-relaxed">
+        {review}
       </div>
     </div>
   );
 }
+

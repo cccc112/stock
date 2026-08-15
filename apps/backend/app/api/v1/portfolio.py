@@ -24,10 +24,12 @@ async def get_holdings(db=Depends(get_supabase)):
         if t['type'] == TransactionType.BUY.value:
             holdings_dict[sym]['shares'] += shares
             holdings_dict[sym]['total_cost'] += shares * price
-        else:
-            # simplified sell logic
-            holdings_dict[sym]['shares'] -= shares
-            # adjust total cost proportionately
+        elif t['type'] == TransactionType.SELL.value:
+            sold_shares = float(t['shares'])
+            if holdings_dict[sym]['shares'] > 0:
+                avg = holdings_dict[sym]['total_cost'] / holdings_dict[sym]['shares']
+                holdings_dict[sym]['total_cost'] -= avg * sold_shares
+            holdings_dict[sym]['shares'] -= sold_shares
             
     holdings = []
     for sym, data in holdings_dict.items():

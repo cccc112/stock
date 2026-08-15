@@ -5,6 +5,7 @@ from app.core.deps import get_supabase
 from datetime import datetime
 import uuid
 import httpx
+from app.services.gemini import gemini_service
 
 router = APIRouter()
 
@@ -60,16 +61,49 @@ async def get_transactions(portfolio_id: str, db=Depends(get_supabase)):
 
 @router.get("/{portfolio_id}/performance")
 async def get_performance(portfolio_id: str, db=Depends(get_supabase)):
-    # Calculate performance
-    return {"message": "Performance metrics"}
+    res = db.table("sim_transactions").select("*").eq("portfolio_id", portfolio_id).execute()
+    txs = res.data
+    
+    wins = 0
+    total_trades = 0
+    realized_pnl = 0.0
+    
+    symbols = set(t['symbol'] for t in txs)
+    for sym in symbols:
+        sym_txs = sorted([t for t in txs if t['symbol'] == sym], key=lambda x: x['timestamp'])
+        shares = 0
+        cost = 0.0
+        for t in sym_txs:
+            if t['type'] == 'BUY':
+                shares += t['shares']
+                cost += t['shares'] * t['price']
+            elif t['type'] == 'SELL':
+                if shares > 0:
+                    avg = cost / shares
+                    profit = (t['price'] - avg) * t['shares']
+                    realized_pnl += profit
+                    cost -= avg * t['shares']
+                    shares -= t['shares']
+                    total_trades += 1
+                    if profit > 0:
+                        wins += 1
+                        
+    return {
+        "total_return": realized_pnl,
+        "win_rate": (wins / total_trades * 100) if total_trades > 0 else 0,
+        "max_drawdown": 0.0
+    }
 
 @router.post("/{portfolio_id}/review")
-async def request_review(portfolio_id: str):
-    # This just calls the AI endpoint locally or triggers it
-    async with httpx.AsyncClient() as client:
-        # Simplification: we might just return a note to call the AI endpoint
-        pass
-    return {"message": "Review triggered. Check the AI endpoint."}
+async def request_review(portfolio_id: str, db=Depends(get_supabase)):
+    port_res = db.table("sim_portfolios").select("*").eq("id", portfolio_id).execute()
+    if not port_res.data:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+        
+    tx_res = db.table("sim_transactions").select("*").eq("portfolio_id", portfolio_id).execute()
+    
+    review_text = await gemini_service.review_trades(tx_res.data, port_res.data[0])
+    return {"message": "Review completed", "review": review_text}
 
 @router.put("/{portfolio_id}/toggle_ai", response_model=SimPortfolio)
 async def toggle_ai_auto_trade(portfolio_id: str, db=Depends(get_supabase)):

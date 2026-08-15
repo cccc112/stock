@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Card from "@/components/ui/Card";
 import Link from "next/link";
 import { Search } from "lucide-react";
+import { apiStocks } from "@/lib/api";
 
 const popularStocks = [
   { symbol: '2330', name: '台積電', market: 'TW' },
@@ -17,7 +18,37 @@ const popularStocks = [
 
 export default function StockIndexPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
   const router = useRouter();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiStocks.searchStocks(searchQuery);
+        setSuggestions(Array.isArray(res.data) ? res.data : []);
+        setShowDropdown(true);
+      } catch (e) {
+        console.error(e);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +56,12 @@ export default function StockIndexPage() {
       let symbol = searchQuery.trim().toUpperCase();
       router.push(`/stock/${symbol}`);
     }
+  };
+
+  const handleSelect = (symbol: string) => {
+    setSearchQuery(symbol);
+    setShowDropdown(false);
+    router.push(`/stock/${symbol}`);
   };
 
   return (
@@ -38,10 +75,33 @@ export default function StockIndexPage() {
         <input 
           type="text" 
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setShowDropdown(true);
+          }}
+          onFocus={() => {
+            if (suggestions.length > 0) setShowDropdown(true);
+          }}
           placeholder="輸入股票代號或名稱 (e.g. 2330, AAPL)" 
           className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] rounded-full py-4 pl-12 pr-6 text-lg focus:outline-none focus:border-accent transition-colors shadow-lg"
         />
+        {showDropdown && suggestions.length > 0 && (
+          <div ref={dropdownRef} className="absolute z-10 w-full mt-2 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-xl shadow-xl overflow-hidden">
+            {suggestions.map((s: any) => (
+              <div 
+                key={s.symbol}
+                className="px-4 py-3 hover:bg-[var(--bg-secondary)] cursor-pointer flex justify-between items-center border-b border-[var(--border)] last:border-0"
+                onClick={() => handleSelect(s.symbol)}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-bold">{s.symbol}</span>
+                  <span className="text-secondary">{s.name}</span>
+                </div>
+                <span className="text-xs bg-[var(--bg-primary)] px-2 py-1 rounded text-secondary">{s.market}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <button type="submit" className="hidden">Search</button>
       </form>
 

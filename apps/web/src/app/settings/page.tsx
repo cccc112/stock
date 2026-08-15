@@ -1,8 +1,33 @@
 "use client";
+import { useState, useEffect } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 
 export default function SettingsPage() {
+  const [apiKey, setApiKey] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
+  const [clearMessage, setClearMessage] = useState("");
+
+  useEffect(() => {
+    const key = localStorage.getItem("byok_api_key");
+    if (key) setApiKey(key);
+  }, []);
+
+  const handleSave = () => {
+    localStorage.setItem("byok_api_key", apiKey);
+    setSaveMessage("設定已儲存");
+    setTimeout(() => setSaveMessage(""), 2000);
+  };
+
+  const handleClearCache = () => {
+    if (confirm("確定要清除所有本地快取嗎？這將會清除您所有的設定與偏好。")) {
+      localStorage.removeItem("watchlist_symbols");
+      // Don't remove API key here, or maybe do depending on design. But just generally local cache.
+      setClearMessage("快取已清除");
+      setTimeout(() => setClearMessage(""), 2000);
+    }
+  };
+
   return (
     <div className="animate-fade-in max-w-3xl mx-auto space-y-6">
       <div className="mb-6">
@@ -19,9 +44,14 @@ export default function SettingsPage() {
               type="password" 
               className="input-field max-w-md" 
               placeholder="sk-..." 
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
             />
           </div>
-          <Button size="sm">儲存設定</Button>
+          <div className="flex items-center gap-4">
+            <Button size="sm" onClick={handleSave}>儲存設定</Button>
+            {saveMessage && <span className="text-success text-sm">{saveMessage}</span>}
+          </div>
         </div>
       </Card>
 
@@ -31,7 +61,10 @@ export default function SettingsPage() {
             <div className="font-medium">清除本地快取</div>
             <div className="text-xs text-secondary">清除瀏覽器中儲存的歷史報價與系統設定。</div>
           </div>
-          <Button variant="danger" size="sm">清除快取</Button>
+          <div className="flex items-center gap-4">
+            {clearMessage && <span className="text-success text-sm">{clearMessage}</span>}
+            <Button variant="danger" size="sm" onClick={handleClearCache}>清除快取</Button>
+          </div>
         </div>
       </Card>
       

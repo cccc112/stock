@@ -1,14 +1,33 @@
 "use client";
 import Card from "@/components/ui/Card";
 import { RefreshCw, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { apiAi } from "@/lib/api";
 
 export default function AIInsightCard() {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<any>(null);
+  const [error, setError] = useState('');
   
-  const refresh = () => {
+  const fetchData = async () => {
     setLoading(true);
-    setTimeout(() => setLoading(false), 1500);
+    setError('');
+    try {
+      const res = await apiAi.getMarketSummary();
+      setData(res.data);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || '無法取得 AI 盤勢診斷');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const refresh = () => {
+    fetchData();
   };
 
   return (
@@ -28,13 +47,15 @@ export default function AIInsightCard() {
             <div className="h-4 w-5/6 bg-[var(--bg-tertiary)] animate-pulse rounded" />
             <div className="h-4 w-4/6 bg-[var(--bg-tertiary)] animate-pulse rounded" />
           </div>
-        ) : (
+        ) : error ? (
+          <div className="text-danger">{error}</div>
+        ) : data ? (
           <div>
-            <p className="mb-2"><strong>台股分析：</strong> 今日加權指數呈現震盪整理，電子權值股互有漲跌。外資期貨空單仍高，建議保守操作，留意季線支撐。</p>
-            <p className="mb-2"><strong>美股分析：</strong> 科技股受 AI 財報利多激勵，納斯達克創短期新高。通膨數據降溫提升降息預期。</p>
-            <p className="mt-4 text-xs text-muted text-right">最後更新: 10:15 AM</p>
+            <p className="mb-2"><strong>台股分析：</strong> {data.twMarket || '無資料'}</p>
+            <p className="mb-2"><strong>美股分析：</strong> {data.usMarket || '無資料'}</p>
+            <p className="mt-4 text-xs text-muted text-right">最後更新: {new Date(data.updatedAt || Date.now()).toLocaleTimeString()}</p>
           </div>
-        )}
+        ) : null}
       </div>
     </Card>
   );

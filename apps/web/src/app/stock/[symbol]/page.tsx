@@ -13,6 +13,7 @@ import QuantDashboard from "@/components/dashboard/QuantDashboard";
 import NewsSection from "@/components/dashboard/NewsSection";
 import InstitutionalSection from "@/components/dashboard/InstitutionalSection";
 import TransactionForm from "@/components/portfolio/TransactionForm";
+import AISection from "@/components/dashboard/AISection";
 
 const CandlestickChart = dynamic(() => import('@/components/charts/CandlestickChart'), { ssr: false });
 
@@ -168,19 +169,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                 {
                   id: 'ai',
                   label: 'AI 診斷',
-                  content: (
-                    <div className="pt-2">
-                      <div className="flex justify-between items-center mb-6">
-                        <div className="flex items-center gap-2 text-accent font-semibold">
-                          <Sparkles size={20} /> AI 深度解析
-                        </div>
-                        <Button size="sm"><Sparkles size={14} className="mr-2"/> 重新生成</Button>
-                      </div>
-                      <div className="prose prose-invert max-w-none text-sm bg-[var(--bg-tertiary)] p-6 rounded-lg">
-                        <p>AI 分析功能開發中，敬請期待。</p>
-                      </div>
-                    </div>
-                  )
+                  content: <AISection symbol={symbol} />
                 },
                 {
                   id: 'news',

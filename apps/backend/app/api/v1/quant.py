@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from app.core.deps import get_supabase
 from app.models.schemas import QuantAnalysis, VAPResult, VolumeAnomalyResult, SupportResistanceLevel
 from app.services.yahoo import yahoo_service
 from app.quant.vap import calculate_vap
@@ -51,7 +52,19 @@ async def scan_anomaly(symbol: str):
     df = get_df(symbol, "3mo")
     return detect_volume_anomaly(df)
 
-@router.get("/scan/all")
-async def scan_all():
-    # In a real scenario, this would iterate through watchlist
-    return {"message": "Not fully implemented. Requires watchlist fetching."}
+@router.get("/scan/all", response_model=list[VolumeAnomalyResult])
+async def scan_all(db=Depends(get_supabase)):
+    res = db.table("watchlist").select("symbol").execute()
+    symbols = [r["symbol"] for r in res.data]
+    
+    results = []
+    for sym in symbols:
+        try:
+            df = get_df(sym, "3mo")
+            anomaly = detect_volume_anomaly(df)
+            if anomaly.type.value != "NORMAL":
+                results.append(anomaly)
+        except Exception:
+            continue
+            
+    return results

@@ -63,14 +63,42 @@ app.include_router(market.router, prefix="/api/v1/market", tags=["market"])
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
+    subscribed_symbols = []
+    
+    async def send_quotes():
+        while True:
+            if subscribed_symbols:
+                quotes = []
+                for sym in subscribed_symbols:
+                    try:
+                        from app.api.v1.stocks import get_quote
+                        q = await get_quote(sym)
+                        if q:
+                            quotes.append(q.dict())
+                    except Exception:
+                        pass
+                if quotes:
+                    try:
+                        await websocket.send_json({"type": "quotes", "data": quotes})
+                    except Exception:
+                        break
+            await asyncio.sleep(10)
+            
+    task = asyncio.create_task(send_quotes())
+    
     try:
         while True:
-            # Simple ping-pong or receive subscription commands
             data = await websocket.receive_text()
-            # For demonstration, echo back
-            await websocket.send_text(f"Message received: {data}")
+            try:
+                symbols = json.loads(data)
+                if isinstance(symbols, list):
+                    subscribed_symbols = symbols
+            except Exception:
+                pass
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+    finally:
+        task.cancel()
 
 @app.get("/health")
 async def health_check():

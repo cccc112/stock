@@ -1,5 +1,6 @@
 import httpx
 import json
+import asyncio
 from datetime import datetime
 from typing import List, Optional
 from app.models.schemas import StockQuote, OrderBook, OrderBookEntry, MarketType
@@ -99,6 +100,10 @@ class TWSEService:
             return None
 
     async def fetch_all_quotes(self) -> List[StockQuote]:
-        return []
+        symbols = ["2330.TW", "2317.TW", "2454.TW", "2308.TW", "2881.TW", "2882.TW", "2891.TW", "2002.TW", "1216.TW", "1301.TW"]
+        tasks = [self.fetch_realtime_quote(sym) for sym in symbols]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        quotes = [res for res in results if isinstance(res, StockQuote)]
+        return quotes
 
 twse_service = TWSEService()

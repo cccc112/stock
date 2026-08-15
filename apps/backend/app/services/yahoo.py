@@ -64,8 +64,23 @@ class YahooFinanceService:
         except Exception:
             return None
 
-    def search(self, query: str) -> List[Dict]:
-        # yfinance doesn't have a direct search, so this might just be a stub
-        return [{"symbol": query, "name": query, "market": MarketType.US}]
+    def search(self, query: str) -> list:
+        import requests
+        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={query}&quotesCount=10&newsCount=0"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        try:
+            resp = requests.get(url, headers=headers, timeout=5)
+            data = resp.json()
+            results = []
+            for q in data.get("quotes", []):
+                symbol = q.get("symbol", "")
+                name = q.get("shortname", q.get("longname", ""))
+                market = "TW" if symbol.endswith(".TW") or symbol.endswith(".TWO") else "US"
+                # Strip .TW/.TWO suffix for display
+                display_symbol = symbol.replace(".TW", "").replace(".TWO", "")
+                results.append({"symbol": display_symbol, "name": name, "market": market})
+            return results
+        except Exception:
+            return []
 
 yahoo_service = YahooFinanceService()
