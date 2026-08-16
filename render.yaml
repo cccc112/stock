@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: stock-backend
+    env: python
+    buildCommand: "cd apps/backend && pip install -r requirements.txt"
+    startCommand: "cd apps/backend && uvicorn app.main:app --host 0.0.0.0 --port 10000"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
