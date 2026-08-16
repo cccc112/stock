@@ -148,3 +148,8 @@ class QuantAnalysis(BaseModel):
     support_resistance: List[SupportResistanceLevel]
     indicators: Dict[str, Any]
     strategies: Optional[List[Dict[str, Any]]] = None
+
+class QuantScreenRequest(BaseModel):
+    strategies: str = ""
+    symbols: List[str] = []
+    params: Dict[str, Any] = {}

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from app.core.deps import get_supabase
-from app.models.schemas import QuantAnalysis, VAPResult, VolumeAnomalyResult, SupportResistanceLevel
+from app.models.schemas import QuantAnalysis, VAPResult, VolumeAnomalyResult, SupportResistanceLevel, QuantScreenRequest
 from app.services.yahoo import yahoo_service
 from app.quant.vap import calculate_vap
 from app.quant.volume_anomaly import detect_volume_anomaly
@@ -73,15 +73,18 @@ async def scan_all(db=Depends(get_supabase)):
             
     return results
 
-@router.get("/screen")
-async def screen_stocks(strategies: str = "", db=Depends(get_supabase)):
+@router.post("/screen")
+async def screen_stocks(req: QuantScreenRequest, db=Depends(get_supabase)):
     """Screen stocks by strategy. strategies is comma-separated list."""
-    res = db.table("watchlist").select("symbol").execute()
-    symbols = [r["symbol"] for r in (res.data or [])]
-    if not symbols:
-        symbols = ['2330.TW', '2454.TW', '2317.TW'] # defaults
+    if req.symbols and len(req.symbols) > 0:
+        symbols = req.symbols
+    else:
+        res = db.table("watchlist").select("symbol").execute()
+        symbols = [r["symbol"] for r in (res.data or [])]
+        if not symbols:
+            symbols = ['2330.TW', '2454.TW', '2317.TW'] # defaults
         
-    filter_strategies = [s.strip().lower() for s in strategies.split(",") if s.strip()]
+    filter_strategies = [s.strip().lower() for s in req.strategies.split(",") if s.strip()]
     
     results = []
     for sym in symbols:
@@ -92,7 +95,7 @@ async def screen_stocks(strategies: str = "", db=Depends(get_supabase)):
                 continue
             df = pd.DataFrame([b.dict() if hasattr(b, 'dict') else b for b in bars])
             
-            signals = run_all_strategies(df)
+            signals = run_all_strategies(df, req.params)
             
             matched_signals = []
             for sig in signals:

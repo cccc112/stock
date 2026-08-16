@@ -47,7 +47,7 @@ export const apiQuant = {
   getVAP: (symbol: string) => api.get(`/quant/${symbol}/vap`),
   scanStock: (symbol: string) => api.get(`/quant/${symbol}/scan`),
   scanAll: () => api.get('/quant/scan/all'),
-  screenStocks: (strategies: string) => api.get('/quant/screen', { params: { strategies } }),
+  screenStocks: (data: { strategies: string, symbols: string[], params: any }) => api.post('/quant/screen', data),
 };
 
 export const apiAlerts = {

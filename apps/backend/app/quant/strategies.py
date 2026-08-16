@@ -23,11 +23,16 @@ class StrategySignal:
             "description": self.description
         }
 
-def detect_golden_death_cross(df: pd.DataFrame) -> Optional[StrategySignal]:
-    if len(df) < 60: return None
-    ma5 = df['close'].rolling(5).mean()
-    ma20 = df['close'].rolling(20).mean()
-    ma60 = df['close'].rolling(60).mean()
+def detect_golden_death_cross(df: pd.DataFrame, params: dict = None) -> Optional[StrategySignal]:
+    params = params or {}
+    ma_short = params.get('ma_short', 5)
+    ma_mid = params.get('ma_mid', 20)
+    ma_long = params.get('ma_long', 60)
+    
+    if len(df) < ma_long: return None
+    ma5 = df['close'].rolling(ma_short).mean()
+    ma20 = df['close'].rolling(ma_mid).mean()
+    ma60 = df['close'].rolling(ma_long).mean()
 
     cross_5_20 = None
     for i in range(-3, 0):
@@ -53,12 +58,18 @@ def detect_golden_death_cross(df: pd.DataFrame) -> Optional[StrategySignal]:
         return StrategySignal("均線交叉", SignalDirection.SELL, 0.6, "MA5 跌破 MA20 (死亡交叉)")
     return None
 
-def detect_ma_alignment(df: pd.DataFrame) -> Optional[StrategySignal]:
-    if len(df) < 60: return None
-    ma5 = df['close'].rolling(5).mean().iloc[-1]
-    ma10 = df['close'].rolling(10).mean().iloc[-1]
-    ma20 = df['close'].rolling(20).mean().iloc[-1]
-    ma60 = df['close'].rolling(60).mean().iloc[-1]
+def detect_ma_alignment(df: pd.DataFrame, params: dict = None) -> Optional[StrategySignal]:
+    params = params or {}
+    ma_short = params.get('ma_short', 5)
+    ma_mid1 = params.get('ma_mid1', 10)
+    ma_mid2 = params.get('ma_mid2', 20)
+    ma_long = params.get('ma_long', 60)
+
+    if len(df) < ma_long: return None
+    ma5 = df['close'].rolling(ma_short).mean().iloc[-1]
+    ma10 = df['close'].rolling(ma_mid1).mean().iloc[-1]
+    ma20 = df['close'].rolling(ma_mid2).mean().iloc[-1]
+    ma60 = df['close'].rolling(ma_long).mean().iloc[-1]
 
     if ma5 > ma10 > ma20 > ma60:
         return StrategySignal("均線排列", SignalDirection.BUY, 0.7, "均線多頭排列 (5>10>20>60)，趨勢偏多")
@@ -66,12 +77,17 @@ def detect_ma_alignment(df: pd.DataFrame) -> Optional[StrategySignal]:
         return StrategySignal("均線排列", SignalDirection.SELL, 0.7, "均線空頭排列 (5<10<20<60)，趨勢偏空")
     return None
 
-def detect_macd_divergence(df: pd.DataFrame) -> Optional[StrategySignal]:
+def detect_macd_divergence(df: pd.DataFrame, params: dict = None) -> Optional[StrategySignal]:
+    params = params or {}
+    macd_fast = params.get('macd_fast', 12)
+    macd_slow = params.get('macd_slow', 26)
+    macd_signal = params.get('macd_signal', 9)
+
     if len(df) < 30: return None
-    ema_fast = df['close'].ewm(span=12, adjust=False).mean()
-    ema_slow = df['close'].ewm(span=26, adjust=False).mean()
+    ema_fast = df['close'].ewm(span=macd_fast, adjust=False).mean()
+    ema_slow = df['close'].ewm(span=macd_slow, adjust=False).mean()
     macd = ema_fast - ema_slow
-    signal_line = macd.ewm(span=9, adjust=False).mean()
+    signal_line = macd.ewm(span=macd_signal, adjust=False).mean()
     hist = macd - signal_line
 
     prices = df['close'].values[-20:]
@@ -88,13 +104,16 @@ def detect_macd_divergence(df: pd.DataFrame) -> Optional[StrategySignal]:
         return StrategySignal("MACD 背離", SignalDirection.BUY, 0.75, "MACD 底背離：價格創低但 MACD 柱狀體走高")
     return None
 
-def detect_bollinger_squeeze(df: pd.DataFrame) -> Optional[StrategySignal]:
-    if len(df) < 20: return None
-    period = 20
-    middle = df['close'].rolling(window=period).mean()
-    std_dev = df['close'].rolling(window=period).std()
-    upper = middle + (std_dev * 2)
-    lower = middle - (std_dev * 2)
+def detect_bollinger_squeeze(df: pd.DataFrame, params: dict = None) -> Optional[StrategySignal]:
+    params = params or {}
+    boll_period = params.get('boll_period', 20)
+    boll_std = params.get('boll_std', 2)
+
+    if len(df) < boll_period: return None
+    middle = df['close'].rolling(window=boll_period).mean()
+    std_dev = df['close'].rolling(window=boll_period).std()
+    upper = middle + (std_dev * boll_std)
+    lower = middle - (std_dev * boll_std)
     
     bandwidth = (upper - lower) / middle
     bw_min = bandwidth.rolling(window=20).min().iloc[-1]
@@ -106,9 +125,14 @@ def detect_bollinger_squeeze(df: pd.DataFrame) -> Optional[StrategySignal]:
             return StrategySignal("布林擠壓", SignalDirection.BUY, 0.85, "布林通道收斂至 20 日新低後，帶量突破上軌")
     return None
 
-def detect_kdj_cross(df: pd.DataFrame) -> Optional[StrategySignal]:
-    if len(df) < 9: return None
-    n, m1, m2 = 9, 3, 3
+def detect_kdj_cross(df: pd.DataFrame, params: dict = None) -> Optional[StrategySignal]:
+    params = params or {}
+    kdj_n = params.get('kdj_n', 9)
+    kdj_m1 = params.get('kdj_m1', 3)
+    kdj_m2 = params.get('kdj_m2', 3)
+
+    if len(df) < kdj_n: return None
+    n, m1, m2 = kdj_n, kdj_m1, kdj_m2
     low_min = df['low'].rolling(window=n).min()
     high_max = df['high'].rolling(window=n).max()
     rsv = (df['close'] - low_min) / (high_max - low_min) * 100
@@ -126,9 +150,12 @@ def detect_kdj_cross(df: pd.DataFrame) -> Optional[StrategySignal]:
         
     return None
 
-def detect_volume_breakout(df: pd.DataFrame) -> Optional[StrategySignal]:
-    if len(df) < 50: return None
-    vol_ma50 = df['volume'].rolling(50).mean().iloc[-1]
+def detect_volume_breakout(df: pd.DataFrame, params: dict = None) -> Optional[StrategySignal]:
+    params = params or {}
+    vol_ma = params.get('vol_ma', 50)
+
+    if len(df) < vol_ma: return None
+    vol_ma50 = df['volume'].rolling(vol_ma).mean().iloc[-1]
     prev_high = df['high'].iloc[-20:-1].max()
     
     is_bullish = df['close'].iloc[-1] > df['open'].iloc[-1]
@@ -137,11 +164,11 @@ def detect_volume_breakout(df: pd.DataFrame) -> Optional[StrategySignal]:
         return StrategySignal("爆量突破", SignalDirection.BUY, 0.8, "成交量大於 50 日均量 2 倍，且收紅 K 突破波段高點")
     return None
 
-def run_all_strategies(df: pd.DataFrame) -> List[Dict[str, Any]]:
+def run_all_strategies(df: pd.DataFrame, params: dict = None) -> List[Dict[str, Any]]:
     signals = []
     for detect_fn in [detect_golden_death_cross, detect_ma_alignment, detect_macd_divergence, detect_bollinger_squeeze, detect_kdj_cross, detect_volume_breakout]:
         try:
-            result = detect_fn(df)
+            result = detect_fn(df, params)
             if result:
                 signals.append(result.to_dict())
         except Exception:
