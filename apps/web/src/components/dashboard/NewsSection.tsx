@@ -37,13 +37,15 @@ export default function NewsSection({ symbol }: { symbol: string }) {
           <a key={i} href={searchLink} target="_blank" rel="noopener noreferrer" className="block p-4 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/80 border border-transparent hover:border-accent/50 transition-all group">
             <div className="flex justify-between items-start gap-4">
               <div>
-                <h3 className="font-semibold text-primary group-hover:text-accent transition-colors mb-1">{item.title}</h3>
+                <h3 className="font-semibold text-primary group-hover:text-accent transition-colors mb-2">{item.title}</h3>
                 <div className="text-xs text-secondary flex gap-3">
                   <span>{item.source}</span>
                   <span>{new Date(item.date).toLocaleDateString()}</span>
                 </div>
               </div>
-              <ExternalLink size={16} className="text-secondary group-hover:text-accent flex-shrink-0" />
+              <div className="flex items-center gap-1 text-accent text-xs font-medium whitespace-nowrap opacity-80 group-hover:opacity-100 transition-opacity bg-accent/10 px-2 py-1 rounded">
+                閱讀新聞 <ExternalLink size={14} />
+              </div>
             </div>
           </a>
         );
