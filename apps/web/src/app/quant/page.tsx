@@ -240,18 +240,55 @@ export default function QuantScreenerPage() {
         </div>
 
         {showParams && (
-          <div className="mt-4 pt-4 border-t border-[var(--border)] grid grid-cols-2 md:grid-cols-5 gap-4">
-            {Object.entries(params).map(([key, val]) => (
-              <div key={key} className="flex flex-col gap-1">
-                <label className="text-xs text-secondary">{key}</label>
-                <input 
-                  type="number" 
-                  value={val}
-                  onChange={e => setParams({...params, [key]: Number(e.target.value)})}
-                  className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm text-primary w-full outline-none focus:border-accent"
-                />
+          <div className="mt-4 pt-4 border-t border-[var(--border)] space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-secondary">快捷參數:</span>
+              <div className="flex flex-wrap gap-2">
+                <button 
+                  onClick={() => setParams({ ma_short: 5, ma_mid: 20, ma_long: 60, macd_fast: 12, macd_slow: 26, macd_signal: 9, boll_period: 20, boll_std: 2, kdj_n: 9, vol_ma: 50 })}
+                  className="text-xs px-3 py-1 rounded bg-[var(--bg-tertiary)] hover:bg-accent hover:text-white transition-colors border border-[var(--border)]"
+                >
+                  預設 (波段)
+                </button>
+                <button 
+                  onClick={() => setParams({ ma_short: 3, ma_mid: 5, ma_long: 10, macd_fast: 5, macd_slow: 10, macd_signal: 5, boll_period: 10, boll_std: 2, kdj_n: 5, vol_ma: 20 })}
+                  className="text-xs px-3 py-1 rounded bg-[var(--bg-tertiary)] hover:bg-accent hover:text-white transition-colors border border-[var(--border)]"
+                >
+                  極短線 (當沖/隔日沖)
+                </button>
+                <button 
+                  onClick={() => setParams({ ma_short: 20, ma_mid: 60, ma_long: 120, macd_fast: 26, macd_slow: 52, macd_signal: 18, boll_period: 60, boll_std: 2, kdj_n: 18, vol_ma: 120 })}
+                  className="text-xs px-3 py-1 rounded bg-[var(--bg-tertiary)] hover:bg-accent hover:text-white transition-colors border border-[var(--border)]"
+                >
+                  長線 (存股/趨勢)
+                </button>
               </div>
-            ))}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              {[
+                { key: 'ma_short', label: '短均線 (日)' },
+                { key: 'ma_mid', label: '中均線 (日)' },
+                { key: 'ma_long', label: '長均線 (日)' },
+                { key: 'vol_ma', label: '均量線 (日)' },
+                { key: 'boll_period', label: '布林週期' },
+                { key: 'boll_std', label: '布林標準差' },
+                { key: 'macd_fast', label: 'MACD 快線' },
+                { key: 'macd_slow', label: 'MACD 慢線' },
+                { key: 'macd_signal', label: 'MACD 訊號' },
+                { key: 'kdj_n', label: 'KDJ 週期' }
+              ].map(({ key, label }) => (
+                <div key={key} className="flex flex-col gap-1">
+                  <label className="text-xs text-secondary">{label}</label>
+                  <input 
+                    type="number" 
+                    value={(params as any)[key]}
+                    onChange={e => setParams({...params, [key]: Number(e.target.value)})}
+                    className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm text-primary w-full outline-none focus:border-accent transition-colors"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </Card>
