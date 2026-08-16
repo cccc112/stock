@@ -77,4 +77,9 @@ export const apiMarket = {
   getPopularETFs: () => api.get('/market/etfs'),
 };
 
+export const apiInstitutions = {
+  getTw: () => api.get('/institutions/tw'),
+  getUs13F: () => api.get('/institutions/us/13f'),
+};
+
 export default api;

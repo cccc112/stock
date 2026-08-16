@@ -5,7 +5,7 @@ import asyncio
 import json
 
 from app.services.cache import cache_service
-from app.api.v1 import stocks, watchlist, portfolio, quant, alerts, ai, simulator, market
+from app.api.v1 import stocks, watchlist, portfolio, quant, alerts, ai, simulator, market, institutions
 
 # Initialize application state
 class ConnectionManager:
@@ -59,6 +59,7 @@ app.include_router(alerts.router, prefix="/api/v1/alerts", tags=["alerts"])
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
 app.include_router(simulator.router, prefix="/api/v1/simulator", tags=["simulator"])
 app.include_router(market.router, prefix="/api/v1/market", tags=["market"])
+app.include_router(institutions.router, prefix="/api/v1/institutions", tags=["Institutions"])
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
