@@ -37,15 +37,13 @@ async def analyze_stock(symbol: str, req: AIAnalysisRequest = None, authorizatio
         from app.services.yahoo import yahoo_service
         history = yahoo_service.get_history(symbol, period=period)
         kline_summary = []
-        if history is not None and not history.empty:
-            recent = history.tail(5)
-            kline_summary = recent.reset_index().to_dict('records')
+        if history is not None and len(history) > 0:
+            recent = history[-5:]
+            kline_summary = [b.dict() for b in recent]
             # convert timestamps to strings for JSON serializability
             for row in kline_summary:
-                if 'Date' in row:
-                    row['Date'] = row['Date'].isoformat()
-                elif 'Datetime' in row:
-                    row['Datetime'] = row['Datetime'].isoformat()
+                if 'time' in row:
+                    row['time'] = row['time'].isoformat()
         
         analysis = await gemini_service.analyze_stock(
             symbol=symbol,

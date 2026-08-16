@@ -44,13 +44,13 @@ def detect_golden_death_cross(df: pd.DataFrame) -> Optional[StrategySignal]:
             cross_20_60 = "DEATH"
 
     if cross_5_20 == "GOLDEN" and cross_20_60 == "GOLDEN":
-        return StrategySignal("Golden/Death Cross", SignalDirection.BUY, 0.8, "MA5 crossed MA20 and MA20 crossed MA60 upwards")
+        return StrategySignal("均線交叉", SignalDirection.BUY, 0.8, "MA5 突破 MA20 且 MA20 突破 MA60 (雙重黃金交叉)")
     elif cross_5_20 == "DEATH" and cross_20_60 == "DEATH":
-        return StrategySignal("Golden/Death Cross", SignalDirection.SELL, 0.8, "MA5 crossed MA20 and MA20 crossed MA60 downwards")
+        return StrategySignal("均線交叉", SignalDirection.SELL, 0.8, "MA5 跌破 MA20 且 MA20 跌破 MA60 (雙重死亡交叉)")
     elif cross_5_20 == "GOLDEN":
-        return StrategySignal("Golden/Death Cross", SignalDirection.BUY, 0.6, "MA5 crossed MA20 upwards")
+        return StrategySignal("均線交叉", SignalDirection.BUY, 0.6, "MA5 突破 MA20 (黃金交叉)")
     elif cross_5_20 == "DEATH":
-        return StrategySignal("Golden/Death Cross", SignalDirection.SELL, 0.6, "MA5 crossed MA20 downwards")
+        return StrategySignal("均線交叉", SignalDirection.SELL, 0.6, "MA5 跌破 MA20 (死亡交叉)")
     return None
 
 def detect_ma_alignment(df: pd.DataFrame) -> Optional[StrategySignal]:
@@ -61,9 +61,9 @@ def detect_ma_alignment(df: pd.DataFrame) -> Optional[StrategySignal]:
     ma60 = df['close'].rolling(60).mean().iloc[-1]
 
     if ma5 > ma10 > ma20 > ma60:
-        return StrategySignal("MA Alignment", SignalDirection.BUY, 0.7, "Bullish MA alignment (5>10>20>60)")
+        return StrategySignal("均線排列", SignalDirection.BUY, 0.7, "均線多頭排列 (5>10>20>60)，趨勢偏多")
     elif ma5 < ma10 < ma20 < ma60:
-        return StrategySignal("MA Alignment", SignalDirection.SELL, 0.7, "Bearish MA alignment (5<10<20<60)")
+        return StrategySignal("均線排列", SignalDirection.SELL, 0.7, "均線空頭排列 (5<10<20<60)，趨勢偏空")
     return None
 
 def detect_macd_divergence(df: pd.DataFrame) -> Optional[StrategySignal]:
@@ -83,9 +83,9 @@ def detect_macd_divergence(df: pd.DataFrame) -> Optional[StrategySignal]:
     h_min_idx = np.argmin(hists)
 
     if p_max_idx > h_max_idx and prices[-1] >= prices[p_max_idx] * 0.99 and hists[-1] < hists[h_max_idx]:
-        return StrategySignal("MACD Divergence", SignalDirection.SELL, 0.75, "Bearish divergence: price high but MACD lower")
+        return StrategySignal("MACD 背離", SignalDirection.SELL, 0.75, "MACD 頂背離：價格創高但 MACD 柱狀體走低")
     elif p_min_idx > h_min_idx and prices[-1] <= prices[p_min_idx] * 1.01 and hists[-1] > hists[h_min_idx]:
-        return StrategySignal("MACD Divergence", SignalDirection.BUY, 0.75, "Bullish divergence: price low but MACD higher")
+        return StrategySignal("MACD 背離", SignalDirection.BUY, 0.75, "MACD 底背離：價格創低但 MACD 柱狀體走高")
     return None
 
 def detect_bollinger_squeeze(df: pd.DataFrame) -> Optional[StrategySignal]:
@@ -103,7 +103,7 @@ def detect_bollinger_squeeze(df: pd.DataFrame) -> Optional[StrategySignal]:
 
     if bandwidth.iloc[-1] <= bw_min * 1.05:
         if df['close'].iloc[-1] > upper.iloc[-1] and df['volume'].iloc[-1] > avg_vol * 1.5:
-            return StrategySignal("Bollinger Squeeze", SignalDirection.BUY, 0.85, "Bandwidth at 20d low and price broke upper band with volume")
+            return StrategySignal("布林擠壓", SignalDirection.BUY, 0.85, "布林通道收斂至 20 日新低後，帶量突破上軌")
     return None
 
 def detect_kdj_cross(df: pd.DataFrame) -> Optional[StrategySignal]:
@@ -117,12 +117,12 @@ def detect_kdj_cross(df: pd.DataFrame) -> Optional[StrategySignal]:
     d = k.ewm(com=m2-1, adjust=False).mean()
     
     if k.iloc[-2] < d.iloc[-2] and k.iloc[-1] > d.iloc[-1] and k.iloc[-1] < 20:
-        return StrategySignal("KDJ Cross", SignalDirection.BUY, 0.8, "K crossed D upwards in oversold zone")
+        return StrategySignal("KDJ 交叉", SignalDirection.BUY, 0.8, "K 值於超賣區 (<20) 突破 D 值，形成黃金交叉")
     elif k.iloc[-2] > d.iloc[-2] and k.iloc[-1] < d.iloc[-1] and k.iloc[-1] > 80:
-        return StrategySignal("KDJ Cross", SignalDirection.SELL, 0.8, "K crossed D downwards in overbought zone")
+        return StrategySignal("KDJ 交叉", SignalDirection.SELL, 0.8, "K 值於超買區 (>80) 跌破 D 值，形成死亡交叉")
         
     if all(val > 80 for val in k.values[-3:]):
-        return StrategySignal("KDJ Cross", SignalDirection.SELL, 0.6, "K stalling > 80 for 3 days")
+        return StrategySignal("KDJ 交叉", SignalDirection.SELL, 0.6, "K 值連續 3 日於超買區 (>80) 鈍化，留意高檔反轉風險")
         
     return None
 
@@ -134,7 +134,7 @@ def detect_volume_breakout(df: pd.DataFrame) -> Optional[StrategySignal]:
     is_bullish = df['close'].iloc[-1] > df['open'].iloc[-1]
     
     if df['volume'].iloc[-1] > vol_ma50 * 2 and df['close'].iloc[-1] > prev_high and is_bullish:
-        return StrategySignal("Volume Breakout", SignalDirection.BUY, 0.8, "Volume > 2x 50d MA and broke recent high with bullish candle")
+        return StrategySignal("爆量突破", SignalDirection.BUY, 0.8, "成交量大於 50 日均量 2 倍，且收紅 K 突破波段高點")
     return None
 
 def run_all_strategies(df: pd.DataFrame) -> List[Dict[str, Any]]:
