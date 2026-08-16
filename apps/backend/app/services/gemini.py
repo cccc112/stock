@@ -9,6 +9,8 @@ class GeminiService:
         
     async def analyze_stock(self, symbol: str, kline_data: list, indicators: dict, vap: list, api_key: str = None) -> str:
         client = genai.Client(api_key=api_key) if api_key else self.client
+        if not client:
+            raise ValueError("未提供 Gemini API Key。請在系統設定中輸入您的 API Key (BYOK) 以啟用 AI 功能。")
         
         prompt = f"""You are a professional stock analyst. Analyze {symbol}.
         Market Data: {len(kline_data)} recent bars.
@@ -26,6 +28,8 @@ class GeminiService:
         
     async def market_summary(self, api_key: str = None) -> str:
         client = genai.Client(api_key=api_key) if api_key else self.client
+        if not client:
+            raise ValueError("未提供 Gemini API Key。請在系統設定中輸入您的 API Key (BYOK) 以啟用 AI 功能。")
         
         prompt = "Analyze overall TW/US market conditions today. Provide a structured markdown analysis in 繁體中文."
         response = client.models.generate_content(
@@ -36,6 +40,8 @@ class GeminiService:
         
     async def review_trades(self, transactions: list, portfolio: dict, api_key: str = None) -> str:
         client = genai.Client(api_key=api_key) if api_key else self.client
+        if not client:
+            raise ValueError("未提供 Gemini API Key。請在系統設定中輸入您的 API Key (BYOK) 以啟用 AI 功能。")
         
         prompt = f"""You are a trading coach. Review these trades:
         Portfolio: {json.dumps(portfolio, default=str)}
@@ -51,6 +57,8 @@ class GeminiService:
 
     async def auto_trade_decision(self, symbol: str, quote_data: dict, api_key: str = None) -> str:
         client = genai.Client(api_key=api_key) if api_key else self.client
+        if not client:
+            raise ValueError("未提供 Gemini API Key。請在系統設定中輸入您的 API Key (BYOK) 以啟用 AI 功能。")
         
         prompt = f"""You are an AI trading bot. Make a BUY, SELL, or HOLD decision for {symbol}.
         Current Quote Data: {json.dumps(quote_data, default=str)}
