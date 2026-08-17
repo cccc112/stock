@@ -7,36 +7,38 @@ router = APIRouter()
 @router.get("/tw")
 async def get_tw_institutions():
     """Get total market institutional net buy/sell for Taiwan for the last 30 days."""
-    start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
-    data = await finmind_service._fetch_data("TaiwanStockTotalInstitutionalInvestors", "", start_date)
-    
-    # data is a list of dicts. We want to group by date.
-    # {"date": "2024-02-01", "name": "外資及陸資(不含外資自營商)", "buy": 1000, "sell": 500}
-    # Calculate net_buy = buy - sell for Foreign (外資), Investment Trust (投信), Dealer (自營商)
-    
-    daily_data = {}
-    for row in data:
-        date = row.get("date")
-        name = row.get("name", "")
-        net = row.get("buy", 0) - row.get("sell", 0)
+    try:
+        start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+        data = await finmind_service._fetch_data("TaiwanStockTotalInstitutionalInvestors", "", start_date)
         
-        if date not in daily_data:
-            daily_data[date] = {"date": date, "foreign": 0, "trust": 0, "dealer": 0}
-            
-        # TWD is too large, convert to billions (億)
-        net_billion = net / 100000000
+        if not data:
+            return []
         
-        if "外資" in name:
-            daily_data[date]["foreign"] += net_billion
-        elif "投信" in name:
-            daily_data[date]["trust"] += net_billion
-        elif "自營商" in name:
-            daily_data[date]["dealer"] += net_billion
+        daily_data = {}
+        for row in data:
+            date = row.get("date")
+            name = row.get("name", "")
+            net = row.get("buy", 0) - row.get("sell", 0)
             
-    # return sorted list
-    result = list(daily_data.values())
-    result.sort(key=lambda x: x["date"])
-    return result
+            if date not in daily_data:
+                daily_data[date] = {"date": date, "foreign": 0, "trust": 0, "dealer": 0}
+                
+            # TWD is too large, convert to billions (億)
+            net_billion = net / 100000000
+            
+            if "外資" in name:
+                daily_data[date]["foreign"] += net_billion
+            elif "投信" in name:
+                daily_data[date]["trust"] += net_billion
+            elif "自營商" in name:
+                daily_data[date]["dealer"] += net_billion
+                
+        result = list(daily_data.values())
+        result.sort(key=lambda x: x["date"])
+        return result
+    except Exception as e:
+        print(f"Failed to fetch TW institutional data: {e}")
+        return []
 
 @router.get("/us/13f")
 async def get_us_13f():

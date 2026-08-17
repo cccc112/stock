@@ -8,9 +8,14 @@ import uuid
 router = APIRouter()
 
 @router.get("", response_model=List[Alert])
-async def get_alerts(db=Depends(get_supabase)):
-    res = db.table("alerts").select("*").execute()
-    return [Alert(**a) for a in res.data]
+async def get_alerts():
+    try:
+        db = get_supabase()
+        res = db.table("alerts").select("*").execute()
+        return [Alert(**a) for a in res.data]
+    except Exception as e:
+        print(f"Failed to load alerts: {e}")
+        return []
 
 @router.post("", response_model=Alert)
 async def create_alert(alert: AlertCreate, db=Depends(get_supabase)):

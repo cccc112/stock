@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Header
+from typing import Optional
 from app.models.schemas import AIAnalysisRequest, AIAnalysisResponse
 from app.services.gemini import gemini_service
 from app.api.v1.quant import get_full_analysis
@@ -8,18 +9,27 @@ from datetime import datetime
 router = APIRouter()
 
 @router.get("/market-summary")
-async def get_market_summary(db=Depends(get_supabase)):
-    # Check cache table
-    res = db.table("ai_cache").select("*").eq("type", "market_summary").order("created_at", desc=True).limit(1).execute()
-    if res.data:
-        return {"summary": res.data[0]['content'], "generated_at": res.data[0]['created_at']}
-        
-    # Generate new
-    summary = await gemini_service.market_summary()
-    return {"summary": summary, "generated_at": datetime.utcnow().isoformat()}
+async def get_market_summary(authorization: Optional[str] = Header(None)):
+    # Check cache table (optional, don't crash if Supabase unavailable)
+    try:
+        db = get_supabase()
+        res = db.table("ai_cache").select("*").eq("type", "market_summary").order("created_at", desc=True).limit(1).execute()
+        if res.data:
+            return {"summary": res.data[0]['content'], "generated_at": res.data[0]['created_at']}
+    except Exception as e:
+        print(f"Supabase cache unavailable: {e}")
+    
+    api_key = None
+    if authorization and authorization.startswith("Bearer "):
+        api_key = authorization.replace("Bearer ", "")
+    
+    try:
+        # Generate new
+        summary = await gemini_service.market_summary(api_key=api_key)
+        return {"summary": summary, "generated_at": datetime.utcnow().isoformat()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI 盤勢診斷失敗: {str(e)}")
 
-from fastapi import Header
-from typing import Optional
 
 @router.post("/analyze/{symbol}", response_model=AIAnalysisResponse)
 async def analyze_stock(symbol: str, req: AIAnalysisRequest = None, authorization: Optional[str] = Header(None)):
@@ -77,17 +87,26 @@ async def review_trades(portfolio_id: str, db=Depends(get_supabase)):
     return {"review": review}
 
 @router.get("/trade-suggestions")
-async def get_trade_suggestions(db=Depends(get_supabase), authorization: Optional[str] = Header(None)):
-    # Get watchlist symbols
-    res = db.table("watchlist").select("symbol").execute()
-    symbols = [r['symbol'] for r in (res.data or [])]
+async def get_trade_suggestions(authorization: Optional[str] = Header(None)):
+    # Try to get watchlist symbols from Supabase, but don't crash if unavailable
+    symbols = []
+    try:
+        db = get_supabase()
+        res = db.table("watchlist").select("symbol").execute()
+        symbols = [r['symbol'] for r in (res.data or [])]
+    except Exception as e:
+        print(f"Supabase unavailable for watchlist, using defaults: {e}")
+    
     if not symbols:
-        symbols = ['2330.TW', '2454.TW', '2317.TW']  # defaults
+        symbols = ['2330.TW', '2454.TW', '2317.TW', '2603.TW', '0050.TW']  # defaults
     
     api_key = None
     if authorization and authorization.startswith("Bearer "):
         api_key = authorization.replace("Bearer ", "")
     
-    from app.services.ai_trader import ai_trader
-    suggestions = await ai_trader.generate_suggestions(symbols[:5], api_key=api_key)
-    return {"suggestions": suggestions}
+    try:
+        from app.services.ai_trader import ai_trader
+        suggestions = await ai_trader.generate_suggestions(symbols[:5], api_key=api_key)
+        return {"suggestions": suggestions}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI 交易建議產生失敗: {str(e)}")
