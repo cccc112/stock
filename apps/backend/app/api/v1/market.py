@@ -32,11 +32,13 @@ async def fetch_single_quote(symbol: str) -> StockQuote | None:
 
     if not quote:
         # Fallback: yfinance (works 24/7 for both TW/US, but slightly delayed)
-        loop = asyncio.get_event_loop()
-        quote = await asyncio.wait_for(
-            loop.run_in_executor(None, yahoo_service.get_quote, symbol),
-            timeout=10.0
-        )
+        try:
+            quote = await asyncio.wait_for(
+                loop.run_in_executor(None, yahoo_service.get_quote, symbol),
+                timeout=3.0
+            )
+        except asyncio.TimeoutError:
+            quote = None
 
     # Inject friendly name - always prefer our mapping over potentially garbled TWSE encoding
     if symbol in STOCK_NAMES:

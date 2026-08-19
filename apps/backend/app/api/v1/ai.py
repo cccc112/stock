@@ -106,7 +106,7 @@ async def get_trade_suggestions(authorization: Optional[str] = Header(None)):
     
     try:
         from app.services.ai_trader import ai_trader
-        suggestions = await ai_trader.generate_suggestions(symbols[:5], api_key=api_key)
+        suggestions = await ai_trader.generate_suggestions(symbols[:3], api_key=api_key)
         return {"suggestions": suggestions}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI 交易建議產生失敗: {str(e)}")
