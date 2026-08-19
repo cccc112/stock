@@ -75,7 +75,9 @@ export default function MarketOverview() {
             {idx.price > 0 ? formatNumber(idx.price) : "—"}
           </div>
           {idx.price > 0 ? (
-            <Badge value={idx.change_pct} market={idx.market} />
+            <Badge value={idx.change_pct} market={idx.market}>
+              {idx.change > 0 ? `+${idx.change.toFixed(2)}` : idx.change.toFixed(2)} ({idx.change_pct > 0 ? `+${idx.change_pct.toFixed(2)}` : idx.change_pct.toFixed(2)}%)
+            </Badge>
           ) : (
             <span className="text-secondary text-xs">載入中...</span>
           )}
