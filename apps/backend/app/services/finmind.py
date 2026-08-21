@@ -39,10 +39,13 @@ class FinMindService:
                 logger.error(f"Error fetching FinMind data ({dataset}): {e}")
                 return []
 
+    async def get_history(self, symbol: str, days: int = 90) -> List[Dict[str, Any]]:
+        start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        return await self._fetch_data("TaiwanStockPrice", symbol, start_date)
+
     async def get_institutional_investors(self, symbol: str, days: int = 30) -> List[Dict[str, Any]]:
         start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
         return await self._fetch_data("TaiwanStockInstitutionalInvestorsBuySell", symbol, start_date)
-
     async def get_monthly_revenue(self, symbol: str, months: int = 12) -> List[Dict[str, Any]]:
         start_date = (datetime.now() - timedelta(days=months*30)).strftime("%Y-%m-%d")
         return await self._fetch_data("TaiwanStockMonthRevenue", symbol, start_date)

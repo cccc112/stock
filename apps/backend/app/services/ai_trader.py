@@ -22,6 +22,23 @@ class AITrader:
             )
             
             if not history_data:
+                if symbol.endswith('.TW') or symbol.isnumeric():
+                    from app.services.finmind import finmind_service
+                    clean_sym = symbol.replace('.TW', '')
+                    fm_data = await finmind_service.get_history(clean_sym, days=90)
+                    if fm_data:
+                        history_data = []
+                        for row in fm_data:
+                            history_data.append({
+                                "time": pd.to_datetime(row["date"]),
+                                "open": row.get("open", 0),
+                                "high": row.get("max", 0),
+                                "low": row.get("min", 0),
+                                "close": row.get("close", 0),
+                                "volume": row.get("Trading_Volume", 0)
+                            })
+                
+            if not history_data:
                 return None
                 
             history = pd.DataFrame([b.dict() if hasattr(b, 'dict') else b for b in history_data])

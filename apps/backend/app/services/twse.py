@@ -8,7 +8,12 @@ from app.models.schemas import StockQuote, OrderBook, OrderBookEntry, MarketType
 class TWSEService:
     def __init__(self):
         self.base_url = "https://mis.twse.com.tw/stock/api"
-        self.session = httpx.AsyncClient(timeout=8.0)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Accept-Language": "en-US,en;q=0.9,zh-TW;q=0.8,zh;q=0.7",
+        }
+        self.session = httpx.AsyncClient(timeout=8.0, headers=headers)
 
     def _safe_float(self, val: str, default: float = 0.0) -> float:
         """Parse TWSE price string safely (handles '-' for no data)."""
