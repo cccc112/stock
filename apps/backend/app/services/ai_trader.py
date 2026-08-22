@@ -11,15 +11,23 @@ class AITrader:
             import asyncio
             loop = asyncio.get_event_loop()
             
-            # Run blocking yfinance calls in executor with strict 4s timeout
-            quote = await asyncio.wait_for(
-                loop.run_in_executor(None, yahoo_service.get_quote, symbol),
-                timeout=4.0
-            )
-            history_data = await asyncio.wait_for(
-                loop.run_in_executor(None, yahoo_service.get_history, symbol, '3mo', '1d'),
-                timeout=4.0
-            )
+            quote = None
+            try:
+                quote = await asyncio.wait_for(
+                    loop.run_in_executor(None, yahoo_service.get_quote, symbol),
+                    timeout=4.0
+                )
+            except Exception:
+                pass
+                
+            history_data = None
+            try:
+                history_data = await asyncio.wait_for(
+                    loop.run_in_executor(None, yahoo_service.get_history, symbol, '3mo', '1d'),
+                    timeout=4.0
+                )
+            except Exception:
+                pass
             
             if not history_data:
                 if symbol.endswith('.TW') or symbol.isnumeric():

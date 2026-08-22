@@ -37,8 +37,31 @@ async def fetch_single_quote(symbol: str) -> StockQuote | None:
                 loop.run_in_executor(None, yahoo_service.get_quote, symbol),
                 timeout=3.0
             )
-        except asyncio.TimeoutError:
+        except Exception:
             quote = None
+            
+    if not quote and (symbol.endswith('.TW') or symbol.isnumeric()):
+        try:
+            from app.services.finmind import finmind_service
+            clean_sym = symbol.replace('.TW', '')
+            fm_data = await finmind_service.get_history(clean_sym, days=5)
+            if fm_data and len(fm_data) > 0:
+                last_day = fm_data[-1]
+                quote = StockQuote(
+                    symbol=symbol,
+                    name=symbol,
+                    price=last_day.get("close", 0),
+                    change=0,
+                    change_pct=0,
+                    volume=last_day.get("Trading_Volume", 0),
+                    high=last_day.get("max", 0),
+                    low=last_day.get("min", 0),
+                    open=last_day.get("open", 0),
+                    prev_close=last_day.get("close", 0),
+                    market=MarketType.TW
+                )
+        except Exception:
+            pass
 
     # Inject friendly name - always prefer our mapping over potentially garbled TWSE encoding
     if symbol in STOCK_NAMES:
