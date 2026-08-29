@@ -75,6 +75,7 @@ export const apiSimulator = {
 export const apiMarket = {
   getTrending: () => api.get('/market/trending'),
   getPopularETFs: () => api.get('/market/etfs'),
+  getCapitalFlow: () => api.get('/market/capital-flow'),
 };
 
 export const apiInstitutions = {
