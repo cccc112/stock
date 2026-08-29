@@ -77,10 +77,8 @@ async def fetch_single_quote(symbol: str) -> StockQuote | None:
 
 @router.get("/trending", response_model=List[StockQuote])
 async def get_trending():
-    """熱門股票（台股 + 美股）"""
-    tw_stocks = ["2330.TW", "2317.TW", "2454.TW", "3231.TW", "2382.TW"]
-    us_stocks = ["NVDA", "TSLA", "AAPL", "MSFT", "AMD"]
-    symbols = tw_stocks + us_stocks
+    """熱門股票（台股）"""
+    symbols = ["2330.TW", "2317.TW", "2454.TW", "3231.TW", "2382.TW", "2603.TW", "2881.TW"]
     
     tasks = [fetch_single_quote(sym) for sym in symbols]
     quotes = await asyncio.gather(*tasks, return_exceptions=True)
@@ -92,7 +90,7 @@ async def get_trending():
 @router.get("/etfs", response_model=List[StockQuote])
 async def get_etfs():
     """熱門 ETF"""
-    symbols = ["0050.TW", "0056.TW", "00878.TW", "00929.TW", "SPY", "QQQ"]
+    symbols = ["0050.TW", "0056.TW", "00878.TW", "00929.TW", "00919.TW"]
     tasks = [fetch_single_quote(sym) for sym in symbols]
     quotes = await asyncio.gather(*tasks, return_exceptions=True)
     

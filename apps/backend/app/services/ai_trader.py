@@ -13,10 +13,8 @@ class AITrader:
             
             quote = None
             try:
-                quote = await asyncio.wait_for(
-                    loop.run_in_executor(None, yahoo_service.get_quote, symbol),
-                    timeout=4.0
-                )
+                from app.api.v1.market import fetch_single_quote
+                quote = await fetch_single_quote(symbol)
             except Exception:
                 pass
                 

@@ -4,7 +4,19 @@ from datetime import datetime
 from app.models.schemas import StockQuote, KlineBar, MarketType
 import pandas as pd
 
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+class TimeoutSession(requests.Session):
+    def request(self, *args, **kwargs):
+        kwargs.setdefault('timeout', 3.0)
+        return super().request(*args, **kwargs)
+
 class YahooFinanceService:
+    def __init__(self):
+        self.session = TimeoutSession()
+        self.session.headers.update({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
     
     def _format_symbol(self, symbol: str) -> str:
         # Don't modify index symbols (^TWII, ^GSPC, etc.)
@@ -19,26 +31,29 @@ class YahooFinanceService:
         return symbol
 
     def get_history(self, symbol: str, period: str = "1mo", interval: str = "1d") -> List[KlineBar]:
-        ticker = yf.Ticker(self._format_symbol(symbol))
-        df = ticker.history(period=period, interval=interval)
-        
-        bars = []
-        for index, row in df.iterrows():
-            bars.append(KlineBar(
-                time=index.to_pydatetime(),
-                open=row['Open'],
-                high=row['High'],
-                low=row['Low'],
-                close=row['Close'],
-                volume=row['Volume']
-            ))
-        return bars
+        try:
+            ticker = yf.Ticker(self._format_symbol(symbol), session=self.session)
+            df = ticker.history(period=period, interval=interval)
+            
+            bars = []
+            for index, row in df.iterrows():
+                bars.append(KlineBar(
+                    time=index.to_pydatetime(),
+                    open=row['Open'],
+                    high=row['High'],
+                    low=row['Low'],
+                    close=row['Close'],
+                    volume=row['Volume']
+                ))
+            return bars
+        except Exception:
+            return []
 
     def get_quote(self, symbol: str) -> Optional[StockQuote]:
         formatted_symbol = self._format_symbol(symbol)
-        ticker = yf.Ticker(formatted_symbol)
-        info = ticker.fast_info
         try:
+            ticker = yf.Ticker(formatted_symbol, session=self.session)
+            info = ticker.fast_info
             price = info.last_price
             prev_close = info.previous_close
             change = price - prev_close
