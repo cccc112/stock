@@ -102,6 +102,17 @@ async def get_etfs():
 @router.get("/capital-flow")
 async def get_capital_flow():
     """三大法人資金流向與漲跌幅泡泡圖資料"""
+    
+    # Check cache first
+    import json
+    cache_key = "market:capital-flow"
+    cached = await cache_service.get(cache_key)
+    if cached:
+        try:
+            return json.loads(cached)
+        except Exception:
+            pass
+
     symbols = ["2330.TW", "2317.TW", "2454.TW", "2382.TW", "3231.TW", "2603.TW", "2881.TW", "2882.TW", "0050.TW", "0056.TW", "00878.TW", "00929.TW", "00919.TW"]
     
     from app.services.finmind import finmind_service
@@ -135,4 +146,11 @@ async def get_capital_flow():
     tasks = [fetch_flow(sym) for sym in symbols]
     results = await asyncio.gather(*tasks, return_exceptions=True)
     valid_results = [r for r in results if isinstance(r, dict)]
+    
+    # Save to cache for 1 hour
+    try:
+        await cache_service.set(cache_key, json.dumps(valid_results), ttl=3600)
+    except Exception:
+        pass
+        
     return valid_results

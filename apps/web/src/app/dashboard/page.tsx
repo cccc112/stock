@@ -4,7 +4,6 @@ import AlertFeed from "@/components/dashboard/AlertFeed";
 import AIInsightCard from "@/components/dashboard/AIInsightCard";
 import TrendingPanel from "@/components/dashboard/TrendingPanel";
 import AITradeCard from "@/components/dashboard/AITradeCard";
-import CapitalFlowChart from "@/components/dashboard/CapitalFlowChart";
 
 export default function DashboardPage() {
   return (
@@ -16,9 +15,6 @@ export default function DashboardPage() {
 
       <MarketOverview />
 
-      <div className="w-full">
-        <CapitalFlowChart />
-      </div>
 
       <div className="dashboard-grid h-[calc(100vh-280px)] min-h-[500px]">
         <div className="flex flex-col h-full overflow-y-auto pr-2 hide-scrollbar space-y-6">

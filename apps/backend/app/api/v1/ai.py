@@ -87,18 +87,27 @@ async def review_trades(portfolio_id: str, db=Depends(get_supabase)):
     return {"review": review}
 
 @router.get("/trade-suggestions")
-async def get_trade_suggestions(authorization: Optional[str] = Header(None)):
-    # Try to get watchlist symbols from Supabase, but don't crash if unavailable
-    symbols = []
+async def get_trade_suggestions(db=Depends(get_supabase), authorization: Optional[str] = Header(None)):
+    # Check cache first to prevent slow Gemini calls on every dashboard load
+    import json
+    from app.services.cache import cache_service
+    cache_key = "ai:trade_suggestions"
+    cached = await cache_service.get(cache_key)
+    if cached:
+        try:
+            return {"suggestions": json.loads(cached)}
+        except Exception:
+            pass
+
+    # Get watchlist symbols
     try:
-        db = get_supabase()
         res = db.table("watchlist").select("symbol").execute()
         symbols = [r['symbol'] for r in (res.data or [])]
-    except Exception as e:
-        print(f"Supabase unavailable for watchlist, using defaults: {e}")
-    
+    except Exception:
+        symbols = []
+        
     if not symbols:
-        symbols = ['2330.TW', '2454.TW', '2317.TW', '2603.TW', '0050.TW']  # defaults
+        symbols = ['2330.TW', '2454.TW', '2317.TW']  # defaults
     
     api_key = None
     if authorization and authorization.startswith("Bearer "):
@@ -107,6 +116,14 @@ async def get_trade_suggestions(authorization: Optional[str] = Header(None)):
     try:
         from app.services.ai_trader import ai_trader
         suggestions = await ai_trader.generate_suggestions(symbols[:3], api_key=api_key)
+        
+        # Cache the suggestions for 1 hour
+        if suggestions:
+            try:
+                await cache_service.set(cache_key, json.dumps(suggestions), ttl=3600)
+            except Exception:
+                pass
+                
         return {"suggestions": suggestions}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI 交易建議產生失敗: {str(e)}")
