@@ -71,4 +71,22 @@ class GeminiService:
         )
         return response.text
 
+    async def chart_fundamental_analysis(self, symbol: str, supports: list, resistances: list, fundamentals: dict, api_key: str = None) -> str:
+        client = genai.Client(api_key=api_key) if api_key else self.client
+        if not client:
+            raise ValueError("未提供 Gemini API Key。請在系統設定中輸入您的 API Key (BYOK) 以啟用 AI 功能。")
+        
+        prompt = f"""You are a professional stock analyst. Analyze {symbol}.
+        Calculated Support Lines (支撐線): {supports}
+        Calculated Resistance Lines (壓力線): {resistances}
+        Fundamental Data: {json.dumps(fundamentals, default=str, ensure_ascii=False)}
+        
+        Provide a structured markdown analysis in 繁體中文. Explain how the fundamental data supports the technical support/resistance levels, and provide a concrete trading action plan (該如何操作). Be concise but insightful.
+        """
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
+        return response.text
+
 gemini_service = GeminiService()

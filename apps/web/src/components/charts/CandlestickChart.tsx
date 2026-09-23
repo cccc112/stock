@@ -9,6 +9,7 @@ interface CandlestickChartProps {
   symbol: string;
   market?: 'TW' | 'US';
   period?: string;
+  priceLines?: { price: number; color: string; title: string }[];
 }
 
 const calculateSMA = (data: any[], count: number) => {
@@ -23,7 +24,7 @@ const calculateSMA = (data: any[], count: number) => {
   return result;
 };
 
-export default function CandlestickChart({ symbol, market = 'TW', period = '6mo' }: CandlestickChartProps) {
+export default function CandlestickChart({ symbol, market = 'TW', period = '6mo', priceLines = [] }: CandlestickChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,6 +77,17 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
       borderVisible: false,
       wickUpColor: upColor,
       wickDownColor: downColor,
+    });
+    
+    priceLines.forEach(line => {
+      mainSeries.createPriceLine({
+        price: line.price,
+        color: line.color,
+        lineWidth: 2,
+        lineStyle: 2, // Dashed
+        axisLabelVisible: true,
+        title: line.title,
+      });
     });
 
     const volumeSeries = chart.addSeries(HistogramSeries, {
@@ -217,7 +229,7 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
         chartRef.current = null;
       }
     };
-  }, [symbol, market, activePeriod, upColor, downColor]);
+  }, [symbol, market, activePeriod, upColor, downColor, JSON.stringify(priceLines)]);
 
   const periods = [
     { label: '日線', value: '1d' },

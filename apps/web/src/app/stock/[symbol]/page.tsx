@@ -15,6 +15,8 @@ import InstitutionalSection from "@/components/dashboard/InstitutionalSection";
 import TransactionForm from "@/components/portfolio/TransactionForm";
 import AISection from "@/components/dashboard/AISection";
 
+import AIChartAnalyzer from "@/components/charts/AIChartAnalyzer";
+
 const CandlestickChart = dynamic(() => import('@/components/charts/CandlestickChart'), { ssr: false });
 
 const STORAGE_KEY = 'watchlist_symbols';
@@ -59,6 +61,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   const [loading, setLoading] = useState(true);
   const [inWatchlist, setInWatchlist] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [priceLines, setPriceLines] = useState<{ price: number; color: string; title: string }[]>([]);
 
   useEffect(() => {
     setInWatchlist(getStoredSymbols().includes(symbol));
@@ -157,7 +160,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                   label: 'K線圖',
                   content: (
                     <div className="pt-2">
-                      <CandlestickChart symbol={symbol} market={market} />
+                      <CandlestickChart symbol={symbol} market={market} priceLines={priceLines} />
+                      <AIChartAnalyzer symbol={symbol} onLinesCalculated={setPriceLines} />
                     </div>
                   )
                 },

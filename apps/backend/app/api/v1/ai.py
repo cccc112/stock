@@ -127,3 +127,84 @@ async def get_trade_suggestions(db=Depends(get_supabase), authorization: Optiona
         return {"suggestions": suggestions}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI 交易建議產生失敗: {str(e)}")
+
+@router.post("/chart-analysis/{symbol}")
+async def chart_analysis(symbol: str, authorization: Optional[str] = Header(None)):
+    """自動計算支撐壓力並結合基本面由 AI 給出操作建議"""
+    api_key = None
+    if authorization and authorization.startswith("Bearer "):
+        api_key = authorization.replace("Bearer ", "")
+        
+    # 1. 取得歷史 K 線計算支撐與壓力 (抓取 TWSE 或 Yahoo，這裡可以借用 ai_trader 抓歷史的邏輯)
+    from app.services.yahoo import yahoo_service
+    from app.services.finmind import finmind_service
+    import asyncio
+    loop = asyncio.get_event_loop()
+    
+    history_data = None
+    try:
+        history_data = await asyncio.wait_for(
+            loop.run_in_executor(None, yahoo_service.get_history, symbol, '3mo', '1d'),
+            timeout=4.0
+        )
+    except Exception:
+        pass
+        
+    if not history_data and (symbol.endswith('.TW') or symbol.isnumeric()):
+        clean_sym = symbol.replace('.TW', '')
+        fm_data = await finmind_service.get_history(clean_sym, days=90)
+        if fm_data:
+            import pandas as pd
+            history_data = []
+            for row in fm_data:
+                history_data.append(type('obj', (object,), {
+                    'low': row.get("min", 0),
+                    'high': row.get("max", 0)
+                }))
+
+    if not history_data or len(history_data) < 20:
+        raise HTTPException(status_code=400, detail="歷史資料不足，無法計算支撐與壓力")
+        
+    # 計算支撐與壓力
+    recent_20 = history_data[-20:]
+    recent_60 = history_data[-60:]
+    
+    supports = list(set([min([b.low for b in recent_20]), min([b.low for b in recent_60])]))
+    resistances = list(set([max([b.high for b in recent_20]), max([b.high for b in recent_60])]))
+    
+    # 2. 取得基本面資料
+    clean_sym = symbol.replace('.TW', '')
+    fundamentals = {}
+    if symbol.endswith('.TW') or symbol.isnumeric():
+        try:
+            rev_data = await finmind_service.get_monthly_revenue(clean_sym, months=3)
+            if rev_data:
+                fundamentals["recent_revenue"] = rev_data
+            
+            inst_data = await finmind_service.get_institutional_investors(clean_sym, days=7)
+            if inst_data:
+                # 只取最後一天的資料縮減 Token
+                dates = set(r['date'] for r in inst_data)
+                latest_date = max(dates)
+                latest_data = [r for r in inst_data if r['date'] == latest_date]
+                fundamentals["latest_institutional_flow"] = latest_data
+        except Exception:
+            pass
+            
+    # 3. 呼叫 Gemini 進行分析
+    try:
+        analysis = await gemini_service.chart_fundamental_analysis(
+            symbol=symbol,
+            supports=supports,
+            resistances=resistances,
+            fundamentals=fundamentals,
+            api_key=api_key
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    return {
+        "supportLines": supports,
+        "resistanceLines": resistances,
+        "analysis": analysis
+    }
