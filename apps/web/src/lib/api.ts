@@ -64,6 +64,7 @@ export const apiAi = {
   analyzeStock: (symbol: string) => api.post(`/ai/analyze/${symbol}`, { symbol, period: '3mo' }),
   reviewTrades: (portfolioId: string) => api.post(`/ai/review/${portfolioId}`),
   getTradeSuggestions: () => api.get('/ai/trade-suggestions'),
+  runCommittee: (symbol: string) => api.post(`/ai/committee/${symbol}`),
 };
 
 export const apiSimulator = {

@@ -14,8 +14,8 @@ import NewsSection from "@/components/dashboard/NewsSection";
 import InstitutionalSection from "@/components/dashboard/InstitutionalSection";
 import TransactionForm from "@/components/portfolio/TransactionForm";
 import AISection from "@/components/dashboard/AISection";
-
 import AIChartAnalyzer from "@/components/charts/AIChartAnalyzer";
+import AICommitteeSection from "@/components/dashboard/AICommitteeSection";
 
 const CandlestickChart = dynamic(() => import('@/components/charts/CandlestickChart'), { ssr: false });
 
@@ -164,6 +164,11 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                       <AIChartAnalyzer symbol={symbol} onLinesCalculated={setPriceLines} />
                     </div>
                   )
+                },
+                {
+                  id: 'committee',
+                  label: '🏛️ AI 投資委員會',
+                  content: <AICommitteeSection symbol={symbol} />
                 },
                 {
                   id: 'quant',

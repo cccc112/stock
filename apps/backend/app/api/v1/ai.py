@@ -208,3 +208,18 @@ async def chart_analysis(symbol: str, authorization: Optional[str] = Header(None
         "resistanceLines": resistances,
         "analysis": analysis
     }
+
+@router.post("/committee/{symbol}")
+async def run_ai_committee(symbol: str, authorization: Optional[str] = Header(None)):
+    """召開 AI 投資委員會 (巴菲特、西蒙斯、風控長多角色辯論與 CIO 裁決)"""
+    api_key = None
+    if authorization and authorization.startswith("Bearer "):
+        api_key = authorization.replace("Bearer ", "")
+        
+    try:
+        from app.services.multi_agent import multi_agent_service
+        result = await multi_agent_service.run_committee(symbol=symbol, api_key=api_key)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI 投資委員會分析失敗: {str(e)}")
+
