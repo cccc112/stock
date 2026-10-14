@@ -48,6 +48,8 @@ export const apiQuant = {
   scanStock: (symbol: string) => api.get(`/quant/${symbol}/scan`),
   scanAll: () => api.get('/quant/scan/all'),
   screenStocks: (data: { strategies: string, symbols: string[], params: any }) => api.post('/quant/screen', data),
+  getStrategyList: () => api.get('/quant/strategies/list'),
+  runBacktest: (data: any) => api.post('/quant/backtest', data),
 };
 
 export const apiAlerts = {

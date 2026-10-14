@@ -153,3 +153,13 @@ class QuantScreenRequest(BaseModel):
     strategies: str = ""
     symbols: List[str] = []
     params: Dict[str, Any] = {}
+
+class BacktestRequest(BaseModel):
+    symbol: str = "2330.TW"
+    strategy_id: str = "supertrend"
+    period: str = "1y"
+    initial_capital: float = 1_000_000.0
+    stop_loss_pct: Optional[float] = None
+    take_profit_pct: Optional[float] = None
+    params: Dict[str, Any] = {}
+

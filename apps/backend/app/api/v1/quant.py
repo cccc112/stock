@@ -1,13 +1,17 @@
 from fastapi import APIRouter, HTTPException, Depends
 from app.core.deps import get_supabase
-from app.models.schemas import QuantAnalysis, VAPResult, VolumeAnomalyResult, SupportResistanceLevel, QuantScreenRequest
+from app.models.schemas import QuantAnalysis, VAPResult, VolumeAnomalyResult, SupportResistanceLevel, QuantScreenRequest, BacktestRequest
 from app.services.yahoo import yahoo_service
 from app.quant.vap import calculate_vap
 from app.quant.volume_anomaly import detect_volume_anomaly
 from app.quant.support_resistance import calculate_support_resistance
 from app.quant.indicators import calculate_ma, calculate_rsi, calculate_kdj, calculate_boll, calculate_macd
 from app.quant.strategies import run_all_strategies
+from app.quant.backtester import BacktestEngine
 import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -18,6 +22,86 @@ def get_df(symbol: str, period: str):
     
     df = pd.DataFrame([b.dict() for b in bars])
     return df
+
+@router.get("/strategies/list")
+async def get_strategy_list():
+    """取得所有支援的量化研究策略清單與參數規格"""
+    return BacktestEngine.get_supported_strategies()
+
+async def fetch_backtest_df(symbol: str, period: str) -> Optional[pd.DataFrame]:
+    clean_sym = symbol.replace('.TW', '').replace('.TWO', '')
+    is_tw = symbol.endswith('.TW') or symbol.endswith('.TWO') or symbol.isnumeric()
+    
+    period_days_map = {
+        "1mo": 30,
+        "3mo": 90,
+        "6mo": 180,
+        "1y": 365,
+        "2y": 730,
+        "3y": 1095,
+        "5y": 1825
+    }
+    days = period_days_map.get(period, 365)
+    
+    df = None
+    if is_tw:
+        try:
+            from app.services.finmind import finmind_service
+            raw_data = await finmind_service.get_history(clean_sym, days=days)
+            if raw_data and len(raw_data) > 0:
+                df = pd.DataFrame([{
+                    'date': r['date'],
+                    'open': r['open'],
+                    'high': r['max'],
+                    'low': r['min'],
+                    'close': r['close'],
+                    'volume': r['Trading_Volume']
+                } for r in raw_data])
+        except Exception as e:
+            logger.warning(f"FinMind fetch error for {symbol}: {e}")
+            
+    if df is None or df.empty:
+        try:
+            bars = yahoo_service.get_history(symbol, period=period)
+            if bars:
+                df = pd.DataFrame([{
+                    'date': b.time.strftime('%Y-%m-%d') if hasattr(b.time, 'strftime') else str(b.time)[:10],
+                    'open': b.open,
+                    'high': b.high,
+                    'low': b.low,
+                    'close': b.close,
+                    'volume': b.volume
+                } for b in bars])
+        except Exception as e:
+            logger.warning(f"Yahoo fetch error for {symbol}: {e}")
+
+    return df
+
+@router.post("/backtest")
+async def run_backtest_endpoint(req: BacktestRequest):
+    """執行策略回測與績效分析"""
+    df = await fetch_backtest_df(req.symbol, req.period)
+    if df is None or df.empty or len(df) < 5:
+        raise HTTPException(status_code=400, detail=f"無法取得 {req.symbol} 的歷史交易數據，請檢查代碼或縮短回測區間")
+        
+    try:
+        results = BacktestEngine.run_backtest(
+            df=df,
+            strategy_id=req.strategy_id,
+            initial_capital=req.initial_capital,
+            stop_loss_pct=req.stop_loss_pct,
+            take_profit_pct=req.take_profit_pct,
+            params=req.params
+        )
+        return {
+            "symbol": req.symbol,
+            "strategy_id": req.strategy_id,
+            "period": req.period,
+            **results
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"回測執行失敗: {str(e)}")
+
 
 @router.get("/{symbol}/analysis", response_model=QuantAnalysis)
 async def get_full_analysis(symbol: str, period: str = "3mo"):

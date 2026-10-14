@@ -15,7 +15,8 @@ import {
   Newspaper,
   PieChart,
   Activity,
-  Landmark
+  Landmark,
+  BarChart3
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ const navItems = [
   { name: "個股分析", href: "/stock", icon: LineChart },
   { name: "ETF", href: "/etf", icon: PieChart },
   { name: "量化掃描", href: "/quant", icon: Activity },
+  { name: "策略回測", href: "/backtest", icon: BarChart3 },
   { name: "資金流向", href: "/capital-flow", icon: Activity },
   { name: "機構追蹤", href: "/institutions", icon: Landmark },
   { name: "新聞", href: "/news", icon: Newspaper },
