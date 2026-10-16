@@ -15,13 +15,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-def get_df(symbol: str, period: str):
-    bars = yahoo_service.get_history(symbol, period=period)
-    if not bars:
+async def get_df(symbol: str, period: str = "3mo"):
+    df = await fetch_backtest_df(symbol, period)
+    if df is None or df.empty:
         raise HTTPException(status_code=404, detail="No historical data found")
-    
-    df = pd.DataFrame([b.dict() for b in bars])
     return df
+
 
 @router.get("/strategies/list")
 async def get_strategy_list():
@@ -105,7 +104,7 @@ async def run_backtest_endpoint(req: BacktestRequest):
 
 @router.get("/{symbol}/analysis", response_model=QuantAnalysis)
 async def get_full_analysis(symbol: str, period: str = "3mo"):
-    df = get_df(symbol, period)
+    df = await get_df(symbol, period)
     
     vap = calculate_vap(df)
     anomaly = detect_volume_anomaly(df)
@@ -132,12 +131,12 @@ async def get_full_analysis(symbol: str, period: str = "3mo"):
 
 @router.get("/{symbol}/vap", response_model=list[VAPResult])
 async def get_vap(symbol: str, period: str = "3mo", bins: int = 12):
-    df = get_df(symbol, period)
+    df = await get_df(symbol, period)
     return calculate_vap(df, bins)
 
 @router.get("/{symbol}/scan", response_model=VolumeAnomalyResult)
 async def scan_anomaly(symbol: str):
-    df = get_df(symbol, "3mo")
+    df = await get_df(symbol, "3mo")
     return detect_volume_anomaly(df)
 
 @router.get("/scan/all", response_model=list[VolumeAnomalyResult])
@@ -148,7 +147,7 @@ async def scan_all(db=Depends(get_supabase)):
     results = []
     for sym in symbols:
         try:
-            df = get_df(sym, "3mo")
+            df = await get_df(sym, "3mo")
             anomaly = detect_volume_anomaly(df)
             if anomaly.type.value != "NORMAL":
                 results.append(anomaly)
@@ -173,12 +172,7 @@ async def screen_stocks(req: QuantScreenRequest, db=Depends(get_supabase)):
     results = []
     for sym in symbols:
         try:
-            # We need raw dataframe for yahoo_service history
-            bars = yahoo_service.get_history(sym, period="3mo")
-            if not bars:
-                continue
-            df = pd.DataFrame([b.dict() if hasattr(b, 'dict') else b for b in bars])
-            
+            df = await get_df(sym, "3mo")
             signals = run_all_strategies(df, req.params)
             
             matched_signals = []

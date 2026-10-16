@@ -6,6 +6,12 @@ from app.services.twse import twse_service
 from app.services.yahoo import yahoo_service
 from app.services.cache import cache_service
 
+from datetime import datetime
+import logging
+from app.models.schemas import MarketType
+
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 @router.get("/{symbol}/quote", response_model=StockQuote)
@@ -15,21 +21,53 @@ async def get_quote(symbol: str):
         return cached
 
     quote = None
-    # Try TWSE first for Taiwan listed stocks (not indices like ^TWII)
     is_tw_stock = (symbol.isnumeric() or symbol.endswith('.TW') or symbol.endswith('.TWO')) and not symbol.startswith('^')
     if is_tw_stock:
-        quote = await twse_service.fetch_realtime_quote(symbol)
+        try:
+            quote = await twse_service.fetch_realtime_quote(symbol)
+        except Exception as e:
+            logger.warning(f"TWSE quote error for {symbol}: {e}")
 
-    # Fallback: yfinance (handles US stocks, TW ETFs, and indices like ^TWII, ^GSPC)
+    # Fallback 1: yfinance (handles US stocks, TW ETFs, and indices)
     if not quote:
         loop = asyncio.get_event_loop()
         try:
             quote = await asyncio.wait_for(
                 loop.run_in_executor(None, yahoo_service.get_quote, symbol),
-                timeout=10.0
+                timeout=4.0
             )
-        except asyncio.TimeoutError:
-            pass
+        except Exception:
+            quote = None
+
+    # Fallback 2: FinMind for TW stocks when market is closed or Yahoo is throttled
+    if not quote and is_tw_stock:
+        try:
+            from app.services.finmind import finmind_service
+            clean_sym = symbol.replace('.TW', '').replace('.TWO', '')
+            fm_data = await finmind_service.get_history(clean_sym, days=5)
+            if fm_data and len(fm_data) > 0:
+                last_day = fm_data[-1]
+                prev_day = fm_data[-2] if len(fm_data) > 1 else last_day
+                price = float(last_day.get("close", 0))
+                prev_close = float(prev_day.get("close", price))
+                change = price - prev_close
+                change_pct = (change / prev_close * 100) if prev_close else 0.0
+                quote = StockQuote(
+                    symbol=symbol,
+                    name=symbol,
+                    price=price,
+                    change=change,
+                    change_pct=change_pct,
+                    volume=float(last_day.get("Trading_Volume", 0)),
+                    high=float(last_day.get("max", price)),
+                    low=float(last_day.get("min", price)),
+                    open=float(last_day.get("open", price)),
+                    prev_close=prev_close,
+                    market=MarketType.TW,
+                    timestamp=datetime.now()
+                )
+        except Exception as e:
+            logger.warning(f"FinMind quote fallback error for {symbol}: {e}")
 
     if not quote:
         raise HTTPException(status_code=404, detail=f"Stock not found: {symbol}")
@@ -39,7 +77,6 @@ async def get_quote(symbol: str):
 
 @router.get("/{symbol}/history", response_model=List[KlineBar])
 async def get_history(symbol: str, period: str = "1mo", interval: str = "1d"):
-    # Map periods to suitable intervals if not specified
     if period in ["1d", "5d"]:
         interval = "5m"
         
@@ -47,13 +84,45 @@ async def get_history(symbol: str, period: str = "1mo", interval: str = "1d"):
     if cached:
         return cached
         
+    bars = []
+    # 1. Try Yahoo Finance with safe timeout in executor
     try:
-        bars = yahoo_service.get_history(symbol, period, interval)
-        if bars:
-            await cache_service.set_kline_cache(symbol, f"{period}_{interval}", bars)
+        loop = asyncio.get_event_loop()
+        bars = await asyncio.wait_for(
+            loop.run_in_executor(None, yahoo_service.get_history, symbol, period, interval),
+            timeout=4.0
+        )
+    except Exception:
+        bars = []
+
+    # 2. Fallback: FinMind for TW stocks
+    is_tw = (symbol.isnumeric() or symbol.endswith('.TW') or symbol.endswith('.TWO')) and not symbol.startswith('^')
+    if (not bars or len(bars) == 0) and is_tw:
+        try:
+            from app.services.finmind import finmind_service
+            clean_sym = symbol.replace('.TW', '').replace('.TWO', '')
+            period_days = {"1d": 5, "5d": 10, "1mo": 35, "3mo": 100, "6mo": 190, "1y": 370}.get(period, 60)
+            fm_data = await finmind_service.get_history(clean_sym, days=period_days)
+            if fm_data:
+                bars = [
+                    KlineBar(
+                        time=datetime.strptime(r['date'], "%Y-%m-%d"),
+                        open=float(r['open']),
+                        high=float(r['max']),
+                        low=float(r['min']),
+                        close=float(r['close']),
+                        volume=float(r['Trading_Volume'])
+                    )
+                    for r in fm_data
+                ]
+        except Exception as e:
+            logger.warning(f"FinMind history fallback error for {symbol}: {e}")
+
+    if bars:
+        await cache_service.set_kline_cache(symbol, f"{period}_{interval}", bars)
         return bars
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
+    return []
 
 @router.get("/{symbol}/orderbook", response_model=OrderBook)
 async def get_orderbook(symbol: str):

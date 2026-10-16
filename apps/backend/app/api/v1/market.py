@@ -33,6 +33,7 @@ async def fetch_single_quote(symbol: str) -> StockQuote | None:
     if not quote:
         # Fallback: yfinance (works 24/7 for both TW/US, but slightly delayed)
         try:
+            loop = asyncio.get_event_loop()
             quote = await asyncio.wait_for(
                 loop.run_in_executor(None, yahoo_service.get_quote, symbol),
                 timeout=3.0
@@ -43,21 +44,26 @@ async def fetch_single_quote(symbol: str) -> StockQuote | None:
     if not quote and (symbol.endswith('.TW') or symbol.isnumeric()):
         try:
             from app.services.finmind import finmind_service
-            clean_sym = symbol.replace('.TW', '')
+            clean_sym = symbol.replace('.TW', '').replace('.TWO', '')
             fm_data = await finmind_service.get_history(clean_sym, days=5)
             if fm_data and len(fm_data) > 0:
                 last_day = fm_data[-1]
+                prev_day = fm_data[-2] if len(fm_data) > 1 else last_day
+                price = float(last_day.get("close", 0))
+                prev_close = float(prev_day.get("close", price))
+                change = price - prev_close
+                change_pct = (change / prev_close * 100) if prev_close else 0.0
                 quote = StockQuote(
                     symbol=symbol,
                     name=symbol,
-                    price=last_day.get("close", 0),
-                    change=0,
-                    change_pct=0,
-                    volume=last_day.get("Trading_Volume", 0),
-                    high=last_day.get("max", 0),
-                    low=last_day.get("min", 0),
-                    open=last_day.get("open", 0),
-                    prev_close=last_day.get("close", 0),
+                    price=price,
+                    change=change,
+                    change_pct=change_pct,
+                    volume=float(last_day.get("Trading_Volume", 0)),
+                    high=float(last_day.get("max", price)),
+                    low=float(last_day.get("min", price)),
+                    open=float(last_day.get("open", price)),
+                    prev_close=prev_close,
                     market=MarketType.TW
                 )
         except Exception:
