@@ -1,11 +1,18 @@
 import axios from 'axios';
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-// Ensure /api/v1 suffix - strip trailing slash then append
-const baseURL = BASE.replace(/\/+$/, '').replace(/\/api\/v1$/, '') + '/api/v1';
+export function getApiBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    const custom = localStorage.getItem('backend_api_url');
+    if (custom && custom.trim()) {
+      return custom.trim().replace(/\/+$/, '').replace(/\/api\/v1$/, '') + '/api/v1';
+    }
+  }
+  const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  return BASE.replace(/\/+$/, '').replace(/\/api\/v1$/, '') + '/api/v1';
+}
 
 const api = axios.create({
-  baseURL,
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -13,9 +20,12 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const apiKey = typeof window !== 'undefined' ? localStorage.getItem('byok_api_key') : null;
-  if (apiKey && config.headers) {
-    config.headers['Authorization'] = `Bearer ${apiKey}`;
+  if (typeof window !== 'undefined') {
+    config.baseURL = getApiBaseUrl();
+    const apiKey = localStorage.getItem('byok_api_key');
+    if (apiKey && config.headers) {
+      config.headers['Authorization'] = `Bearer ${apiKey}`;
+    }
   }
   return config;
 });
