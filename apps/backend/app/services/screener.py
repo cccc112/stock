@@ -155,6 +155,39 @@ def _industry_of(symbol: str) -> str:
     return ""
 
 
+async def hot_universe(n: int = 60) -> List[str]:
+    """全市場(上市+上櫃)當日成交值前 n 名的一般股票，作為動態股票池"""
+    cached = await cache_service.get(f"universe:hot:{n}")
+    if cached:
+        try:
+            return json.loads(cached)
+        except Exception:
+            pass
+    rows: List[tuple] = []  # (成交值, 代碼)
+    import httpx
+    async with httpx.AsyncClient(timeout=20, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True) as c:
+        async def grab(url: str, code_k: str, val_k: str, px_k: str):
+            try:
+                for r in (await c.get(url)).json():
+                    code = str(r.get(code_k, ""))
+                    if len(code) == 4 and code.isdigit() and not code.startswith("00"):
+                        try:
+                            if float(str(r.get(px_k, "0")).replace(",", "") or 0) >= 10:
+                                rows.append((float(str(r.get(val_k, "0")).replace(",", "") or 0), code))
+                        except ValueError:
+                            continue
+            except Exception as e:
+                logger.warning("hot universe source failed (%s): %s", url, e)
+        await asyncio.gather(
+            grab("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL", "Code", "TradeValue", "ClosingPrice"),
+            grab("https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes", "SecuritiesCompanyCode", "TransactionAmount", "Close"),
+        )
+    codes = [code for _, code in sorted(rows, reverse=True)[:n]]
+    if codes:
+        await cache_service.set(f"universe:hot:{n}", json.dumps(codes), ttl=1800)
+    return codes
+
+
 async def evaluate(symbol: str, with_chips: bool = True, with_growth: bool = True) -> Optional[Dict[str, Any]]:
     async with _sem:
         df = await market_data.get_df(symbol, "6mo")
@@ -170,7 +203,8 @@ async def evaluate(symbol: str, with_chips: bool = True, with_growth: bool = Tru
                 growth = await growth_metrics(code)
         name = (await market_data.tw_name_map()).get(code, code) if kind == "TW" else code
     return {"symbol": symbol, "code": code, "name": name, "market": "TW" if kind == "TW" else "US",
-            "industry": _industry_of(code), "tech": t, "chips": chips, "growth": growth}
+            "industry": _industry_of(code) or (await market_data.tw_industry_map()).get(code, "") if kind == "TW" else "",
+            "tech": t, "chips": chips, "growth": growth}
 
 
 def composite(ev: Dict[str, Any], style: str = "balanced") -> Dict[str, Any]:
@@ -201,26 +235,30 @@ def composite(ev: Dict[str, Any], style: str = "balanced") -> Dict[str, Any]:
 
 
 async def recommend(market: str = "tw", style: str = "balanced", sector: Optional[str] = None,
-                    top: int = 10) -> Dict[str, Any]:
-    key = f"recommend:{market}:{style}:{sector or '-'}"
-    cached = await cache_service.get(key)
+                    top: int = 10, universe: str = "curated", refresh: bool = False) -> Dict[str, Any]:
+    """universe: curated = 內建各產業代表股；hot = 全市場當日成交值前 60 名"""
+    key = f"recommend:{market}:{style}:{sector or '-'}:{universe}"
+    cached = None if refresh else await cache_service.get(key)
     if cached:
         try:
             return json.loads(cached)
         except Exception:
             pass
     symbols: List[str] = []
-    for name, syms in SECTORS.items():
-        if sector and name != sector:
-            continue
-        is_us = name in US_SECTORS
-        if (market == "tw" and is_us) or (market == "us" and not is_us):
-            continue
-        symbols += syms
+    if universe == "hot" and market != "us":
+        symbols = await hot_universe(60)
+    else:
+        for name, syms in SECTORS.items():
+            if sector and name != sector:
+                continue
+            is_us = name in US_SECTORS
+            if (market == "tw" and is_us) or (market == "us" and not is_us):
+                continue
+            symbols += syms
     symbols = list(dict.fromkeys(symbols))
     evs = await asyncio.gather(*[evaluate(s) for s in symbols], return_exceptions=True)
     picks = sorted((composite(e, style) for e in evs if isinstance(e, dict)), key=lambda x: x["score"], reverse=True)
-    result = {"market": market, "style": style, "sector": sector, "universe": len(symbols),
+    result = {"market": market, "style": style, "sector": sector, "universe_type": universe, "universe": len(symbols),
               "evaluated": len(picks), "picks": picks[:top],
               "avoid": [p for p in picks if p["score"] < 45][-3:],
               "generated_at": pd.Timestamp.utcnow().isoformat()}
@@ -230,8 +268,8 @@ async def recommend(market: str = "tw", style: str = "balanced", sector: Optiona
 
 
 # ---------------------------------------------------------------- 產業
-async def industry_overview() -> Dict[str, Any]:
-    cached = await cache_service.get("industry:overview")
+async def industry_overview(refresh: bool = False) -> Dict[str, Any]:
+    cached = None if refresh else await cache_service.get("industry:overview")
     if cached:
         try:
             return json.loads(cached)

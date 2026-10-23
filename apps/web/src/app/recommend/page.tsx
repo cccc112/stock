@@ -53,6 +53,7 @@ function Bar({ label, v }: { label: string; v: number | null }) {
 export default function RecommendPage() {
   const [market, setMarket] = useState('tw');
   const [style, setStyle] = useState('balanced');
+  const [universe, setUniverse] = useState('curated');
   const [picks, setPicks] = useState<Pick[]>([]);
   const [avoid, setAvoid] = useState<Pick[]>([]);
   const [meta, setMeta] = useState({ universe: 0, evaluated: 0 });
@@ -73,7 +74,7 @@ export default function RecommendPage() {
 
   useEffect(() => {
     let alive = true;
-    apiResearch.getRecommendations({ market, style, top: 10 })
+    apiResearch.getRecommendations({ market, style, top: 10, universe })
       .then(r => {
         if (!alive) return;
         setPicks(r.data.picks); setAvoid(r.data.avoid || []);
@@ -82,12 +83,12 @@ export default function RecommendPage() {
       .catch(e => alive && setError(apiErrorMessage(e)))
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
-  }, [market, style, nonce]);
+  }, [market, style, universe, nonce]);
 
   const explain = async () => {
     setAiLoading(true); setAiError('');
     try {
-      const r = await apiResearch.explainRecommendations({ market, style });
+      const r = await apiResearch.explainRecommendations({ market, style, universe });
       setRationale(r.data.rationale);
     } catch (e) {
       setAiError(apiErrorMessage(e));
@@ -120,6 +121,15 @@ export default function RecommendPage() {
               className={`px-3 py-1 rounded-md border ${market === m.id ? 'border-[var(--accent)] text-accent' : 'border-[var(--border)] text-secondary'}`}>{m.label}</button>
           ))}
         </div>
+        {market !== 'us' && (
+          <div className="flex gap-2 items-center">
+            <span className="text-secondary">股票池</span>
+            {[{ id: 'curated', label: '產業代表股', tip: '內建各產業大型代表股' }, { id: 'hot', label: '全市場熱門 60', tip: '上市+上櫃當日成交值前 60 名' }].map(u => (
+              <button key={u.id} title={u.tip} onClick={() => refetch(() => setUniverse(u.id))}
+                className={`px-3 py-1 rounded-md border ${universe === u.id ? 'border-[var(--accent)] text-accent' : 'border-[var(--border)] text-secondary'}`}>{u.label}</button>
+            ))}
+          </div>
+        )}
         <div className="flex gap-2 items-center flex-wrap">
           <span className="text-secondary">風格</span>
           {STYLES.map(s => (
@@ -142,7 +152,7 @@ export default function RecommendPage() {
                     <span className="text-secondary text-sm">#{i + 1}</span>
                     <Link href={`/stock/${p.symbol}`} className="text-lg font-bold hover:text-accent">{p.symbol}</Link>
                     <span className="text-secondary">{p.name !== p.symbol ? p.name : ''}</span>
-                    {p.industry && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)]">{p.industry}</span>}
+                    {p.industry && <span style={{ fontSize: 10 }} className="px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)]">{p.industry}</span>}
                   </div>
                   <div className="text-sm mt-1">
                     <span className="font-medium">{p.price}</span>
@@ -194,7 +204,7 @@ export default function RecommendPage() {
       )}
 
       <p className="text-xs text-secondary">
-        進場區間、停損、目標價以 ATR（平均真實波幅）估算：停損 = 現價 − 2×ATR，目標 = 現價 + 3×ATR。推薦清單來自內建的各產業代表股，僅供研究參考，非投資建議。
+        進場區間、停損、目標價以 ATR（平均真實波幅）估算：停損 = 現價 − 2×ATR，目標 = 現價 + 3×ATR。推薦清單來自你所選的股票池（產業代表股或全市場成交值前 60 名），僅供研究參考，非投資建議。
       </p>
     </div>
   );

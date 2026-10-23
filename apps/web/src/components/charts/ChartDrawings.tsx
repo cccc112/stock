@@ -19,6 +19,7 @@ export interface Drawing {
   id: string;
   type: Exclude<Tool, 'cursor'>;
   color: string;
+  title?: string;   // 例如 AI 產生的「支撐 1」
   p1: Anchor;
   p2?: Anchor;
 }
@@ -87,6 +88,13 @@ export function useDrawings(symbol: string, intraday: boolean) {
   const patch = useCallback((id: string, p: Partial<Drawing>, record = false) =>
     update(l => l.map(d => (d.id === id ? { ...d, ...p } : d)), record), [update]);
   const remove = useCallback((id: string) => { update(l => l.filter(d => d.id !== id)); setSelected(null); }, [update]);
+  // 以 AI 計算的支撐/壓力取代舊的 AI 線（id 以 ai- 開頭），不進復原堆疊
+  const setAiLines = useCallback((lines: { price: number; color: string; title: string }[], ts: number) => {
+    update(l => [
+      ...l.filter(d => !d.id.startsWith('ai-')),
+      ...lines.map((x, i): Drawing => ({ id: `ai-${i}`, type: 'hline', color: x.color, title: x.title, p1: { ts, price: x.price } })),
+    ], false);
+  }, [update]);
   const clear = useCallback(() => { update(() => []); setSelected(null); }, [update]);
   const undo = useCallback(() => {
     const last = histRef.current.pop();
@@ -100,7 +108,7 @@ export function useDrawings(symbol: string, intraday: boolean) {
 
   return {
     drawings: store[cls], tool, setTool, color, setColor, selected, setSelected, magnet, setMagnet,
-    add, patch, remove, clear, undo, pushHistory,
+    add, patch, remove, clear, undo, pushHistory, setAiLines,
   };
 }
 
@@ -373,7 +381,7 @@ export function DrawingLayer({ chart, series, bars, api }: LayerProps) {
     if (d.type === 'hline') {
       body = (<>
         <line x1={0} y1={a.y} x2={w} y2={a.y} {...common} />{hit(0, a.y, w, a.y)}
-        {label(w, a.y - 10, fmt(d.p1.price), d.color)}
+        {label(w, a.y - 10, `${d.title ? d.title + ' ' : ''}${fmt(d.p1.price)}`, d.color)}
       </>);
     } else if (d.type === 'vline') {
       body = (<><line x1={a.x} y1={0} x2={a.x} y2={h} {...common} />{hit(a.x, 0, a.x, h)}</>);

@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import Button from "@/components/ui/Button";
 import { apiResearch, apiErrorMessage } from "@/lib/api";
 import { Sparkles } from "lucide-react";
+import { BarTrend, LineTrend } from "@/components/stock/TrendCharts";
 
 interface Quarter {
   quarter: string;
@@ -81,6 +82,8 @@ export default function FinancialsSection({ symbol }: { symbol: string }) {
   if (error || !report) return <div className="text-secondary py-10 text-center">{error || '查無財報資料'}</div>;
 
   const m = report.market;
+  const chrono = report.quarters.slice(0, 8).reverse();          // 舊 -> 新
+  const qLabels = chrono.map(q => q.quarter.slice(2));            // 26Q2
   return (
     <div className="space-y-6">
       {/* 評分 */}
@@ -115,6 +118,18 @@ export default function FinancialsSection({ symbol }: { symbol: string }) {
             <span className="text-secondary">{k}</span><span className="font-medium">{v as string}</span>
           </div>
         ))}
+      </div>
+
+      {/* 趨勢圖 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+        <BarTrend title="單季營收" labels={qLabels} values={chrono.map(q => q.revenue)}
+          format={v => (Math.abs(v) >= 1e8 ? `${(v / 1e8).toFixed(0)}億` : `${(v / 1e6).toFixed(0)}M`)} />
+        <LineTrend title="獲利率趨勢" labels={qLabels} series={[
+          { name: '毛利率', color: '#6366f1', values: chrono.map(q => q.gross_margin) },
+          { name: '營益率', color: '#f59e0b', values: chrono.map(q => q.operating_margin) },
+          { name: '淨利率', color: '#22c55e', values: chrono.map(q => q.net_margin) },
+        ]} />
+        <BarTrend title="單季 EPS" labels={qLabels} values={chrono.map(q => q.eps)} format={v => v.toFixed(2)} color="#22c55e" />
       </div>
 
       {/* 季報 */}

@@ -28,11 +28,32 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+async def _warm_caches():
+    """背景預熱：推薦與產業排行計算較久，先算好放進快取，使用者第一次開頁面就是秒開"""
+    import logging
+    from app.services import screener
+    log = logging.getLogger("warmup")
+    await asyncio.sleep(5)
+    while True:
+        for name, coro in (
+            ("industries", screener.industry_overview(refresh=True)),
+            ("recommend:tw", screener.recommend("tw", "balanced", None, 10, "curated", refresh=True)),
+            ("recommend:hot", screener.recommend("tw", "balanced", None, 10, "hot", refresh=True)),
+        ):
+            try:
+                await coro
+            except Exception as e:
+                log.warning("warm %s failed: %s", name, e)
+        await asyncio.sleep(15 * 60)  # 快取 TTL 為 15~20 分鐘，提前刷新
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: scheduler disabled (requires real Supabase)
     # start_scheduler()
+    warm_task = asyncio.create_task(_warm_caches())
     yield
+    warm_task.cancel()
     # Shutdown
     if cache_service._redis:
         try:

@@ -153,8 +153,12 @@ async def chart_analysis(symbol: str, authorization: Optional[str] = Header(None
     recent_20 = history_data[-20:]
     recent_60 = history_data[-60:]
     
-    supports = list(set([min([b.low for b in recent_20]), min([b.low for b in recent_60])]))
-    resistances = list(set([max([b.high for b in recent_20]), max([b.high for b in recent_60])]))
+    price_now = history_data[-1].close
+    supports = sorted({round(min(b.low for b in recent_20), 2), round(min(b.low for b in recent_60), 2)}, reverse=True)
+    resistances = sorted({round(max(b.high for b in recent_20), 2), round(max(b.high for b in recent_60), 2)})
+    # 只保留位置合理的線：支撐在現價下方、壓力在現價上方
+    supports = [x for x in supports if x <= price_now] or supports
+    resistances = [x for x in resistances if x >= price_now] or resistances
     
     # 2. 取得基本面資料
     clean_sym = market_data.split_symbol(symbol)[0]
@@ -175,7 +179,8 @@ async def chart_analysis(symbol: str, authorization: Optional[str] = Header(None
         except Exception:
             pass
             
-    # 3. 呼叫 Gemini 進行分析
+    # 3. 呼叫 Gemini 進行分析（失敗時仍回傳計算好的支撐壓力線）
+    analysis, analysis_error = None, None
     try:
         analysis = await gemini_service.chart_fundamental_analysis(
             symbol=symbol,
@@ -185,12 +190,13 @@ async def chart_analysis(symbol: str, authorization: Optional[str] = Header(None
             api_key=api_key
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-        
+        analysis_error = str(e)
+
     return {
         "supportLines": supports,
         "resistanceLines": resistances,
-        "analysis": analysis
+        "analysis": analysis,
+        "analysis_error": analysis_error,
     }
 
 @router.post("/committee/{symbol}")

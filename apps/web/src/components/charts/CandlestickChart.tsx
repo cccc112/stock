@@ -87,17 +87,6 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
       wickDownColor: downColor,
     });
     
-    priceLines.forEach(line => {
-      mainSeries.createPriceLine({
-        price: line.price,
-        color: line.color,
-        lineWidth: 2,
-        lineStyle: 2, // Dashed
-        axisLabelVisible: true,
-        title: line.title,
-      });
-    });
-
     const volumeSeries = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' },
       priceScaleId: 'left',
@@ -245,7 +234,16 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
         chartRef.current = null;
       }
     };
-  }, [symbol, market, activePeriod, upColor, downColor, JSON.stringify(priceLines)]);
+  }, [symbol, market, activePeriod, upColor, downColor]);
+
+  // AI 算出的支撐/壓力線轉成可編輯的水平線畫在圖上
+  const aiKey = JSON.stringify(priceLines);
+  const { setAiLines } = drawingsApi;
+  useEffect(() => {
+    if (!overlay || priceLines.length === 0 || overlay.bars.length === 0) return;
+    setAiLines(priceLines, overlay.bars[overlay.bars.length - 1].ts);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiKey, overlay, setAiLines]);
 
   const periods = [
     { label: '日線', value: '1d' },

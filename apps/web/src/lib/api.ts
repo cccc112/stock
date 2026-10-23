@@ -94,9 +94,9 @@ export const apiMarket = {
 export const apiResearch = {
   getFinancials: (symbol: string) => api.get(`/research/${symbol}/financials`),
   getFinancialAdvice: (symbol: string) => api.post(`/research/${symbol}/financial-advice`, null, { timeout: 90000 }),
-  getRecommendations: (params: { market?: string; style?: string; sector?: string; top?: number }) =>
+  getRecommendations: (params: { market?: string; style?: string; sector?: string; top?: number; universe?: string }) =>
     api.get('/research/recommend', { params, timeout: 120000 }),
-  explainRecommendations: (params: { market?: string; style?: string; sector?: string }) =>
+  explainRecommendations: (params: { market?: string; style?: string; sector?: string; universe?: string }) =>
     api.post('/research/recommend/explain', null, { params, timeout: 120000 }),
   getIndustries: () => api.get('/research/industries', { timeout: 120000 }),
   getIndustry: (name: string) => api.get(`/research/industries/${encodeURIComponent(name)}`, { timeout: 60000 }),

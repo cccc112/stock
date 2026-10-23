@@ -34,6 +34,8 @@ export default function AIChartAnalyzer({ symbol, onLinesCalculated }: AIChartAn
       
       onLinesCalculated(newLines);
       setAnalysis(data.analysis);
+      // 線已畫在圖上；AI 解讀失敗（例如沒設 API Key）只提示，不影響畫線
+      if (data.analysis_error) setError(`支撐壓力線已標在圖上，但 AI 解讀失敗：${data.analysis_error}`);
       
     } catch (err: any) {
       console.error(err);

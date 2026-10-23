@@ -76,16 +76,17 @@ async def financial_advice(symbol: str, authorization: Optional[str] = Header(No
 
 # ---------------------------------------------------------------- 推薦
 @router.get("/recommend")
-async def recommend(market: str = "tw", style: str = "balanced", sector: Optional[str] = None, top: int = 10):
-    if market not in ("tw", "us", "all") or style not in screener.STYLE_WEIGHTS:
-        raise HTTPException(status_code=400, detail="market 需為 tw/us/all；style 需為 balanced/momentum/growth/chips")
-    return await screener.recommend(market, style, sector, min(max(top, 1), 30))
+async def recommend(market: str = "tw", style: str = "balanced", sector: Optional[str] = None, top: int = 10,
+                    universe: str = "curated"):
+    if market not in ("tw", "us", "all") or style not in screener.STYLE_WEIGHTS or universe not in ("curated", "hot"):
+        raise HTTPException(status_code=400, detail="market 需為 tw/us/all；style 需為 balanced/momentum/growth/chips；universe 需為 curated/hot")
+    return await screener.recommend(market, style, sector, min(max(top, 1), 30), universe)
 
 
 @router.post("/recommend/explain")
 async def recommend_explain(market: str = "tw", style: str = "balanced", sector: Optional[str] = None,
-                            authorization: Optional[str] = Header(None)):
-    data = await screener.recommend(market, style, sector, 5)
+                            universe: str = "curated", authorization: Optional[str] = Header(None)):
+    data = await screener.recommend(market, style, sector, 5, universe)
     if not data["picks"]:
         raise HTTPException(status_code=404, detail="目前無法取得足夠資料產生推薦")
     brief = [{k: p[k] for k in ("symbol", "name", "industry", "price", "score", "scores", "signals",
