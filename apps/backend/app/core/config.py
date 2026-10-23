@@ -3,10 +3,8 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    # Supabase
-    supabase_url: str = ""
-    supabase_anon_key: str = ""
-    supabase_service_role_key: str = ""
+    # Postgres (Neon) 連線字串，例如 postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require
+    database_url: str = ""
 
     # Gemini AI
     gemini_api_key: str = ""

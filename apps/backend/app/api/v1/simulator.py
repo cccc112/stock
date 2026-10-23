@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from app.models.schemas import SimPortfolio, SimTransaction, SimTradeRequest
-from app.core.deps import get_supabase
+from app.core.deps import get_db
 from datetime import datetime
 import uuid
 import httpx
@@ -10,12 +10,12 @@ from app.services.gemini import gemini_service
 router = APIRouter()
 
 @router.get("/portfolios", response_model=List[SimPortfolio])
-async def get_portfolios(db=Depends(get_supabase)):
+async def get_portfolios(db=Depends(get_db)):
     res = db.table("sim_portfolios").select("*").execute()
     return [SimPortfolio(**p) for p in res.data]
 
 @router.post("/portfolios", response_model=SimPortfolio)
-async def create_portfolio(name: str, initial_cash: float = 100000.0, db=Depends(get_supabase)):
+async def create_portfolio(name: str, initial_cash: float = 100000.0, db=Depends(get_db)):
     new_portfolio = {
         "id": str(uuid.uuid4()),
         "name": name,
@@ -26,7 +26,7 @@ async def create_portfolio(name: str, initial_cash: float = 100000.0, db=Depends
     return SimPortfolio(**res.data[0])
 
 @router.post("/{portfolio_id}/trade", response_model=SimTransaction)
-async def execute_trade(portfolio_id: str, req: SimTradeRequest, db=Depends(get_supabase)):
+async def execute_trade(portfolio_id: str, req: SimTradeRequest, db=Depends(get_db)):
     res = db.table("sim_portfolios").select("cash_balance").eq("id", portfolio_id).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Portfolio not found")
@@ -55,12 +55,12 @@ async def execute_trade(portfolio_id: str, req: SimTradeRequest, db=Depends(get_
     return SimTransaction(**res_tx.data[0])
 
 @router.get("/{portfolio_id}/transactions", response_model=List[SimTransaction])
-async def get_transactions(portfolio_id: str, db=Depends(get_supabase)):
+async def get_transactions(portfolio_id: str, db=Depends(get_db)):
     res = db.table("sim_transactions").select("*").eq("portfolio_id", portfolio_id).order("timestamp", desc=True).execute()
     return [SimTransaction(**t) for t in res.data]
 
 @router.get("/{portfolio_id}/performance")
-async def get_performance(portfolio_id: str, db=Depends(get_supabase)):
+async def get_performance(portfolio_id: str, db=Depends(get_db)):
     res = db.table("sim_transactions").select("*").eq("portfolio_id", portfolio_id).execute()
     txs = res.data
     
@@ -95,7 +95,7 @@ async def get_performance(portfolio_id: str, db=Depends(get_supabase)):
     }
 
 @router.post("/{portfolio_id}/review")
-async def request_review(portfolio_id: str, db=Depends(get_supabase)):
+async def request_review(portfolio_id: str, db=Depends(get_db)):
     port_res = db.table("sim_portfolios").select("*").eq("id", portfolio_id).execute()
     if not port_res.data:
         raise HTTPException(status_code=404, detail="Portfolio not found")
@@ -106,7 +106,7 @@ async def request_review(portfolio_id: str, db=Depends(get_supabase)):
     return {"message": "Review completed", "review": review_text}
 
 @router.put("/{portfolio_id}/toggle_ai", response_model=SimPortfolio)
-async def toggle_ai_auto_trade(portfolio_id: str, db=Depends(get_supabase)):
+async def toggle_ai_auto_trade(portfolio_id: str, db=Depends(get_db)):
     res = db.table("sim_portfolios").select("is_ai_auto_trade").eq("id", portfolio_id).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Portfolio not found")

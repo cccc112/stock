@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from app.models.schemas import AlertCreate, Alert
-from app.core.deps import get_supabase
+from app.core.deps import get_db
 from datetime import datetime
 import uuid
 
@@ -10,7 +10,7 @@ router = APIRouter()
 @router.get("", response_model=List[Alert])
 async def get_alerts():
     try:
-        db = get_supabase()
+        db = get_db()
         res = db.table("alerts").select("*").execute()
         return [Alert(**a) for a in res.data]
     except Exception as e:
@@ -18,7 +18,7 @@ async def get_alerts():
         return []
 
 @router.post("", response_model=Alert)
-async def create_alert(alert: AlertCreate, db=Depends(get_supabase)):
+async def create_alert(alert: AlertCreate, db=Depends(get_db)):
     if alert.condition != "VOLUME_ANOMALY":
         raise HTTPException(status_code=400, detail="Only VOLUME_ANOMALY is supported")
         
@@ -35,12 +35,12 @@ async def create_alert(alert: AlertCreate, db=Depends(get_supabase)):
     return Alert(**res.data[0])
 
 @router.delete("/{id}")
-async def delete_alert(id: str, db=Depends(get_supabase)):
+async def delete_alert(id: str, db=Depends(get_db)):
     db.table("alerts").delete().eq("id", id).execute()
     return {"message": "Success"}
 
 @router.put("/{id}/toggle", response_model=Alert)
-async def toggle_alert(id: str, db=Depends(get_supabase)):
+async def toggle_alert(id: str, db=Depends(get_db)):
     res = db.table("alerts").select("is_active").eq("id", id).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Alert not found")

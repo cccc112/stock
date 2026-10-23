@@ -1,6 +1,6 @@
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
-from app.core.deps import get_supabase
+from app.core.deps import get_db
 from app.models.schemas import QuantAnalysis, VAPResult, VolumeAnomalyResult, SupportResistanceLevel, QuantScreenRequest, BacktestRequest
 from app.services import market_data
 from app.quant.vap import calculate_vap
@@ -96,7 +96,7 @@ async def scan_anomaly(symbol: str):
     return detect_volume_anomaly(df)
 
 @router.get("/scan/all", response_model=list[VolumeAnomalyResult])
-async def scan_all(db=Depends(get_supabase)):
+async def scan_all(db=Depends(get_db)):
     res = db.table("watchlist").select("symbol").execute()
     symbols = [r["symbol"] for r in res.data]
     
@@ -113,7 +113,7 @@ async def scan_all(db=Depends(get_supabase)):
     return results
 
 @router.post("/screen")
-async def screen_stocks(req: QuantScreenRequest, db=Depends(get_supabase)):
+async def screen_stocks(req: QuantScreenRequest, db=Depends(get_db)):
     """Screen stocks by strategy. strategies is comma-separated list."""
     if req.symbols and len(req.symbols) > 0:
         symbols = req.symbols

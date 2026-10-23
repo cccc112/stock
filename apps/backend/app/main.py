@@ -28,6 +28,20 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+async def _init_database():
+    """有設定 DATABASE_URL 時自動建表；失敗不影響行情等其他功能"""
+    import logging
+    from app.core.config import get_settings
+    if not get_settings().database_url:
+        logging.getLogger("db").warning("未設定 DATABASE_URL：自選股/投資組合/模擬交易/警報將無法使用")
+        return
+    try:
+        from app.core.db import get_database
+        await asyncio.to_thread(get_database().ensure_schema)
+    except Exception as e:
+        logging.getLogger("db").error("資料庫初始化失敗: %s", e)
+
+
 async def _warm_caches():
     """背景預熱：推薦與產業排行計算較久，先算好放進快取，使用者第一次開頁面就是秒開"""
     import logging
@@ -52,6 +66,7 @@ async def lifespan(app: FastAPI):
     # Startup: scheduler disabled (requires real Supabase)
     # start_scheduler()
     warm_task = asyncio.create_task(_warm_caches())
+    await _init_database()
     yield
     warm_task.cancel()
     # Shutdown

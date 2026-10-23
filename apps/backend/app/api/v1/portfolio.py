@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from app.models.schemas import PortfolioHolding, PortfolioTransaction, PnLSummary, TransactionType
-from app.core.deps import get_supabase
+from app.core.deps import get_db
 from app.api.v1.stocks import get_quote
 import uuid
 from datetime import datetime
@@ -9,7 +9,7 @@ from datetime import datetime
 router = APIRouter()
 
 @router.get("/holdings", response_model=List[PortfolioHolding])
-async def get_holdings(db=Depends(get_supabase)):
+async def get_holdings(db=Depends(get_db)):
     res = db.table("portfolio_transactions").select("*").execute()
     
     holdings_dict = {}
@@ -57,7 +57,7 @@ async def get_holdings(db=Depends(get_supabase)):
     return holdings
 
 @router.post("/transactions", response_model=PortfolioTransaction)
-async def record_transaction(transaction: PortfolioTransaction, db=Depends(get_supabase)):
+async def record_transaction(transaction: PortfolioTransaction, db=Depends(get_db)):
     data = transaction.dict()
     data['timestamp'] = data['timestamp'].isoformat()
     data['type'] = data['type'].value
@@ -69,12 +69,12 @@ async def record_transaction(transaction: PortfolioTransaction, db=Depends(get_s
     return PortfolioTransaction(**res.data[0])
 
 @router.get("/transactions", response_model=List[PortfolioTransaction])
-async def get_transactions(db=Depends(get_supabase)):
+async def get_transactions(db=Depends(get_db)):
     res = db.table("portfolio_transactions").select("*").order("timestamp", desc=True).execute()
     return [PortfolioTransaction(**t) for t in res.data]
 
 @router.get("/summary", response_model=PnLSummary)
-async def get_summary(db=Depends(get_supabase)):
+async def get_summary(db=Depends(get_db)):
     holdings = await get_holdings(db)
     
     pnl_twd = sum(h.pnl for h in holdings if h.market == 'TW')
@@ -83,6 +83,6 @@ async def get_summary(db=Depends(get_supabase)):
     return PnLSummary(total_pnl_twd=pnl_twd, total_pnl_usd=pnl_usd)
 
 @router.delete("/holdings/{symbol}")
-async def delete_holding(symbol: str, db=Depends(get_supabase)):
+async def delete_holding(symbol: str, db=Depends(get_db)):
     res = db.table("portfolio_transactions").delete().eq("symbol", symbol).execute()
     return {"status": "success", "deleted_symbol": symbol}

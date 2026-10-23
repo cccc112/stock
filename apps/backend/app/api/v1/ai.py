@@ -3,7 +3,7 @@ from typing import Optional
 from app.models.schemas import AIAnalysisRequest, AIAnalysisResponse
 from app.services.gemini import gemini_service
 from app.api.v1.quant import get_full_analysis
-from app.core.deps import get_supabase
+from app.core.deps import get_db
 from datetime import datetime
 
 router = APIRouter()
@@ -79,7 +79,7 @@ async def analyze_stock(symbol: str, req: AIAnalysisRequest = None, authorizatio
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/review/{portfolio_id}")
-async def review_trades(portfolio_id: str, db=Depends(get_supabase)):
+async def review_trades(portfolio_id: str, db=Depends(get_db)):
     res_t = db.table("sim_transactions").select("*").eq("portfolio_id", portfolio_id).execute()
     res_p = db.table("sim_portfolios").select("*").eq("id", portfolio_id).execute()
     
@@ -94,7 +94,7 @@ async def review_trades(portfolio_id: str, db=Depends(get_supabase)):
     return {"review": review}
 
 @router.get("/trade-suggestions")
-async def get_trade_suggestions(db=Depends(get_supabase), authorization: Optional[str] = Header(None)):
+async def get_trade_suggestions(db=Depends(get_db), authorization: Optional[str] = Header(None)):
     # Check cache first to prevent slow Gemini calls on every dashboard load
     import json
     from app.services.cache import cache_service

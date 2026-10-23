@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from app.models.schemas import WatchlistCreate, WatchlistItem, Watchlist, StockQuote
-from app.core.deps import get_supabase
+from app.core.deps import get_db
 from datetime import datetime
 import uuid
 from app.api.v1.stocks import get_quote
@@ -9,13 +9,13 @@ from app.api.v1.stocks import get_quote
 router = APIRouter()
 
 @router.get("", response_model=Watchlist)
-async def get_watchlist(db=Depends(get_supabase)):
+async def get_watchlist(db=Depends(get_db)):
     res = db.table("watchlist").select("*").execute()
     items = [WatchlistItem(**item) for item in res.data]
     return Watchlist(items=items)
 
 @router.post("/items", response_model=WatchlistItem)
-async def add_watchlist_item(item: WatchlistCreate, db=Depends(get_supabase)):
+async def add_watchlist_item(item: WatchlistCreate, db=Depends(get_db)):
     new_item = {
         "id": str(uuid.uuid4()),
         "symbol": item.symbol,
@@ -28,12 +28,12 @@ async def add_watchlist_item(item: WatchlistCreate, db=Depends(get_supabase)):
     return WatchlistItem(**res.data[0])
 
 @router.delete("/items/{symbol}")
-async def remove_watchlist_item(symbol: str, db=Depends(get_supabase)):
+async def remove_watchlist_item(symbol: str, db=Depends(get_db)):
     db.table("watchlist").delete().eq("symbol", symbol).execute()
     return {"message": "Success"}
 
 @router.get("/quotes", response_model=List[StockQuote])
-async def get_watchlist_quotes(db=Depends(get_supabase)):
+async def get_watchlist_quotes(db=Depends(get_db)):
     res = db.table("watchlist").select("symbol").execute()
     symbols = [item["symbol"] for item in res.data]
     

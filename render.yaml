@@ -18,10 +18,7 @@ services:
         sync: false
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
-      # 自選股 / 投資組合 / 模擬交易需要 Supabase；只看行情與研究功能可不設
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
+      # Neon (Postgres) 連線字串：自選股 / 投資組合 / 模擬交易 / 警報需要。
+      # 格式 postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require ；後端啟動時會自動建表
+      - key: DATABASE_URL
         sync: false
