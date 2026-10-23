@@ -5,7 +5,8 @@ from typing import Dict, Any, Optional
 from google import genai
 from app.core.config import get_settings
 from app.services.finmind import finmind_service
-from app.services.yahoo import yahoo_service
+from app.services import market_data
+from app.services.fundamentals import build_financial_report
 from app.api.v1.market import fetch_single_quote
 
 logger = logging.getLogger(__name__)
@@ -32,31 +33,28 @@ class MultiAgentInvestmentCommittee:
 
     async def _collect_market_context(self, symbol: str) -> Dict[str, Any]:
         """蒐集行情、K線指標、基本面營收、籌碼與即時新聞"""
-        clean_sym = symbol.replace('.TW', '').replace('.TWO', '')
-        is_tw = symbol.endswith('.TW') or symbol.endswith('.TWO') or symbol.isnumeric()
+        clean_sym, kind, _ = market_data.split_symbol(symbol)
+        is_tw = kind == "TW"
 
         # 1. 即時報價
         quote = await fetch_single_quote(symbol)
 
-        # 2. 歷史價格
+        # 2. 歷史價格（統一資料層，含備援）
         bars_summary = []
         try:
-            raw_bars = await finmind_service.get_history(clean_sym, days=60) if is_tw else []
-            if not raw_bars:
-                yahoo_bars = yahoo_service.get_history(symbol, period='3mo')
-                if yahoo_bars:
-                    raw_bars = [{
-                        'date': str(b.time)[:10],
-                        'close': b.close,
-                        'open': b.open,
-                        'high': b.high,
-                        'low': b.low,
-                        'volume': b.volume
-                    } for b in yahoo_bars[-30:]]
-            if raw_bars:
-                bars_summary = raw_bars[-15:]
+            bars = await market_data.get_history(symbol, "3mo", "1d")
+            bars_summary = [{"date": str(b.time)[:10], "open": b.open, "high": b.high, "low": b.low,
+                             "close": b.close, "volume": b.volume} for b in bars[-15:]]
         except Exception as e:
             logger.warning(f"Failed to fetch bars for {symbol}: {e}")
+
+        # 財報重點（毛利率/EPS/估值…）
+        financial_highlights = None
+        try:
+            rep = await build_financial_report(symbol)
+            financial_highlights = {k: rep.get(k) for k in ("quarters", "valuation", "dividend", "scores") if rep.get(k)}
+        except Exception as e:
+            logger.warning(f"Failed to build financial report for {symbol}: {e}")
 
         # 3. 營收數據
         revenue_summary = []
@@ -98,19 +96,17 @@ class MultiAgentInvestmentCommittee:
             "recent_bars": bars_summary,
             "monthly_revenue": revenue_summary,
             "institutional_flow": inst_summary,
-            "recent_news": news_titles
+            "recent_news": news_titles,
+            "financial_highlights": financial_highlights,
+            "data_source": quote.source if quote else None,
+            "data_is_stale": quote.stale if quote else True,
         }
 
-    async def _call_agent_json(self, client: genai.Client, prompt: str) -> Dict[str, Any]:
-        """向 Gemini 發出請求並安全解析 JSON"""
+    async def _call_agent_json(self, api_key: Optional[str], prompt: str) -> Dict[str, Any]:
+        """向 Gemini 發出請求並安全解析 JSON（含模型備援）"""
+        from app.services.gemini import gemini_service
         try:
-            response = await asyncio.to_thread(
-                client.models.generate_content,
-                model='gemini-2.5-flash',
-                contents=prompt,
-                config={'response_mime_type': 'application/json'}
-            )
-            return json.loads(response.text)
+            return await gemini_service.generate_json(prompt, api_key)
         except Exception as e:
             logger.error(f"Agent JSON generation failed: {e}")
             return {"error": str(e)}
@@ -178,9 +174,9 @@ class MultiAgentInvestmentCommittee:
         """
 
         # 並行執行三位專家的獨立審查
-        buffett_task = self._call_agent_json(client, buffett_prompt)
-        simons_task = self._call_agent_json(client, simons_prompt)
-        cro_task = self._call_agent_json(client, cro_prompt)
+        buffett_task = self._call_agent_json(api_key, buffett_prompt)
+        simons_task = self._call_agent_json(api_key, simons_prompt)
+        cro_task = self._call_agent_json(api_key, cro_prompt)
 
         buffett_res, simons_res, cro_res = await asyncio.gather(
             buffett_task, simons_task, cro_task
@@ -220,7 +216,7 @@ class MultiAgentInvestmentCommittee:
         }}
         """
 
-        cio_res = await self._call_agent_json(client, cio_prompt)
+        cio_res = await self._call_agent_json(api_key, cio_prompt)
 
         return {
             "symbol": symbol,

@@ -11,6 +11,7 @@ class CacheService:
     def __init__(self):
         self._store: Dict[str, Tuple[Any, float]] = {}  # key -> (value, expires_at)
         self._redis = None
+        self._redis_down_until = 0.0  # Redis 失敗後暫停使用一段時間，避免每次快取操作都等連線逾時
         self._try_redis()
 
     def _try_redis(self):
@@ -42,32 +43,37 @@ class CacheService:
     def _mem_delete(self, key: str):
         self._store.pop(key, None)
 
+    def _redis_ok(self) -> bool:
+        return bool(self._redis) and time.time() >= self._redis_down_until
+
+    def _redis_failed(self):
+        self._redis_down_until = time.time() + 60
+
     async def get(self, key: str) -> Optional[str]:
-        if self._redis:
+        if self._redis_ok():
             try:
                 result = await self._redis.get(key)
                 return result
             except Exception:
-                # Redis failed, fall through to memory
-                pass
+                self._redis_failed()
         return self._mem_get(key)
 
     async def set(self, key: str, value: str, ttl: int):
-        if self._redis:
+        if self._redis_ok():
             try:
                 await self._redis.set(key, value, ex=ttl)
                 return
             except Exception:
-                pass
+                self._redis_failed()
         self._mem_set(key, value, ttl)
 
     async def delete(self, key: str):
-        if self._redis:
+        if self._redis_ok():
             try:
                 await self._redis.delete(key)
                 return
             except Exception:
-                pass
+                self._redis_failed()
         self._mem_delete(key)
 
     async def get_quote_cache(self, symbol: str) -> Optional[StockQuote]:

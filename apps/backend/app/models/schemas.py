@@ -20,6 +20,8 @@ class StockQuote(BaseModel):
     prev_close: float
     market: MarketType
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+    source: str = ""      # 資料來源: twse / yahoo / yfinance / finmind
+    stale: bool = False   # True = 非即時(收盤前無成交、備援日線或快取的舊資料)
 
 class KlineBar(BaseModel):
     time: datetime

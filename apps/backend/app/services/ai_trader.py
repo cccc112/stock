@@ -7,51 +7,19 @@ import pandas as pd
 class AITrader:
     async def _analyze_single(self, symbol: str, api_key: str = None):
         try:
-            from app.services.yahoo import yahoo_service
-            import asyncio
-            loop = asyncio.get_event_loop()
-            
+            from app.services import market_data
+            from app.api.v1.market import fetch_single_quote
+
             quote = None
             try:
-                from app.api.v1.market import fetch_single_quote
                 quote = await fetch_single_quote(symbol)
             except Exception:
                 pass
-                
-            history_data = None
-            try:
-                history_data = await asyncio.wait_for(
-                    loop.run_in_executor(None, yahoo_service.get_history, symbol, '3mo', '1d'),
-                    timeout=4.0
-                )
-            except Exception:
-                pass
-            
-            if not history_data:
-                if symbol.endswith('.TW') or symbol.isnumeric():
-                    from app.services.finmind import finmind_service
-                    clean_sym = symbol.replace('.TW', '')
-                    fm_data = await finmind_service.get_history(clean_sym, days=90)
-                    if fm_data:
-                        history_data = []
-                        for row in fm_data:
-                            history_data.append({
-                                "time": pd.to_datetime(row["date"]),
-                                "open": row.get("open", 0),
-                                "high": row.get("max", 0),
-                                "low": row.get("min", 0),
-                                "close": row.get("close", 0),
-                                "volume": row.get("Trading_Volume", 0)
-                            })
-                
-            if not history_data:
-                return None
-                
-            history = pd.DataFrame([b.dict() if hasattr(b, 'dict') else b for b in history_data])
-            
+
+            history = await market_data.get_df(symbol, "6mo")
             if history is None or history.empty:
                 return None
-            
+
             # Run strategies
             signals = run_all_strategies(history)
             

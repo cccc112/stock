@@ -1,14 +1,14 @@
 import asyncio
+import json
 from fastapi import APIRouter
 from typing import List
-from app.models.schemas import StockQuote, MarketType
-from app.services.twse import twse_service
-from app.services.yahoo import yahoo_service
+from app.models.schemas import StockQuote
+from app.services import market_data
 from app.services.cache import cache_service
 
 router = APIRouter()
 
-# Stock name mapping (to avoid calling yfinance info which is slow)
+# 中文名稱以 FinMind TaiwanStockInfo 為主；以下僅作為美股與備援
 STOCK_NAMES = {
     "2330.TW": "台積電", "2317.TW": "鴻海", "2454.TW": "聯發科",
     "3231.TW": "緯創", "2382.TW": "廣達", "0050.TW": "元大台灣50",
@@ -17,98 +17,37 @@ STOCK_NAMES = {
     "MSFT": "Microsoft", "AMD": "AMD", "SPY": "S&P 500 ETF", "QQQ": "Nasdaq ETF",
 }
 
+
 async def fetch_single_quote(symbol: str) -> StockQuote | None:
-    # Check memory cache first
-    cached = await cache_service.get_quote_cache(symbol)
-    if cached:
-        return cached
-
-    quote = None
-    is_tw = symbol.isnumeric() or symbol.endswith('.TW') or symbol.endswith('.TWO')
-
-    if is_tw:
-        # Try TWSE first (fast, real-time during market hours)
-        quote = await twse_service.fetch_realtime_quote(symbol)
-
-    if not quote:
-        # Fallback: yfinance (works 24/7 for both TW/US, but slightly delayed)
-        try:
-            loop = asyncio.get_event_loop()
-            quote = await asyncio.wait_for(
-                loop.run_in_executor(None, yahoo_service.get_quote, symbol),
-                timeout=3.0
-            )
-        except Exception:
-            quote = None
-            
-    if not quote and (symbol.endswith('.TW') or symbol.isnumeric()):
-        try:
-            from app.services.finmind import finmind_service
-            clean_sym = symbol.replace('.TW', '').replace('.TWO', '')
-            fm_data = await finmind_service.get_history(clean_sym, days=5)
-            if fm_data and len(fm_data) > 0:
-                last_day = fm_data[-1]
-                prev_day = fm_data[-2] if len(fm_data) > 1 else last_day
-                price = float(last_day.get("close", 0))
-                prev_close = float(prev_day.get("close", price))
-                change = price - prev_close
-                change_pct = (change / prev_close * 100) if prev_close else 0.0
-                quote = StockQuote(
-                    symbol=symbol,
-                    name=symbol,
-                    price=price,
-                    change=change,
-                    change_pct=change_pct,
-                    volume=float(last_day.get("Trading_Volume", 0)),
-                    high=float(last_day.get("max", price)),
-                    low=float(last_day.get("min", price)),
-                    open=float(last_day.get("open", price)),
-                    prev_close=prev_close,
-                    market=MarketType.TW
-                )
-        except Exception:
-            pass
-
-    # Inject friendly name - always prefer our mapping over potentially garbled TWSE encoding
-    if symbol in STOCK_NAMES:
-        if quote:
-            quote.name = STOCK_NAMES[symbol]
-    elif quote and (not quote.name or quote.name == symbol):
-        quote.name = symbol
-
+    quote = await market_data.get_quote(symbol)
     if quote:
-        await cache_service.set_quote_cache(symbol, quote)
-
+        names = await market_data.tw_name_map() if market_data.split_symbol(symbol)[1] == "TW" else {}
+        code = market_data.split_symbol(symbol)[0]
+        quote.name = names.get(code) or STOCK_NAMES.get(symbol) or quote.name
     return quote
+
 
 @router.get("/trending", response_model=List[StockQuote])
 async def get_trending():
-    """熱門股票（台股）"""
-    symbols = ["2330.TW", "2317.TW", "2454.TW", "3231.TW", "2382.TW", "2603.TW", "2881.TW"]
-    
-    tasks = [fetch_single_quote(sym) for sym in symbols]
-    quotes = await asyncio.gather(*tasks, return_exceptions=True)
-    
-    valid_quotes = [q for q in quotes if isinstance(q, StockQuote)]
-    valid_quotes.sort(key=lambda x: x.volume if x.volume else 0, reverse=True)
-    return valid_quotes
+    """熱門股票（台股，依成交量排序）"""
+    symbols = ["2330", "2317", "2454", "3231", "2382", "2603", "2881"]
+    quotes = await asyncio.gather(*[fetch_single_quote(s) for s in symbols], return_exceptions=True)
+    valid = [q for q in quotes if isinstance(q, StockQuote)]
+    valid.sort(key=lambda x: x.volume or 0, reverse=True)
+    return valid
+
 
 @router.get("/etfs", response_model=List[StockQuote])
 async def get_etfs():
     """熱門 ETF"""
-    symbols = ["0050.TW", "0056.TW", "00878.TW", "00929.TW", "00919.TW"]
-    tasks = [fetch_single_quote(sym) for sym in symbols]
-    quotes = await asyncio.gather(*tasks, return_exceptions=True)
-    
-    valid_quotes = [q for q in quotes if isinstance(q, StockQuote)]
-    return valid_quotes
+    symbols = ["0050", "0056", "00878", "00929", "00919"]
+    quotes = await asyncio.gather(*[fetch_single_quote(s) for s in symbols], return_exceptions=True)
+    return [q for q in quotes if isinstance(q, StockQuote)]
+
 
 @router.get("/capital-flow")
 async def get_capital_flow():
     """三大法人資金流向與漲跌幅泡泡圖資料"""
-    
-    # Check cache first
-    import json
     cache_key = "market:capital-flow"
     cached = await cache_service.get(cache_key)
     if cached:
@@ -117,44 +56,36 @@ async def get_capital_flow():
         except Exception:
             pass
 
-    symbols = ["2330.TW", "2317.TW", "2454.TW", "2382.TW", "3231.TW", "2603.TW", "2881.TW", "2882.TW", "0050.TW", "0056.TW", "00878.TW", "00929.TW", "00919.TW"]
-    
+    symbols = ["2330", "2317", "2454", "2382", "3231", "2603", "2881", "2882",
+               "0050", "0056", "00878", "00929", "00919"]
     from app.services.finmind import finmind_service
-    
-    async def fetch_flow(sym):
-        clean_sym = sym.replace('.TW', '')
+
+    async def fetch_flow(sym: str):
         quote = await fetch_single_quote(sym)
-        net_flow = 0
+        net_flow = 0.0
         try:
-            inst_data = await finmind_service.get_institutional_investors(clean_sym, days=7)
-            if inst_data:
-                dates = set(r['date'] for r in inst_data)
-                if dates:
-                    latest_date = max(dates)
-                    latest_data = [r for r in inst_data if r['date'] == latest_date]
-                    net = sum(r.get('buy', 0) - r.get('sell', 0) for r in latest_data)
-                    net_flow = net / 1000000  # 轉為百萬
-        except Exception as e:
+            inst = await finmind_service.get_institutional_investors(sym, days=7)
+            if inst:
+                latest = max(r["date"] for r in inst)
+                rows = [r for r in inst if r["date"] == latest]
+                # 買賣超金額 ≈ 淨股數 × 現價 (百萬)，而不是把股數當成金額
+                net_shares = sum(r.get("buy", 0) - r.get("sell", 0) for r in rows)
+                net_flow = net_shares * (quote.price if quote else 0) / 1_000_000
+        except Exception:
             pass
-            
         return {
-            "symbol": clean_sym,
-            "name": STOCK_NAMES.get(sym, clean_sym),
+            "symbol": sym,
+            "name": quote.name if quote else sym,
             "price": quote.price if quote else 0,
             "change_pct": quote.change_pct if quote else 0,
-            "volume": (quote.volume / 1000) if quote and quote.volume else 0,
+            "volume": (quote.volume / 1000) if quote and quote.volume else 0,  # 張
             "net_flow": round(net_flow, 2),
-            "is_etf": sym.startswith("00")
+            "is_etf": sym.startswith("00"),
+            "stale": quote.stale if quote else True,
         }
 
-    tasks = [fetch_flow(sym) for sym in symbols]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    valid_results = [r for r in results if isinstance(r, dict)]
-    
-    # Save to cache for 1 hour
-    try:
-        await cache_service.set(cache_key, json.dumps(valid_results), ttl=3600)
-    except Exception:
-        pass
-        
-    return valid_results
+    results = await asyncio.gather(*[fetch_flow(s) for s in symbols], return_exceptions=True)
+    valid = [r for r in results if isinstance(r, dict)]
+    if valid:
+        await cache_service.set(cache_key, json.dumps(valid), ttl=900)
+    return valid

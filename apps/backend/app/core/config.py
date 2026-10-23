@@ -10,7 +10,8 @@ class Settings(BaseSettings):
 
     # Gemini AI
     gemini_api_key: str = ""
-    
+    gemini_model: str = "gemini-2.5-flash"
+
     # FinMind
     finmind_api_key: str = ""
 
@@ -24,7 +25,7 @@ class Settings(BaseSettings):
     app_name: str = "AI Stock Monitor"
     debug: bool = True
 
-    model_config = {"env_file": "../../.env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": "../../.env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 @lru_cache()

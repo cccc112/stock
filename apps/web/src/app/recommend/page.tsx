@@ -1,0 +1,201 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
+import { apiResearch, apiErrorMessage } from "@/lib/api";
+import { getChangeColorClass } from "@/lib/utils";
+import { Sparkles, RefreshCw } from "lucide-react";
+
+interface Pick {
+  symbol: string;
+  name: string;
+  market: 'TW' | 'US';
+  industry: string;
+  price: number;
+  change_pct: number;
+  ret_20d: number;
+  score: number;
+  scores: { tech: number | null; chips: number | null; growth: number | null };
+  action: string;
+  signals: string[];
+  entry_zone: [number, number];
+  stop_loss: number;
+  target: number;
+  volatility_pct: number;
+}
+
+const STYLES = [
+  { id: 'balanced', label: '均衡', desc: '技術45% 籌碼25% 成長30%' },
+  { id: 'momentum', label: '強勢動能', desc: '偏重趨勢與價量' },
+  { id: 'growth', label: '營收成長', desc: '偏重營收年增' },
+  { id: 'chips', label: '籌碼追蹤', desc: '偏重外資投信買超' },
+];
+const MARKETS = [{ id: 'tw', label: '台股' }, { id: 'us', label: '美股' }, { id: 'all', label: '全部' }];
+
+const scoreColor = (s: number) => (s >= 75 ? 'text-green-500' : s >= 60 ? 'text-yellow-500' : 'text-secondary');
+
+function Bar({ label, v }: { label: string; v: number | null }) {
+  if (v == null) return null;
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <span className="w-8 text-secondary">{label}</span>
+      <div className="flex-1 h-1.5 rounded bg-[var(--bg-tertiary)]">
+        <div className="h-full rounded bg-[var(--accent)]" style={{ width: `${v}%` }} />
+      </div>
+      <span className="w-6 text-right">{v}</span>
+    </div>
+  );
+}
+
+export default function RecommendPage() {
+  const [market, setMarket] = useState('tw');
+  const [style, setStyle] = useState('balanced');
+  const [picks, setPicks] = useState<Pick[]>([]);
+  const [avoid, setAvoid] = useState<Pick[]>([]);
+  const [meta, setMeta] = useState({ universe: 0, evaluated: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [rationale, setRationale] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+
+  const [nonce, setNonce] = useState(0);
+
+  // 變更條件時在事件處理器內先切到載入狀態，effect 只負責抓資料
+  const refetch = (fn?: () => void) => {
+    setLoading(true); setError(''); setRationale(''); setAiError('');
+    fn?.();
+    setNonce(n => n + 1);
+  };
+
+  useEffect(() => {
+    let alive = true;
+    apiResearch.getRecommendations({ market, style, top: 10 })
+      .then(r => {
+        if (!alive) return;
+        setPicks(r.data.picks); setAvoid(r.data.avoid || []);
+        setMeta({ universe: r.data.universe, evaluated: r.data.evaluated });
+      })
+      .catch(e => alive && setError(apiErrorMessage(e)))
+      .finally(() => alive && setLoading(false));
+    return () => { alive = false; };
+  }, [market, style, nonce]);
+
+  const explain = async () => {
+    setAiLoading(true); setAiError('');
+    try {
+      const r = await apiResearch.explainRecommendations({ market, style });
+      setRationale(r.data.rationale);
+    } catch (e) {
+      setAiError(apiErrorMessage(e));
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  return (
+    <div className="animate-fade-in space-y-6">
+      <div className="flex flex-wrap justify-between items-end gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">股票推薦</h1>
+          <p className="text-sm text-secondary mt-1">
+            量化評分（技術面 + 籌碼面 + 營收成長）篩選，分數由真實資料計算，AI 僅負責解讀。
+            {meta.evaluated > 0 && ` 已評估 ${meta.evaluated}/${meta.universe} 檔。`}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={() => refetch()} isLoading={loading}><RefreshCw size={14} className="mr-1" />重新篩選</Button>
+          <Button size="sm" onClick={explain} isLoading={aiLoading} disabled={!picks.length}><Sparkles size={14} className="mr-1" />AI 推薦理由</Button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-6 text-sm">
+        <div className="flex gap-2 items-center">
+          <span className="text-secondary">市場</span>
+          {MARKETS.map(m => (
+            <button key={m.id} onClick={() => refetch(() => setMarket(m.id))}
+              className={`px-3 py-1 rounded-md border ${market === m.id ? 'border-[var(--accent)] text-accent' : 'border-[var(--border)] text-secondary'}`}>{m.label}</button>
+          ))}
+        </div>
+        <div className="flex gap-2 items-center flex-wrap">
+          <span className="text-secondary">風格</span>
+          {STYLES.map(s => (
+            <button key={s.id} onClick={() => refetch(() => setStyle(s.id))} title={s.desc}
+              className={`px-3 py-1 rounded-md border ${style === s.id ? 'border-[var(--accent)] text-accent' : 'border-[var(--border)] text-secondary'}`}>{s.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {error && <div className="text-red-500 text-sm">{error}</div>}
+      {loading && <div className="text-secondary text-center py-16">正在掃描並評分（首次約需 20～40 秒，之後 20 分鐘內使用快取）...</div>}
+
+      {!loading && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {picks.map((p, i) => (
+            <Card key={p.symbol}>
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-secondary text-sm">#{i + 1}</span>
+                    <Link href={`/stock/${p.symbol}`} className="text-lg font-bold hover:text-accent">{p.symbol}</Link>
+                    <span className="text-secondary">{p.name !== p.symbol ? p.name : ''}</span>
+                    {p.industry && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)]">{p.industry}</span>}
+                  </div>
+                  <div className="text-sm mt-1">
+                    <span className="font-medium">{p.price}</span>
+                    <span className={`ml-2 ${getChangeColorClass(p.change_pct, p.market)}`}>{p.change_pct > 0 ? '+' : ''}{p.change_pct}%</span>
+                    <span className="ml-3 text-secondary">20日 {p.ret_20d > 0 ? '+' : ''}{p.ret_20d}%</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={`text-3xl font-bold ${scoreColor(p.score)}`}>{p.score}</div>
+                  <div className="text-xs text-secondary">綜合評分</div>
+                </div>
+              </div>
+              <div className="mt-3 space-y-1">
+                <Bar label="技術" v={p.scores.tech} />
+                <Bar label="籌碼" v={p.scores.chips} />
+                <Bar label="成長" v={p.scores.growth} />
+              </div>
+              <div className="mt-3 text-sm font-medium">{p.action}</div>
+              <ul className="mt-1 text-xs text-secondary space-y-0.5 list-disc pl-4">
+                {p.signals.slice(0, 6).map((s, j) => <li key={j}>{s}</li>)}
+              </ul>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-center">
+                <div className="rounded bg-[var(--bg-tertiary)] p-2"><div className="text-secondary">參考進場</div>{p.entry_zone[0]} ~ {p.entry_zone[1]}</div>
+                <div className="rounded bg-[var(--bg-tertiary)] p-2"><div className="text-secondary">停損</div>{p.stop_loss}</div>
+                <div className="rounded bg-[var(--bg-tertiary)] p-2"><div className="text-secondary">目標</div>{p.target}</div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {aiError && <div className="text-red-500 text-sm">{aiError}</div>}
+      {rationale && (
+        <Card title="AI 推薦理由（前 5 名）">
+          <div className="prose prose-invert max-w-none text-sm"><ReactMarkdown>{rationale}</ReactMarkdown></div>
+        </Card>
+      )}
+
+      {!loading && avoid.length > 0 && (
+        <Card title="相對偏弱，暫不建議追">
+          <div className="flex flex-wrap gap-3 text-sm">
+            {avoid.map(p => (
+              <Link key={p.symbol} href={`/stock/${p.symbol}`} className="px-3 py-1 rounded-md bg-[var(--bg-tertiary)]">
+                {p.symbol} {p.name !== p.symbol ? p.name : ''} <span className="text-secondary">({p.score})</span>
+              </Link>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <p className="text-xs text-secondary">
+        進場區間、停損、目標價以 ATR（平均真實波幅）估算：停損 = 現價 − 2×ATR，目標 = 現價 + 3×ATR。推薦清單來自內建的各產業代表股，僅供研究參考，非投資建議。
+      </p>
+    </div>
+  );
+}

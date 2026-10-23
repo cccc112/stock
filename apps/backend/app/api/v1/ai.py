@@ -9,24 +9,35 @@ from datetime import datetime
 router = APIRouter()
 
 @router.get("/market-summary")
-async def get_market_summary(authorization: Optional[str] = Header(None)):
-    # Check cache table (optional, don't crash if Supabase unavailable)
-    try:
-        db = get_supabase()
-        res = db.table("ai_cache").select("*").eq("type", "market_summary").order("created_at", desc=True).limit(1).execute()
-        if res.data:
-            return {"summary": res.data[0]['content'], "generated_at": res.data[0]['created_at']}
-    except Exception as e:
-        print(f"Supabase cache unavailable: {e}")
-    
+async def get_market_summary(refresh: bool = False, authorization: Optional[str] = Header(None)):
+    # 全域共用快取 1 小時（原本讀 Supabase 最新一筆且不檢查時間，會永遠回傳舊資料）
+    from app.services.cache import cache_service
+    import json as _json
+    cache_key = "ai:market_summary"
+    if not refresh:
+        cached = await cache_service.get(cache_key)
+        if cached:
+            try:
+                return _json.loads(cached)
+            except Exception:
+                pass
+
     api_key = None
     if authorization and authorization.startswith("Bearer "):
         api_key = authorization.replace("Bearer ", "")
     
     try:
         # Generate new
-        summary = await gemini_service.market_summary(api_key=api_key)
-        return {"summary": summary, "generated_at": datetime.utcnow().isoformat()}
+        from app.services import market_data
+        idx = {}
+        for name, sym in {"台股加權": "^TWII", "S&P500": "^GSPC", "那斯達克": "^IXIC", "費半": "^SOX", "VIX": "^VIX"}.items():
+            q = await market_data.get_quote(sym)
+            if q:
+                idx[name] = {"price": round(q.price, 2), "change_pct": round(q.change_pct, 2), "stale": q.stale}
+        summary = await gemini_service.market_summary(api_key=api_key, context={"indices": idx})
+        result = {"summary": summary, "generated_at": datetime.utcnow().isoformat()}
+        await cache_service.set(cache_key, _json.dumps(result, ensure_ascii=False), ttl=3600)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI 盤勢診斷失敗: {str(e)}")
 
@@ -43,18 +54,14 @@ async def analyze_stock(symbol: str, req: AIAnalysisRequest = None, authorizatio
 
         quant_data = await get_full_analysis(symbol, period)
         
-        # Get recent kline summary
-        from app.services.yahoo import yahoo_service
-        history = yahoo_service.get_history(symbol, period=period)
+        from app.services import market_data
+        history = await market_data.get_history(symbol, period=period)
         kline_summary = []
-        if history is not None and len(history) > 0:
-            recent = history[-5:]
-            kline_summary = [b.dict() for b in recent]
-            # convert timestamps to strings for JSON serializability
-            for row in kline_summary:
-                if 'time' in row:
-                    row['time'] = row['time'].isoformat()
-        
+        for b in history[-5:]:
+            row = b.model_dump()
+            row['time'] = row['time'].isoformat()
+            kline_summary.append(row)
+
         analysis = await gemini_service.analyze_stock(
             symbol=symbol,
             kline_data=kline_summary,
@@ -135,32 +142,9 @@ async def chart_analysis(symbol: str, authorization: Optional[str] = Header(None
     if authorization and authorization.startswith("Bearer "):
         api_key = authorization.replace("Bearer ", "")
         
-    # 1. 取得歷史 K 線計算支撐與壓力 (抓取 TWSE 或 Yahoo，這裡可以借用 ai_trader 抓歷史的邏輯)
-    from app.services.yahoo import yahoo_service
+    from app.services import market_data
     from app.services.finmind import finmind_service
-    import asyncio
-    loop = asyncio.get_event_loop()
-    
-    history_data = None
-    try:
-        history_data = await asyncio.wait_for(
-            loop.run_in_executor(None, yahoo_service.get_history, symbol, '3mo', '1d'),
-            timeout=4.0
-        )
-    except Exception:
-        pass
-        
-    if not history_data and (symbol.endswith('.TW') or symbol.isnumeric()):
-        clean_sym = symbol.replace('.TW', '')
-        fm_data = await finmind_service.get_history(clean_sym, days=90)
-        if fm_data:
-            import pandas as pd
-            history_data = []
-            for row in fm_data:
-                history_data.append(type('obj', (object,), {
-                    'low': row.get("min", 0),
-                    'high': row.get("max", 0)
-                }))
+    history_data = await market_data.get_history(symbol, '6mo', '1d')
 
     if not history_data or len(history_data) < 20:
         raise HTTPException(status_code=400, detail="歷史資料不足，無法計算支撐與壓力")
@@ -173,9 +157,9 @@ async def chart_analysis(symbol: str, authorization: Optional[str] = Header(None
     resistances = list(set([max([b.high for b in recent_20]), max([b.high for b in recent_60])]))
     
     # 2. 取得基本面資料
-    clean_sym = symbol.replace('.TW', '')
+    clean_sym = market_data.split_symbol(symbol)[0]
     fundamentals = {}
-    if symbol.endswith('.TW') or symbol.isnumeric():
+    if market_data.split_symbol(symbol)[1] == "TW":
         try:
             rev_data = await finmind_service.get_monthly_revenue(clean_sym, months=3)
             if rev_data:

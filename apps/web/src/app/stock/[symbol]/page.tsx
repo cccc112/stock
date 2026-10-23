@@ -15,6 +15,7 @@ import InstitutionalSection from "@/components/dashboard/InstitutionalSection";
 import TransactionForm from "@/components/portfolio/TransactionForm";
 import AISection from "@/components/dashboard/AISection";
 import AIChartAnalyzer from "@/components/charts/AIChartAnalyzer";
+import FinancialsSection from "@/components/stock/FinancialsSection";
 import AICommitteeSection from "@/components/dashboard/AICommitteeSection";
 
 const CandlestickChart = dynamic(() => import('@/components/charts/CandlestickChart'), { ssr: false });
@@ -51,6 +52,8 @@ interface StockData {
   open: number;
   prev_close: number;
   market: 'TW' | 'US';
+  source?: string;
+  stale?: boolean;
 }
 
 export default function StockDetailPage({ params }: { params: Promise<{ symbol: string }> }) {
@@ -125,6 +128,12 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
               {stock.change > 0 ? '+' : ''}{stock.change.toFixed(2)} ({stock.change_pct > 0 ? '+' : ''}{stock.change_pct.toFixed(2)}%)
             </span>
           </div>
+          {(stock.stale || stock.source) && (
+            <div className="mt-1 text-xs text-secondary">
+              資料來源：{stock.source || '—'}
+              {stock.stale && <span className="ml-2 text-yellow-500">⚠ 非即時資料（休市、尚無成交或來源暫時失效，顯示最近一筆有效價格）</span>}
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           <Button 
@@ -164,6 +173,11 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                       <AIChartAnalyzer symbol={symbol} onLinesCalculated={setPriceLines} />
                     </div>
                   )
+                },
+                {
+                  id: 'financials',
+                  label: '財報分析',
+                  content: <FinancialsSection key={symbol} symbol={symbol} />
                 },
                 {
                   id: 'committee',

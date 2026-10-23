@@ -91,6 +91,24 @@ export const apiMarket = {
   getCapitalFlow: () => api.get('/market/capital-flow'),
 };
 
+export const apiResearch = {
+  getFinancials: (symbol: string) => api.get(`/research/${symbol}/financials`),
+  getFinancialAdvice: (symbol: string) => api.post(`/research/${symbol}/financial-advice`, null, { timeout: 90000 }),
+  getRecommendations: (params: { market?: string; style?: string; sector?: string; top?: number }) =>
+    api.get('/research/recommend', { params, timeout: 120000 }),
+  explainRecommendations: (params: { market?: string; style?: string; sector?: string }) =>
+    api.post('/research/recommend/explain', null, { params, timeout: 120000 }),
+  getIndustries: () => api.get('/research/industries', { timeout: 120000 }),
+  getIndustry: (name: string) => api.get(`/research/industries/${encodeURIComponent(name)}`, { timeout: 60000 }),
+  getIndustryReport: (name: string) => api.post(`/research/industries/${encodeURIComponent(name)}/report`, null, { timeout: 120000 }),
+  getDataHealth: () => api.get('/research/health'),
+};
+
+export function apiErrorMessage(e: unknown): string {
+  const err = e as { response?: { data?: { detail?: string } }; message?: string };
+  return err?.response?.data?.detail || err?.message || '未知錯誤';
+}
+
 export const apiInstitutions = {
   getTw: () => api.get('/institutions/tw'),
   getUs13F: () => api.get('/institutions/us/13f'),
