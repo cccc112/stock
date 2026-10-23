@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ColorType, createChart, CandlestickSeries, HistogramSeries, LineSeries, type IChartApi, type Time } from "lightweight-charts";
+import { ColorType, createChart, CandlestickSeries, HistogramSeries, LineSeries, type IChartApi, type ISeriesApi, type SeriesType, type Time } from "lightweight-charts";
+import { DrawingLayer, DrawingToolbar, useDrawings, type BarInfo } from "@/components/charts/ChartDrawings";
 import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 import { apiStocks } from "@/lib/api";
 
@@ -24,13 +25,20 @@ const calculateSMA = (data: any[], count: number) => {
   return result;
 };
 
-export default function CandlestickChart({ symbol, market = 'TW', period = '6mo', priceLines = [] }: CandlestickChartProps) {
+export default function CandlestickChart(props: CandlestickChartProps) {
+  // 換股票時整個重建，畫線資料才不會混到別檔
+  return <CandlestickChartInner key={props.symbol} {...props} />;
+}
+
+function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLines = [] }: CandlestickChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activePeriod, setActivePeriod] = useState(period);
   const [tooltipData, setTooltipData] = useState<any>(null);
+  const [overlay, setOverlay] = useState<{ chart: IChartApi; series: ISeriesApi<SeriesType>; bars: BarInfo[] } | null>(null);
+  const drawingsApi = useDrawings(symbol, activePeriod === '1d' || activePeriod === '5d');
 
   const upColor = market === 'TW' ? '#ef4444' : '#22c55e';
   const downColor = market === 'TW' ? '#22c55e' : '#ef4444';
@@ -196,6 +204,13 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
         if (candleData.length >= 60) ma60Series.setData(calculateSMA(candleData, 60));
 
         chart.timeScale().fitContent();
+
+        // 提供畫線圖層需要的資料：每根 K 棒的時間戳(秒)與 OHLC
+        const barInfos: BarInfo[] = candleData.map((c: any) => ({
+          ts: typeof c.time === 'number' ? c.time : Date.parse(`${c.time}T00:00:00Z`) / 1000,
+          open: c.open, high: c.high, low: c.low, close: c.close,
+        }));
+        setOverlay({ chart, series: mainSeries as ISeriesApi<SeriesType>, bars: barInfos });
       } catch (e) {
         console.error("Failed to fetch history", e);
         setError("無法載入圖表資料");
@@ -223,6 +238,7 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
     }
 
     return () => {
+      setOverlay(null);
       resizeObserver.disconnect();
       if (chartRef.current) {
         chartRef.current.remove();
@@ -260,6 +276,8 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
         ))}
       </div>
       
+      <DrawingToolbar api={drawingsApi} />
+
       <div className="relative h-[400px] border border-[var(--border)] rounded-xl bg-[var(--bg-secondary)]/50 overflow-hidden shadow-inner">
         {/* Legends */}
         <div className="absolute top-3 left-4 z-10 flex flex-wrap gap-4 text-xs font-mono pointer-events-none">
@@ -314,6 +332,9 @@ export default function CandlestickChart({ symbol, market = 'TW', period = '6mo'
           </div>
         )}
         <div ref={chartContainerRef} className="w-full h-full" />
+        {overlay && !loading && !error && (
+          <DrawingLayer chart={overlay.chart} series={overlay.series} bars={overlay.bars} api={drawingsApi} />
+        )}
       </div>
     </div>
   );
