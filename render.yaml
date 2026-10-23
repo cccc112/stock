@@ -2,14 +2,26 @@ services:
   - type: web
     name: stock-backend
     env: python
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /health
     buildCommand: "cd apps/backend && pip install -r requirements.txt"
-    startCommand: "cd apps/backend && uvicorn app.main:app --host 0.0.0.0 --port 10000"
+    startCommand: "cd apps/backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      # 台股財報 / 法人籌碼 / 月營收來源。免費註冊 https://finmindtrade.com 取得 token
+      - key: FINMIND_API_KEY
+        sync: false
+      # AI 功能（可不設，改由使用者在網站「設定」頁輸入自己的 Key）
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      # 自選股 / 投資組合 / 模擬交易需要 Supabase；只看行情與研究功能可不設
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
-      - key: GEMINI_API_KEY
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
