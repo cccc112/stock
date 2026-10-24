@@ -218,8 +218,10 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
               <Card className="p-5 flex flex-col justify-between border-emerald-500/20">
                 <div>
                   <div className="flex items-center justify-between pb-3 border-b border-[var(--border)] mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">💼</span>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-md bg-emerald-500/10 text-emerald-400 flex items-center justify-center flex-shrink-0">
+                        <Scale size={15} />
+                      </div>
                       <div>
                         <h4 className="font-bold text-sm">巴菲特視角</h4>
                         <span className="text-[11px] text-secondary">價值投資首席顧問</span>
@@ -275,8 +277,10 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
               <Card className="p-5 flex flex-col justify-between border-indigo-500/20">
                 <div>
                   <div className="flex items-center justify-between pb-3 border-b border-[var(--border)] mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">⚡</span>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-md bg-indigo-500/10 text-indigo-400 flex items-center justify-center flex-shrink-0">
+                        <TrendingUp size={15} />
+                      </div>
                       <div>
                         <h4 className="font-bold text-sm">西蒙斯視角</h4>
                         <span className="text-[11px] text-secondary">量化動量模型分析師</span>
@@ -326,8 +330,10 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
               <Card className="p-5 flex flex-col justify-between border-red-500/20">
                 <div>
                   <div className="flex items-center justify-between pb-3 border-b border-[var(--border)] mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">🛡️</span>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-md bg-rose-500/10 text-rose-400 flex items-center justify-center flex-shrink-0">
+                        <ShieldAlert size={15} />
+                      </div>
                       <div>
                         <h4 className="font-bold text-sm">首席風控官 (CRO)</h4>
                         <span className="text-[11px] text-secondary">黑天鵝與極端風險審查</span>

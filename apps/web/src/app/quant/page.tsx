@@ -204,9 +204,9 @@ export default function QuantScreenerPage() {
               onChange={e => setSource(e.target.value as 'trending' | 'watchlist' | 'custom')}
               className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded px-3 py-1.5 text-primary"
             >
-              <option value="trending">🔥 熱門標的</option>
-              <option value="watchlist">⭐ 我的自選股</option>
-              <option value="custom">✏️ 自訂代碼</option>
+              <option value="trending">熱門標的</option>
+              <option value="watchlist">我的自選股</option>
+              <option value="custom">自訂代碼</option>
             </select>
           </div>
           
@@ -330,7 +330,7 @@ export default function QuantScreenerPage() {
         <div className="space-y-8">
           {twStocks.length > 0 && (
             <div>
-              <h2 className="text-xl font-bold mb-4">🇹🇼 台股 (TW)</h2>
+              <h2 className="text-lg font-semibold mb-4 tracking-tight text-primary">台股市場 (TW)</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {twStocks.map(renderStockCard)}
               </div>
@@ -338,7 +338,7 @@ export default function QuantScreenerPage() {
           )}
           {usStocks.length > 0 && (
             <div>
-              <h2 className="text-xl font-bold mb-4">🇺🇸 美股 (US)</h2>
+              <h2 className="text-lg font-semibold mb-4 tracking-tight text-primary">美股市場 (US)</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {usStocks.map(renderStockCard)}
               </div>

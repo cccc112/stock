@@ -100,13 +100,13 @@ def tech_metrics(df: pd.DataFrame) -> Optional[Dict[str, Any]]:
     if 45 <= m["rsi"] <= 68:
         score += 15; sig.append(f"RSI {m['rsi']:.0f} 健康區")
     elif m["rsi"] > 75:
-        score -= 10; sig.append(f"⚠ RSI {m['rsi']:.0f} 過熱")
+        score -= 10; sig.append(f"RSI {m['rsi']:.0f} 過熱")
     elif m["rsi"] < 30:
         score += 5; sig.append(f"RSI {m['rsi']:.0f} 超賣")
     if vol_ratio > 1.2 and (m["ret_1d"] or 0) > 0:
         score += 10; sig.append(f"量能放大 {vol_ratio:.1f} 倍且收紅")
     elif vol_ratio > 1.5 and (m["ret_1d"] or 0) < 0:
-        score -= 5; sig.append("⚠ 爆量收黑")
+        score -= 5; sig.append("爆量收黑")
     if last >= m["high_60"] * 0.98:
         sig.append("逼近/突破 60 日高點")
     m["score"] = round(_clamp(score))

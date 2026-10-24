@@ -213,8 +213,8 @@ export default function BacktestPage() {
           onClick={() => setShowGuide(!showGuide)}
           className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg border border-accent/40 bg-accent/10 text-accent hover:bg-accent/20 transition-all self-start md:self-center cursor-pointer shadow-sm"
         >
-          <BookOpen size={16} />
-          {showGuide ? "收合策略與參數指南" : "📖 策略原理與參數調校手冊"}
+          <BookOpen size={15} />
+          {showGuide ? "收合策略與參數指南" : "策略原理與參數調校手冊"}
         </button>
       </header>
 
@@ -270,11 +270,11 @@ export default function BacktestPage() {
                   </p>
                   <div className="space-y-1.5 text-xs">
                     <div>
-                      <span className="text-emerald-400 font-medium">▸ 進場條件：</span>
+                      <span className="text-emerald-400 font-medium mr-1">進場條件：</span>
                       <span className="text-primary">{currentStrategyExplanation.entryRule}</span>
                     </div>
                     <div>
-                      <span className="text-rose-400 font-medium">▸ 出場條件：</span>
+                      <span className="text-rose-400 font-medium mr-1">出場條件：</span>
                       <span className="text-primary">{currentStrategyExplanation.exitRule}</span>
                     </div>
                   </div>
@@ -320,11 +320,11 @@ export default function BacktestPage() {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
                         <div className="p-2.5 rounded bg-emerald-500/5 border border-emerald-500/20 text-secondary">
-                          <span className="font-semibold text-emerald-400 block mb-1">⬆️ 調大會造成的結果：</span>
+                          <span className="font-semibold text-emerald-400 block mb-1">調大會造成的結果：</span>
                           {p.increaseEffect}
                         </div>
                         <div className="p-2.5 rounded bg-amber-500/5 border border-amber-500/20 text-secondary">
-                          <span className="font-semibold text-amber-400 block mb-1">⬇️ 調小會造成的結果：</span>
+                          <span className="font-semibold text-amber-400 block mb-1">調小會造成的結果：</span>
                           {p.decreaseEffect}
                         </div>
                       </div>
@@ -377,7 +377,7 @@ export default function BacktestPage() {
                 </div>
               ))}
               <div className="p-3.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-secondary md:col-span-3">
-                <span className="font-semibold text-emerald-400 block mb-1">💡 台股交易成本回測真實設定：</span>
+                <span className="font-semibold text-emerald-400 block mb-1">台股交易成本回測真實設定：</span>
                 本回測引擎嚴格納入台股券商手續費（0.1425% × 折讓）與賣出證交稅（0.3%），避免高頻交易在免手續費理想模型下產生過度樂觀的虛假績效。
               </div>
             </div>
@@ -680,7 +680,7 @@ export default function BacktestPage() {
                   <Legend
                     verticalAlign="top"
                     height={36}
-                    formatter={(val) => (val === "equity" ? "📈 策略淨值 (Strategy)" : "📊 買入持有基準 (Benchmark)")}
+                    formatter={(val) => (val === "equity" ? "策略淨值 (Strategy)" : "買入持有基準 (Benchmark)")}
                   />
                   <Line
                     type="monotone"

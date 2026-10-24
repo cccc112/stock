@@ -39,9 +39,9 @@ export default function SettingsPage() {
       const axios = (await import("axios")).default;
       await axios.get(`${formatted}/api/v1/market/trending`, { timeout: 5000 });
       localStorage.setItem("backend_api_url", formatted);
-      setUrlMessage("✅ 連線成功並已儲存！");
+      setUrlMessage("連線成功並已儲存");
     } catch (err: any) {
-      setUrlMessage(`⚠️ 連線警告: ${err.message || "未能收到後端正常回應，但已為您儲存"}`);
+      setUrlMessage(`連線警告: ${err.message || "未能收到後端正常回應，但已為您儲存"}`);
       localStorage.setItem("backend_api_url", formatted);
     } finally {
       setTestingUrl(false);

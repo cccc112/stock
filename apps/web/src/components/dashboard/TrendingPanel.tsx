@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { formatNumber, formatVolume, getChangeColorClass } from "@/lib/utils";
-import { TrendingUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { apiStocks } from "@/lib/api";
 
@@ -36,7 +35,7 @@ export default function TrendingPanel() {
     const fetchTrending = async () => {
       try {
         const results = await Promise.allSettled(
-          DEFAULT_TRENDING.map(s => apiStocks.getQuote(s.symbol))
+          DEFAULT_TRENDING.map((s) => apiStocks.getQuote(s.symbol))
         );
         const updated = DEFAULT_TRENDING.map((stock, i) => {
           const res = results[i];
@@ -67,51 +66,57 @@ export default function TrendingPanel() {
   }, []);
 
   return (
-    <Card 
-      title="熱門排行" 
-      className="h-full"
-      headerAction={<TrendingUp size={18} className="text-primary" />}
-    >
-      <div className="overflow-x-auto">
+    <Card title="熱門關注標的" className="h-full">
+      <div className="overflow-x-auto -mx-5 -my-5">
         {loading ? (
-          <div className="animate-pulse space-y-4 py-2">
+          <div className="animate-pulse space-y-3 p-5">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-8 bg-[var(--bg-tertiary)] rounded" />
+              <div key={i} className="h-9 bg-[var(--bg-tertiary)] rounded-md" />
             ))}
           </div>
         ) : trending.length === 0 ? (
-          <div className="text-center py-6 text-secondary">暫無資料</div>
+          <div className="text-center py-8 text-secondary text-sm">暫無資料</div>
         ) : (
-          <table className="data-table">
+          <table className="data-table text-sm">
             <thead>
               <tr>
                 <th>代號</th>
                 <th>名稱</th>
-                <th className="text-right">股價</th>
+                <th className="text-right">成交價</th>
                 <th className="text-right">漲跌</th>
                 <th className="text-right">漲跌幅</th>
                 <th className="text-right">成交量</th>
               </tr>
             </thead>
             <tbody>
-              {trending.map(stock => {
+              {trending.map((stock) => {
                 const changePct = stock.change_pct ?? 0;
                 return (
-                  <tr 
-                    key={stock.symbol} 
+                  <tr
+                    key={stock.symbol}
                     className="cursor-pointer"
                     onClick={() => router.push(`/stock/${stock.symbol}`)}
                   >
-                    <td className="font-medium">{stock.symbol}</td>
+                    <td className="font-mono font-semibold text-primary">{stock.symbol}</td>
                     <td className="text-secondary">{stock.name}</td>
-                    <td className="text-right font-medium">{formatNumber(stock.price, stock.market === 'TW' ? 2 : 2)}</td>
-                    <td className={`text-right ${getChangeColorClass(stock.change, stock.market)}`}>
-                      {stock.change > 0 ? '+' : ''}{stock.change.toFixed(2)}
+                    <td className="text-right font-mono font-medium">
+                      {formatNumber(stock.price, 2)}
+                    </td>
+                    <td
+                      className={`text-right font-mono ${getChangeColorClass(
+                        stock.change,
+                        stock.market
+                      )}`}
+                    >
+                      {stock.change > 0 ? "+" : ""}
+                      {stock.change.toFixed(2)}
                     </td>
                     <td className="text-right">
-                      <Badge value={changePct} market={stock.market} />
+                      <Badge value={changePct} market={stock.market} size="sm" />
                     </td>
-                    <td className="text-right text-secondary">{formatVolume(stock.volume)}</td>
+                    <td className="text-right font-mono text-secondary">
+                      {formatVolume(stock.volume)}
+                    </td>
                   </tr>
                 );
               })}

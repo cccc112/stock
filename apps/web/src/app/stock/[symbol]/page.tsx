@@ -115,39 +115,43 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   return (
     <div className="animate-fade-in flex flex-col h-full gap-6">
       {/* Header */}
-      <div className="flex justify-between items-end flex-wrap gap-4">
+      <div className="flex justify-between items-end flex-wrap gap-4 pb-2 border-b border-[var(--border)]">
         <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-3xl font-bold">{stock.symbol}</h1>
-            <span className="text-xl text-secondary">{stock.name}</span>
-            <span className="text-xs px-2 py-1 rounded-md bg-[var(--bg-tertiary)] text-primary">{market}</span>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-bold font-mono tracking-tight">{stock.symbol}</h1>
+            <span className="text-lg text-secondary font-medium">{stock.name}</span>
+            <span className="text-xs px-2.5 py-0.5 rounded bg-[var(--bg-tertiary)] border border-[var(--border)] text-secondary font-mono">{market}</span>
           </div>
           <div className="flex items-baseline gap-3">
-            <span className="text-4xl font-bold">{formatNumber(stock.price, 2)}</span>
-            <span className={`text-xl font-medium ${getChangeColorClass(stock.change, market)}`}>
+            <span className="text-3xl font-bold font-mono tabular-nums">{formatNumber(stock.price, 2)}</span>
+            <span className={`text-base font-mono tabular-nums font-medium ${getChangeColorClass(stock.change, market)}`}>
               {stock.change > 0 ? '+' : ''}{stock.change.toFixed(2)} ({stock.change_pct > 0 ? '+' : ''}{stock.change_pct.toFixed(2)}%)
             </span>
           </div>
           {(stock.stale || stock.source) && (
-            <div className="mt-1 text-xs text-secondary">
-              資料來源：{stock.source || '—'}
-              {stock.stale && <span className="ml-2 text-yellow-500">⚠ 非即時資料（休市、尚無成交或來源暫時失效，顯示最近一筆有效價格）</span>}
+            <div className="mt-2 flex items-center gap-2 text-xs text-muted">
+              <span>資料來源：{stock.source || '—'}</span>
+              {stock.stale && (
+                <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                  非即時報價（休市或收盤最後成交價）
+                </span>
+              )}
             </div>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2.5">
           <Button 
             variant="secondary"
             onClick={() => setIsFormOpen(true)}
           >
-            <span className="font-medium">交易</span>
+            <span>模擬下單</span>
           </Button>
           <Button 
             variant={inWatchlist ? "secondary" : "primary"} 
             onClick={toggleWatchlist}
           >
-            {inWatchlist ? <Check size={16} className="mr-1" /> : <Plus size={16} className="mr-1" />}
-            {inWatchlist ? '已加自選' : '加自選'}
+            {inWatchlist ? <Check size={15} /> : <Plus size={15} />}
+            <span>{inWatchlist ? '已加自選' : '加自選'}</span>
           </Button>
         </div>
       </div>
@@ -181,7 +185,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                 },
                 {
                   id: 'committee',
-                  label: '🏛️ AI 投資委員會',
+                  label: 'AI 投資委員會',
                   content: <AICommitteeSection symbol={symbol} />
                 },
                 {
@@ -211,13 +215,13 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
 
         {/* Sidebar */}
         <div className="lg:col-span-1 space-y-6">
-          <Card title="基本資料">
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-secondary">開盤</span><span>{formatNumber(stock.open, 2)}</span></div>
-              <div className="flex justify-between"><span className="text-secondary">最高</span><span>{formatNumber(stock.high, 2)}</span></div>
-              <div className="flex justify-between"><span className="text-secondary">最低</span><span>{formatNumber(stock.low, 2)}</span></div>
-              <div className="flex justify-between"><span className="text-secondary">昨收</span><span>{formatNumber(stock.prev_close, 2)}</span></div>
-              <div className="flex justify-between"><span className="text-secondary">成交量</span><span>{formatVolume(stock.volume)}</span></div>
+          <Card title="今日行情明細">
+            <div className="divide-y divide-[var(--border)] text-sm">
+              <div className="flex justify-between py-2.5"><span className="text-secondary">開盤價</span><span className="font-mono tabular-nums font-medium">{formatNumber(stock.open, 2)}</span></div>
+              <div className="flex justify-between py-2.5"><span className="text-secondary">最高價</span><span className="font-mono tabular-nums font-medium">{formatNumber(stock.high, 2)}</span></div>
+              <div className="flex justify-between py-2.5"><span className="text-secondary">最低價</span><span className="font-mono tabular-nums font-medium">{formatNumber(stock.low, 2)}</span></div>
+              <div className="flex justify-between py-2.5"><span className="text-secondary">昨收價</span><span className="font-mono tabular-nums font-medium">{formatNumber(stock.prev_close, 2)}</span></div>
+              <div className="flex justify-between py-2.5"><span className="text-secondary">成交量</span><span className="font-mono tabular-nums font-medium">{formatVolume(stock.volume)}</span></div>
             </div>
           </Card>
         </div>

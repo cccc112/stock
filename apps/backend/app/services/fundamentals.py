@@ -214,12 +214,12 @@ def _score(report: Dict[str, Any]) -> Dict[str, Any]:
         if yoy is not None:
             scores["growth"] = round(_clamp(50 + yoy))
             if yoy < 0:
-                flags.append(f"⚠ 單季營收年減 {abs(yoy):.1f}%")
+                flags.append(f"單季營收年減 {abs(yoy):.1f}%")
             elif yoy > 20:
-                flags.append(f"✔ 單季營收年增 {yoy:.1f}%")
+                flags.append(f"單季營收年增 {yoy:.1f}%")
         eyoy = cur.get("eps_yoy")
         if eyoy is not None and eyoy < -20:
-            flags.append(f"⚠ EPS 年減 {abs(eyoy):.1f}%")
+            flags.append(f"EPS 年減 {abs(eyoy):.1f}%")
     dr = bal.get("debt_ratio")
     if dr is not None:
         s = 100 - (dr - 30) * 1.5
@@ -227,18 +227,18 @@ def _score(report: Dict[str, Any]) -> Dict[str, Any]:
         if cr:
             s += _clamp((cr - 1.5) * 10, -15, 10)
             if cr < 1:
-                flags.append(f"⚠ 流動比率 {cr}（短期償債壓力）")
+                flags.append(f"流動比率 {cr}（短期償債壓力）")
         scores["safety"] = round(_clamp(s))
         if dr > 65:
-            flags.append(f"⚠ 負債比 {dr:.1f}% 偏高（金融股除外）")
+            flags.append(f"負債比 {dr:.1f}% 偏高（金融股除外）")
     pct = val.get("per_percentile")
     per = val.get("per")
     if pct is not None:
         scores["valuation"] = round(_clamp(100 - pct))
         if pct > 85:
-            flags.append(f"⚠ 本益比 {per} 位於自身近年 {pct:.0f} 百分位，估值偏貴")
+            flags.append(f"本益比 {per} 位於自身近年 {pct:.0f} 百分位，估值偏貴")
         elif pct < 25:
-            flags.append(f"✔ 本益比 {per} 位於自身近年 {pct:.0f} 百分位，估值偏低")
+            flags.append(f"本益比 {per} 位於自身近年 {pct:.0f} 百分位，估值偏低")
     elif per:
         scores["valuation"] = round(_clamp(100 - (per - 12) * 2.5))
     avail = [v for v in scores.values() if v is not None]

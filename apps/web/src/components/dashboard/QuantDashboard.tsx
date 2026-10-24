@@ -98,7 +98,7 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
 
         {volume_anomaly?.type !== "NORMAL" && (
           <div className="bg-warning/10 border border-warning/30 p-4 rounded-lg">
-            <h4 className="text-warning font-semibold mb-1">⚠️ 異常量價偵測</h4>
+            <h4 className="text-warning font-semibold mb-1">異常量價偵測</h4>
             <p className="text-sm">
               {volume_anomaly.type === "HIGH_SELL_PRESSURE" && "高檔爆量：近期來到波段高點且成交量異常放大，留意倒貨風險。"}
               {volume_anomaly.type === "LOW_BUY_SUPPORT" && "低檔爆量：近期來到波段低點且成交量放大，可能為底部換手或支撐浮現。"}

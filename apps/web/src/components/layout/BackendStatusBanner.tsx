@@ -103,7 +103,7 @@ export default function BackendStatusBanner() {
         <div className="flex items-start gap-2.5">
           <WifiOff className="text-red-400 mt-0.5 flex-shrink-0" size={18} />
           <div>
-            <span className="font-bold text-red-300 mr-2">⚠️ 無法連線至後端伺服器</span>
+            <span className="font-bold text-red-300 mr-2">無法連線至後端伺服器</span>
             <span className="text-red-200/80">
               目前瀏覽器請求目標為: <code className="bg-red-950/60 px-1.5 py-0.5 rounded text-red-300 font-mono text-xs">{currentUrl}</code>
             </span>

@@ -17,34 +17,26 @@ interface IndexCard {
 }
 
 const INDEX_LIST = [
-  { id: "TWII", symbol: "^TWII", name: "台股加權", market: "TW" as const },
-  { id: "SPX",  symbol: "^GSPC", name: "S&P 500",  market: "US" as const },
-  { id: "NDX",  symbol: "^IXIC", name: "Nasdaq",    market: "US" as const },
-  { id: "2330", symbol: "2330.TW", name: "台積電",  market: "TW" as const },
+  { id: "TWII", symbol: "^TWII", name: "台股加權指數", market: "TW" as const },
+  { id: "SPX", symbol: "^GSPC", name: "S&P 500", market: "US" as const },
+  { id: "NDX", symbol: "^IXIC", name: "Nasdaq 綜合", market: "US" as const },
+  { id: "2330", symbol: "2330.TW", name: "台積電 (2330)", market: "TW" as const },
 ];
-
-// Fallback static data for when market is closed or API unavailable
-const FALLBACK: Record<string, Partial<IndexCard>> = {
-  "^TWII":  { price: 0, change: 0, change_pct: 0 },
-  "^GSPC":  { price: 0, change: 0, change_pct: 0 },
-  "^IXIC":  { price: 0, change: 0, change_pct: 0 },
-  "2330.TW":{ price: 0, change: 0, change_pct: 0 },
-};
 
 export default function MarketOverview() {
   const [cards, setCards] = useState<IndexCard[]>(
-    INDEX_LIST.map(i => ({ ...i, price: 0, change: 0, change_pct: 0 }))
+    INDEX_LIST.map((i) => ({ ...i, price: 0, change: 0, change_pct: 0 }))
   );
 
   useEffect(() => {
     const fetchAll = async () => {
       const results = await Promise.allSettled(
-        INDEX_LIST.map(idx =>
-          apiStocks.getQuote(idx.symbol).then(r => ({ idx, data: r.data }))
+        INDEX_LIST.map((idx) =>
+          apiStocks.getQuote(idx.symbol).then((r) => ({ idx, data: r.data }))
         )
       );
 
-      setCards(prev =>
+      setCards((prev) =>
         prev.map((card, i) => {
           const res = results[i];
           if (res.status === "fulfilled") {
@@ -67,20 +59,27 @@ export default function MarketOverview() {
   }, []);
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar">
-      {cards.map(idx => (
-        <Card key={idx.id} className="min-w-[200px] flex-shrink-0">
-          <div className="text-secondary text-sm mb-1">{idx.name}</div>
-          <div className="text-xl font-bold mb-2">
-            {idx.price > 0 ? formatNumber(idx.price) : "—"}
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {cards.map((idx) => (
+        <Card key={idx.id}>
+          <div className="flex flex-col gap-2">
+            <div className="text-secondary text-xs font-medium tracking-wide">
+              {idx.name}
+            </div>
+            <div className="text-2xl font-bold font-mono tabular-nums tracking-tight text-primary">
+              {idx.price > 0 ? formatNumber(idx.price) : "—"}
+            </div>
+            <div>
+              {idx.price > 0 ? (
+                <Badge value={idx.change_pct} market={idx.market} size="sm">
+                  {idx.change > 0 ? `+${idx.change.toFixed(2)}` : idx.change.toFixed(2)}{" "}
+                  ({idx.change_pct > 0 ? `+${idx.change_pct.toFixed(2)}` : idx.change_pct.toFixed(2)}%)
+                </Badge>
+              ) : (
+                <span className="text-muted text-xs">報價連線中...</span>
+              )}
+            </div>
           </div>
-          {idx.price > 0 ? (
-            <Badge value={idx.change_pct} market={idx.market}>
-              {idx.change > 0 ? `+${idx.change.toFixed(2)}` : idx.change.toFixed(2)} ({idx.change_pct > 0 ? `+${idx.change_pct.toFixed(2)}` : idx.change_pct.toFixed(2)}%)
-            </Badge>
-          ) : (
-            <span className="text-secondary text-xs">載入中...</span>
-          )}
         </Card>
       ))}
     </div>
