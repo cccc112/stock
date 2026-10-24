@@ -17,6 +17,16 @@ class FinMindService:
         settings = get_settings()
         self.token = settings.finmind_api_key
         self._cache: Dict[Tuple, Tuple[float, List[Dict[str, Any]]]] = {}
+        # 額度用完(HTTP 402/429)後暫停呼叫一段時間：直接用舊快取或回空，避免每個請求都白等重試
+        self._blocked_until = 0.0
+
+    @property
+    def has_token(self) -> bool:
+        return bool(self.token)
+
+    @property
+    def rate_limited(self) -> bool:
+        return time.time() < self._blocked_until
 
     async def _fetch_data(self, dataset: str, data_id: Optional[str] = None, start_date: Optional[str] = None,
                           end_date: Optional[str] = None, ttl: int = 300) -> List[Dict[str, Any]]:
@@ -24,6 +34,8 @@ class FinMindService:
         hit = self._cache.get(key)
         if hit and time.time() - hit[0] < ttl:
             return hit[1]
+        if self.rate_limited:
+            return hit[1] if hit else []
 
         params: Dict[str, Any] = {"dataset": dataset}
         if data_id:
@@ -48,7 +60,9 @@ class FinMindService:
                     logger.error(f"FinMind API error ({dataset}): {data.get('msg')}")
                     break
                 if response.status_code in (402, 429):
-                    logger.error("FinMind 額度/頻率限制，請於 .env 設定 FINMIND_API_KEY")
+                    if not self.rate_limited:
+                        logger.error("FinMind 額度/頻率限制，暫停呼叫 10 分鐘（請設定 FINMIND_API_KEY 以提高額度）")
+                    self._blocked_until = time.time() + 600
                     break
                 if response.status_code == 422:
                     logger.error(f"FinMind dataset 無效或參數錯誤: {dataset}")

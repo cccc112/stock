@@ -86,5 +86,15 @@ class PhantomBarTest(unittest.TestCase):
         self.assertEqual(len(_chart_to_bars(res, daily=False)), 3)  # 分時資料不處理
 
 
+class FinMindBreakerTest(unittest.TestCase):
+    def test_rate_limited_returns_empty_without_network(self):
+        import asyncio, time
+        from app.services.finmind import FinMindService
+        svc = FinMindService()
+        svc._blocked_until = time.time() + 60
+        self.assertTrue(svc.rate_limited)
+        self.assertEqual(asyncio.run(svc.get_history("2330", 10)), [])
+
+
 if __name__ == "__main__":
     unittest.main()

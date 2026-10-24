@@ -258,7 +258,11 @@ async def recommend(market: str = "tw", style: str = "balanced", sector: Optiona
     symbols = list(dict.fromkeys(symbols))
     evs = await asyncio.gather(*[evaluate(s) for s in symbols], return_exceptions=True)
     picks = sorted((composite(e, style) for e in evs if isinstance(e, dict)), key=lambda x: x["score"], reverse=True)
-    result = {"market": market, "style": style, "sector": sector, "universe_type": universe, "universe": len(symbols),
+    notes = []
+    if finmind_service.rate_limited or not finmind_service.has_token:
+        if finmind_service.rate_limited:
+            notes.append("FinMind 額度暫時用完，本次評分只含技術面（籌碼、營收成長暫缺）。請在後端設定 FINMIND_API_KEY。")
+    result = {"notes": notes, "market": market, "style": style, "sector": sector, "universe_type": universe, "universe": len(symbols),
               "evaluated": len(picks), "picks": picks[:top],
               "avoid": [p for p in picks if p["score"] < 45][-3:],
               "generated_at": pd.Timestamp.utcnow().isoformat()}

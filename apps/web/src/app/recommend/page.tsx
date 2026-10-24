@@ -57,6 +57,7 @@ export default function RecommendPage() {
   const [picks, setPicks] = useState<Pick[]>([]);
   const [avoid, setAvoid] = useState<Pick[]>([]);
   const [meta, setMeta] = useState({ universe: 0, evaluated: 0 });
+  const [notes, setNotes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [rationale, setRationale] = useState('');
@@ -79,6 +80,7 @@ export default function RecommendPage() {
         if (!alive) return;
         setPicks(r.data.picks); setAvoid(r.data.avoid || []);
         setMeta({ universe: r.data.universe, evaluated: r.data.evaluated });
+        setNotes(r.data.notes || []);
       })
       .catch(e => alive && setError(apiErrorMessage(e)))
       .finally(() => alive && setLoading(false));
@@ -139,6 +141,7 @@ export default function RecommendPage() {
         </div>
       </div>
 
+      {notes.map((n, i) => <div key={i} className="text-yellow-500 text-sm">⚠ {n}</div>)}
       {error && <div className="text-red-500 text-sm">{error}</div>}
       {loading && <div className="text-secondary text-center py-16">正在掃描並評分（首次約需 20～40 秒，之後 20 分鐘內使用快取）...</div>}
 

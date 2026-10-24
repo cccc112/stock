@@ -50,15 +50,19 @@ async def _warm_caches():
     import logging
     from app.services import screener
     log = logging.getLogger("warmup")
+    from app.services.finmind import finmind_service
     await asyncio.sleep(5)
     while True:
-        for name, coro in (
-            ("industries", screener.industry_overview(refresh=True)),
-            ("recommend:tw", screener.recommend("tw", "balanced", None, 10, "curated", refresh=True)),
-            ("recommend:hot", screener.recommend("tw", "balanced", None, 10, "hot", refresh=True)),
-        ):
+        jobs = [("industries", lambda: screener.industry_overview(refresh=True))]  # 只用 Yahoo，不耗 FinMind 額度
+        if finmind_service.has_token:
+            # 推薦需要大量 FinMind 呼叫（籌碼/營收）；沒有 token 時額度很小，不主動預熱以免用光
+            jobs += [
+                ("recommend:tw", lambda: screener.recommend("tw", "balanced", None, 10, "curated", refresh=True)),
+                ("recommend:hot", lambda: screener.recommend("tw", "balanced", None, 10, "hot", refresh=True)),
+            ]
+        for name, make in jobs:
             try:
-                await coro
+                await make()
             except Exception as e:
                 log.warning("warm %s failed: %s", name, e)
         await asyncio.sleep(15 * 60)  # 快取 TTL 為 15~20 分鐘，提前刷新
