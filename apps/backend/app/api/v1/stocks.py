@@ -45,34 +45,77 @@ async def fetch_rss_news(query: str, limit: int = 20) -> List[Dict[str, Any]]:
 
 @router.get("/search", response_model=List[dict])
 async def search_stocks(q: str):
-    """搜尋: 台股先比對本地(代碼/中文名稱)，再補 Yahoo 搜尋結果(含美股)"""
+    """搜尋: 跨資產(加密貨幣/商品/匯率/債券/指數) + 台股全市場(上市/上櫃/興櫃/ETF，完全一致優先) + Yahoo 美股"""
     q = q.strip()
     if not q:
         return []
-    results: List[dict] = []
+    qu = q.upper()
+    ql = q.lower()
+    ranked: List[tuple] = []
     seen = set()
+
+    # 1. 跨資產常見投資標的 (Crypto / Gold / Oil / Forex / Bonds / Indices)
+    for asset in market_data.GLOBAL_ASSETS:
+        sym = asset["symbol"]
+        name = asset["name"]
+        aliases = [a.upper() for a in asset.get("aliases", [])]
+        if qu == sym.upper() or qu in aliases or q == name:
+            score = 0
+        elif sym.upper().startswith(qu) or any(a.startswith(qu) for a in aliases) or ql in name.lower():
+            score = 1
+        else:
+            continue
+        seen.add(sym)
+        ranked.append((score, 0, {
+            "symbol": sym,
+            "name": name,
+            "market": asset["market"],
+            "industry": asset.get("industry", "多元資產"),
+        }))
+
+    # 2. 台股全市場清單 (上市 / 上櫃 / 興櫃 / ETF)
     try:
         for r in await market_data.tw_stock_info():
-            sid, name = r.get("stock_id", ""), r.get("stock_name", "")
-            if sid.startswith(q) or q in name:
-                if sid in seen:
-                    continue
-                seen.add(sid)
-                results.append({"symbol": sid, "name": name, "market": "TW",
-                                "industry": r.get("industry_category", "")})
-                if len(results) >= 10:
-                    break
+            sid = r.get("stock_id", "")
+            name = r.get("stock_name", "")
+            if not sid or sid in seen:
+                continue
+            sid_u = sid.upper()
+            name_l = name.lower()
+            if sid_u == qu or name == q:
+                score = 0
+            elif sid_u.startswith(qu) or name_l.startswith(ql):
+                score = 1
+            elif qu in sid_u or ql in name_l:
+                score = 2
+            else:
+                continue
+            # 4 碼一般上市櫃與 00 開頭 ETF 排在權證(6碼)前面
+            len_penalty = 0 if len(sid) <= 5 else 1
+            seen.add(sid)
+            ranked.append((score, len_penalty, {
+                "symbol": sid,
+                "name": name,
+                "market": "TW",
+                "industry": r.get("industry_category", ""),
+            }))
     except Exception as e:
         logger.warning("local search failed: %s", e)
-    try:
-        import asyncio
-        remote = await asyncio.wait_for(asyncio.to_thread(yahoo_service.search, q), timeout=6)
-        for r in remote:
-            if r["symbol"] not in seen and len(results) < 15:
-                seen.add(r["symbol"])
-                results.append(r)
-    except Exception:
-        pass
+
+    ranked.sort(key=lambda x: (x[0], x[1], len(x[2]["name"])))
+    results: List[dict] = [item[2] for item in ranked[:12]]
+
+    # 3. 若為英文/美股查詢或本地結果較少，補充 Yahoo Finance 搜尋
+    if len(results) < 6 or q.isascii():
+        try:
+            import asyncio
+            remote = await asyncio.wait_for(asyncio.to_thread(yahoo_service.search, q), timeout=3.0)
+            for r in remote:
+                if r["symbol"] not in seen and len(results) < 15:
+                    seen.add(r["symbol"])
+                    results.append(r)
+        except Exception:
+            pass
     return results
 
 

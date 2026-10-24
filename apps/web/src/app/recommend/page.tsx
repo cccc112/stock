@@ -5,6 +5,9 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
+import Tabs from "@/components/ui/Tabs";
+import QuantPage from "@/app/quant/page";
+import BacktestPage from "@/app/backtest/page";
 import { apiResearch, apiErrorMessage } from "@/lib/api";
 import { getChangeColorClass } from "@/lib/utils";
 import { Sparkles, RefreshCw } from "lucide-react";
@@ -51,6 +54,39 @@ function Bar({ label, v }: { label: string; v: number | null }) {
 }
 
 export default function RecommendPage() {
+  return (
+    <div className="animate-fade-in space-y-6">
+      <header>
+        <h1 className="text-2xl font-bold tracking-tight mb-1">AI 選股與量化策略中心</h1>
+        <p className="text-secondary text-sm">
+          整合多因子 AI 選股推薦、全市場技術指標量化掃描與歷史策略回測驗證
+        </p>
+      </header>
+
+      <Tabs
+        tabs={[
+          {
+            id: "ai-picks",
+            label: "AI 多因子選股推薦",
+            content: <RecommendInner />,
+          },
+          {
+            id: "quant-scan",
+            label: "量化技術掃描器",
+            content: <QuantPage />,
+          },
+          {
+            id: "backtest",
+            label: "歷史策略回測",
+            content: <BacktestPage />,
+          },
+        ]}
+      />
+    </div>
+  );
+}
+
+function RecommendInner() {
   const [market, setMarket] = useState('tw');
   const [style, setStyle] = useState('balanced');
   const [universe, setUniverse] = useState('curated');

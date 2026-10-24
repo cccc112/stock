@@ -16,9 +16,25 @@ import TransactionForm from "@/components/portfolio/TransactionForm";
 import AISection from "@/components/dashboard/AISection";
 import AIChartAnalyzer from "@/components/charts/AIChartAnalyzer";
 import FinancialsSection from "@/components/stock/FinancialsSection";
+import ETFInfoSection from "@/components/stock/ETFInfoSection";
 import AICommitteeSection from "@/components/dashboard/AICommitteeSection";
 
 const CandlestickChart = dynamic(() => import('@/components/charts/CandlestickChart'), { ssr: false });
+
+const US_ETF_SET = new Set([
+  "SPY", "VOO", "QQQ", "DIA", "VYM", "XLK", "SOXX", "TLT", "BND",
+  "IEF", "SHY", "LQD", "GLD", "SLV", "USO", "IBIT", "VNQ", "SMH", "IVV",
+]);
+
+function detectAssetType(sym: string): "ETF" | "ASSET" | "STOCK" {
+  const s = sym.trim().toUpperCase();
+  const clean = s.replace(/\.TWO?$/, "");
+  if (clean.startsWith("00") || US_ETF_SET.has(clean)) return "ETF";
+  if (s.startsWith("^") || s.includes("=F") || s.includes("=X") || s.endsWith("-USD") || s.startsWith("DX-Y")) {
+    return "ASSET";
+  }
+  return "STOCK";
+}
 
 const STORAGE_KEY = 'watchlist_symbols';
 
@@ -159,57 +175,73 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       <TransactionForm 
         isOpen={isFormOpen} 
         onClose={() => setIsFormOpen(false)}
-        defaultSymbol={symbol}
+        defaultSymbol={stock.symbol}
       />
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-[500px]">
         {/* Main Content Area */}
         <div className="lg:col-span-3 h-full">
           <Card className="h-full">
-            <Tabs 
-              tabs={[
-                {
-                  id: 'kline',
-                  label: 'K線圖',
-                  content: (
-                    <div className="pt-2">
-                      <CandlestickChart symbol={symbol} market={market} priceLines={priceLines} />
-                      <AIChartAnalyzer symbol={symbol} onLinesCalculated={setPriceLines} />
-                    </div>
-                  )
-                },
-                {
-                  id: 'financials',
-                  label: '財報分析',
-                  content: <FinancialsSection key={symbol} symbol={symbol} />
-                },
-                {
-                  id: 'committee',
-                  label: 'AI 投資委員會',
-                  content: <AICommitteeSection symbol={symbol} />
-                },
-                {
-                  id: 'quant',
-                  label: '量化分析',
-                  content: <QuantDashboard symbol={symbol} currentPrice={stock.price} />
-                },
-                {
-                  id: 'ai',
-                  label: 'AI 診斷',
-                  content: <AISection symbol={symbol} />
-                },
-                {
-                  id: 'news',
-                  label: '即時新聞',
-                  content: <NewsSection symbol={symbol} />
-                },
-                {
-                  id: 'institutional',
-                  label: '法人籌碼',
-                  content: <InstitutionalSection symbol={symbol} />
-                }
-              ]}
-            />
+            {(() => {
+              const canonical = stock.symbol;
+              const assetType = detectAssetType(canonical);
+              return (
+                <Tabs 
+                  tabs={[
+                    {
+                      id: 'kline',
+                      label: 'K線與趨勢畫線',
+                      content: (
+                        <div className="pt-2">
+                          <CandlestickChart symbol={canonical} market={market} priceLines={priceLines} />
+                          <AIChartAnalyzer symbol={canonical} onLinesCalculated={setPriceLines} />
+                        </div>
+                      )
+                    },
+                    assetType === 'STOCK'
+                      ? {
+                          id: 'financials',
+                          label: '財報與基本面',
+                          content: <FinancialsSection key={canonical} symbol={canonical} />
+                        }
+                      : {
+                          id: 'etf-info',
+                          label: assetType === 'ETF' ? 'ETF 追蹤資訊' : '標的規格與追蹤',
+                          content: <ETFInfoSection key={canonical} symbol={canonical} />
+                        },
+                    {
+                      id: 'quant',
+                      label: '量化價量雷達',
+                      content: <QuantDashboard symbol={canonical} currentPrice={stock.price} />
+                    },
+                    ...(market === 'TW' && assetType !== 'ASSET'
+                      ? [{
+                          id: 'institutional',
+                          label: '法人籌碼',
+                          content: <InstitutionalSection symbol={canonical} />
+                        }]
+                      : []),
+                    {
+                      id: 'ai-hub',
+                      label: 'AI 委員會與診斷',
+                      content: (
+                        <div className="space-y-8 pt-2">
+                          <AICommitteeSection symbol={canonical} />
+                          <div className="border-t border-[var(--border)] pt-6">
+                            <AISection symbol={canonical} />
+                          </div>
+                        </div>
+                      )
+                    },
+                    {
+                      id: 'news',
+                      label: '即時新聞',
+                      content: <NewsSection symbol={canonical} />
+                    },
+                  ]}
+                />
+              );
+            })()}
           </Card>
         </div>
 

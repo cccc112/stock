@@ -159,6 +159,43 @@ async def chart_analysis(symbol: str, authorization: Optional[str] = Header(None
     # 只保留位置合理的線：支撐在現價下方、壓力在現價上方
     supports = [x for x in supports if x <= price_now] or supports
     resistances = [x for x in resistances if x >= price_now] or resistances
+
+    # 計算上下趨勢線 (波段高點連線 = 上趨勢壓力線；波段低點連線 = 下趨勢支撐線)
+    def _bar_ts(b) -> int:
+        from datetime import timezone
+        dt = b.time.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
+        return int(dt.timestamp())
+
+    win = recent_60 if len(recent_60) >= 16 else history_data
+    m = len(win)
+    mid = max(4, m // 2)
+    left_win = win[:mid]
+    right_win = win[mid:]
+
+    hi_1 = max(range(len(left_win)), key=lambda i: left_win[i].high)
+    hi_2_rel = max(range(len(right_win)), key=lambda i: right_win[i].high)
+    hi_2 = mid + hi_2_rel
+
+    lo_1 = min(range(len(left_win)), key=lambda i: left_win[i].low)
+    lo_2_rel = min(range(len(right_win)), key=lambda i: right_win[i].low)
+    lo_2 = mid + lo_2_rel
+
+    trend_lines = [
+        {
+            "kind": "upper",
+            "title": "上趨勢線 (壓力)",
+            "color": "#ef4444",
+            "p1": {"ts": _bar_ts(win[hi_1]), "price": round(win[hi_1].high, 2)},
+            "p2": {"ts": _bar_ts(win[hi_2]), "price": round(win[hi_2].high, 2)},
+        },
+        {
+            "kind": "lower",
+            "title": "下趨勢線 (支撐)",
+            "color": "#22c55e",
+            "p1": {"ts": _bar_ts(win[lo_1]), "price": round(win[lo_1].low, 2)},
+            "p2": {"ts": _bar_ts(win[lo_2]), "price": round(win[lo_2].low, 2)},
+        },
+    ]
     
     # 2. 取得基本面資料
     clean_sym = market_data.split_symbol(symbol)[0]
@@ -195,6 +232,7 @@ async def chart_analysis(symbol: str, authorization: Optional[str] = Header(None
     return {
         "supportLines": supports,
         "resistanceLines": resistances,
+        "trendLines": trend_lines,
         "analysis": analysis,
         "analysis_error": analysis_error,
     }

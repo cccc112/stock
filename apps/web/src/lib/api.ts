@@ -62,11 +62,11 @@ api.interceptors.response.use(
 );
 
 export const apiStocks = {
-  getQuote: (symbol: string) => api.get(`/stocks/${symbol}/quote`),
-  getHistory: (symbol: string, period: string) => api.get(`/stocks/${symbol}/history`, { params: { period } }),
-  getOrderbook: (symbol: string) => api.get(`/stocks/${symbol}/orderbook`),
+  getQuote: (symbol: string) => api.get(`/stocks/${encodeURIComponent(symbol)}/quote`),
+  getHistory: (symbol: string, period: string) => api.get(`/stocks/${encodeURIComponent(symbol)}/history`, { params: { period } }),
+  getOrderbook: (symbol: string) => api.get(`/stocks/${encodeURIComponent(symbol)}/orderbook`),
   searchStocks: (query: string) => api.get(`/stocks/search`, { params: { q: query } }),
-  getNews: (symbol: string = '2330') => api.get(`/stocks/${symbol}/news`),
+  getNews: (symbol: string = '2330') => api.get(`/stocks/${encodeURIComponent(symbol)}/news`),
 };
 
 export const apiWatchlist = {
@@ -125,11 +125,13 @@ export const apiMarket = {
   getTrending: () => api.get('/market/trending'),
   getPopularETFs: () => api.get('/market/etfs'),
   getCapitalFlow: () => api.get('/market/capital-flow'),
+  getMultiAssets: () => api.get('/market/multi-assets'),
 };
 
 export const apiResearch = {
-  getFinancials: (symbol: string) => api.get(`/research/${symbol}/financials`),
-  getFinancialAdvice: (symbol: string) => api.post(`/research/${symbol}/financial-advice`, null, { timeout: 90000 }),
+  getEtfInfo: (symbol: string) => api.get(`/research/${encodeURIComponent(symbol)}/etf-info`),
+  getFinancials: (symbol: string) => api.get(`/research/${encodeURIComponent(symbol)}/financials`),
+  getFinancialAdvice: (symbol: string) => api.post(`/research/${encodeURIComponent(symbol)}/financial-advice`, null, { timeout: 90000 }),
   getRecommendations: (params: { market?: string; style?: string; sector?: string; top?: number; universe?: string }) =>
     api.get('/research/recommend', { params, timeout: 120000 }),
   explainRecommendations: (params: { market?: string; style?: string; sector?: string; universe?: string }) =>

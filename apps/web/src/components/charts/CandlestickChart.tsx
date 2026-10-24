@@ -251,12 +251,12 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
     };
   }, [symbol, market, activePeriod, upColor, downColor]);
 
-  // AI 算出的支撐/壓力線轉成可編輯的水平線畫在圖上
+  // 自動畫出上下趨勢線，若 AI 有算出水平支撐/壓力線則一併標記在圖上
   const aiKey = JSON.stringify(priceLines);
   const { setAiLines } = drawingsApi;
   useEffect(() => {
-    if (!overlay || priceLines.length === 0 || overlay.bars.length === 0) return;
-    setAiLines(priceLines, overlay.bars[overlay.bars.length - 1].ts);
+    if (!overlay || overlay.bars.length === 0) return;
+    setAiLines(priceLines, overlay.bars[overlay.bars.length - 1].ts, overlay.bars);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiKey, overlay, setAiLines]);
 
@@ -289,7 +289,7 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
         ))}
       </div>
       
-      <DrawingToolbar api={drawingsApi} />
+      <DrawingToolbar api={drawingsApi} bars={overlay?.bars} />
 
       <div className="relative h-[400px] border border-[var(--border)] rounded-xl bg-[var(--bg-secondary)]/50 overflow-hidden shadow-inner">
         {/* Legends */}

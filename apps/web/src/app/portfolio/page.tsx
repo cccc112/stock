@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import Tabs from "@/components/ui/Tabs";
 import Card from "@/components/ui/Card";
@@ -6,6 +7,7 @@ import Button from "@/components/ui/Button";
 import PnLSummary from "@/components/portfolio/PnLSummary";
 import HoldingTable from "@/components/portfolio/HoldingTable";
 import TransactionForm from "@/components/portfolio/TransactionForm";
+import SimulatorPage from "@/app/simulator/page";
 import { Plus } from "lucide-react";
 import { apiPortfolio } from "@/lib/api";
 
@@ -19,7 +21,7 @@ export default function PortfolioPage() {
     try {
       const [holdingsRes, summaryRes] = await Promise.all([
         apiPortfolio.getHoldings(),
-        apiPortfolio.getSummary()
+        apiPortfolio.getSummary(),
       ]);
       setHoldings(holdingsRes.data);
       setSummary(summaryRes.data);
@@ -36,41 +38,52 @@ export default function PortfolioPage() {
 
   return (
     <div className="animate-fade-in max-w-6xl mx-auto space-y-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">投資組合</h1>
-          <p className="text-secondary text-sm">追蹤您的真實庫存與交易績效</p>
+          <h1 className="text-2xl font-bold tracking-tight mb-1">投資組合與模擬交易</h1>
+          <p className="text-secondary text-sm">
+            追蹤真實部位損益，或使用模擬資金進行無風險練習與 AI 交易覆盤
+          </p>
         </div>
-        <Button onClick={() => setIsFormOpen(true)}><Plus size={16} className="mr-2" /> 新增交易</Button>
+        <Button onClick={() => setIsFormOpen(true)}>
+          <Plus size={16} />
+          <span>新增真實交易</span>
+        </Button>
       </div>
 
-      <PnLSummary summary={summary} holdings={holdings} />
+      <Tabs
+        tabs={[
+          {
+            id: "real-portfolio",
+            label: "真實庫存與損益",
+            content: (
+              <div className="space-y-6">
+                <PnLSummary summary={summary} holdings={holdings} />
+                <Card className="min-h-[360px]">
+                  {loading ? (
+                    <div className="text-center py-12 text-secondary">載入中...</div>
+                  ) : (
+                    <HoldingTable holdings={holdings} onUpdate={fetchHoldings} />
+                  )}
+                </Card>
+              </div>
+            ),
+          },
+          {
+            id: "simulator",
+            label: "AI 模擬交易練習",
+            content: <SimulatorPage />,
+          },
+        ]}
+      />
 
-      <Card className="min-h-[400px]">
-        <Tabs 
-          tabs={[
-            {
-              id: 'holdings',
-              label: '庫存總覽',
-              content: loading ? <div className="text-center py-12 text-secondary">載入中...</div> : <HoldingTable holdings={holdings} onUpdate={fetchHoldings} />
-            },
-            {
-              id: 'history',
-              label: '交易紀錄',
-              content: (
-                <div className="text-center py-12 text-secondary">
-                  功能開發中...
-                </div>
-              )
-            }
-          ]}
-        />
-      </Card>
-
-      <TransactionForm isOpen={isFormOpen} onClose={() => {
-        setIsFormOpen(false);
-        fetchHoldings();
-      }} />
+      <TransactionForm
+        isOpen={isFormOpen}
+        onClose={() => {
+          setIsFormOpen(false);
+          fetchHoldings();
+        }}
+      />
     </div>
   );
 }

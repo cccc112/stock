@@ -68,6 +68,53 @@ async def _get_json(url: str, params: Optional[dict] = None, retries: int = 2) -
 
 
 # ---------------------------------------------------------------- symbols
+GLOBAL_ASSETS: List[Dict[str, Any]] = [
+    # 加密貨幣 (Crypto)
+    {"symbol": "BTC-USD", "name": "比特幣 (Bitcoin)", "market": "US", "industry": "加密貨幣", "aliases": ["BTC", "比特幣", "BITCOIN"]},
+    {"symbol": "ETH-USD", "name": "以太坊 (Ethereum)", "market": "US", "industry": "加密貨幣", "aliases": ["ETH", "以太坊", "以太幣", "ETHEREUM"]},
+    {"symbol": "SOL-USD", "name": "Solana (SOL)", "market": "US", "industry": "加密貨幣", "aliases": ["SOL", "SOLANA", "索拉納"]},
+    {"symbol": "BNB-USD", "name": "幣安幣 (BNB)", "market": "US", "industry": "加密貨幣", "aliases": ["BNB", "幣安幣"]},
+    {"symbol": "XRP-USD", "name": "瑞波幣 (XRP)", "market": "US", "industry": "加密貨幣", "aliases": ["XRP", "瑞波幣"]},
+    {"symbol": "DOGE-USD", "name": "狗狗幣 (Dogecoin)", "market": "US", "industry": "加密貨幣", "aliases": ["DOGE", "狗狗幣"]},
+    # 貴金屬與原物料 (Commodities)
+    {"symbol": "GC=F", "name": "黃金期貨 (Gold)", "market": "US", "industry": "貴金屬/原物料", "aliases": ["GOLD", "黃金", "金價", "XAU"]},
+    {"symbol": "SI=F", "name": "白銀期貨 (Silver)", "market": "US", "industry": "貴金屬/原物料", "aliases": ["SILVER", "白銀", "銀價", "XAG"]},
+    {"symbol": "CL=F", "name": "西德州原油 (WTI Crude)", "market": "US", "industry": "貴金屬/原物料", "aliases": ["OIL", "WTI", "原油", "石油", "油價"]},
+    {"symbol": "BZ=F", "name": "布蘭特原油 (Brent)", "market": "US", "industry": "貴金屬/原物料", "aliases": ["BRENT", "布蘭特原油"]},
+    {"symbol": "HG=F", "name": "銅期貨 (Copper)", "market": "US", "industry": "貴金屬/原物料", "aliases": ["COPPER", "銅", "銅價"]},
+    {"symbol": "NG=F", "name": "天然氣期貨 (Natural Gas)", "market": "US", "industry": "貴金屬/原物料", "aliases": ["GAS", "天然氣"]},
+    # 外匯匯率 (Forex)
+    {"symbol": "TWD=X", "name": "美元/台幣 (USD/TWD)", "market": "US", "industry": "外匯匯率", "aliases": ["USDTWD", "台幣", "美金", "美元台幣", "匯率"]},
+    {"symbol": "JPY=X", "name": "美元/日圓 (USD/JPY)", "market": "US", "industry": "外匯匯率", "aliases": ["USDJPY", "日圓", "日幣", "美元日圓"]},
+    {"symbol": "EURUSD=X", "name": "歐元/美元 (EUR/USD)", "market": "US", "industry": "外匯匯率", "aliases": ["EURUSD", "歐元"]},
+    {"symbol": "CNY=X", "name": "美元/人民幣 (USD/CNY)", "market": "US", "industry": "外匯匯率", "aliases": ["USDCNY", "人民幣"]},
+    {"symbol": "DX-Y.NYB", "name": "美元指數 (DXY)", "market": "US", "industry": "外匯匯率", "aliases": ["DXY", "美元指數"]},
+    # 債券與殖利率 (Bonds & Yields)
+    {"symbol": "^TNX", "name": "美國10年期公債殖利率", "market": "US", "industry": "債券/殖利率", "aliases": ["US10Y", "10Y", "美債殖利率", "十年美債", "公債殖利率"]},
+    {"symbol": "^TYX", "name": "美國30年期公債殖利率", "market": "US", "industry": "債券/殖利率", "aliases": ["US30Y", "30Y", "三十年美債"]},
+    {"symbol": "TLT", "name": "iShares 20年期以上美債 ETF", "market": "US", "industry": "債券 ETF", "aliases": ["TLT", "美債", "美債ETF", "20年美債"]},
+    {"symbol": "IEF", "name": "iShares 7-10年期美債 ETF", "market": "US", "industry": "債券 ETF", "aliases": ["IEF", "中期美債"]},
+    {"symbol": "SHY", "name": "iShares 1-3年期美債 ETF", "market": "US", "industry": "債券 ETF", "aliases": ["SHY", "短期美債"]},
+    {"symbol": "LQD", "name": "iShares 投資級公司債 ETF", "market": "US", "industry": "債券 ETF", "aliases": ["LQD", "公司債", "投資級債"]},
+    # 全球主要指數 (Global Indices)
+    {"symbol": "^TWII", "name": "台股加權指數", "market": "TW", "industry": "全球指數", "aliases": ["TWII", "加權指數", "大盤", "台股大盤"]},
+    {"symbol": "^GSPC", "name": "S&P 500 標普五百指數", "market": "US", "industry": "全球指數", "aliases": ["SPX", "SP500", "標普", "標普500"]},
+    {"symbol": "^IXIC", "name": "Nasdaq 那斯達克指數", "market": "US", "industry": "全球指數", "aliases": ["NASDAQ", "那斯達克", "那指"]},
+    {"symbol": "^DJI", "name": "道瓊工業平均指數", "market": "US", "industry": "全球指數", "aliases": ["DJI", "DOW", "道瓊"]},
+    {"symbol": "^SOX", "name": "費城半導體指數", "market": "US", "industry": "全球指數", "aliases": ["SOX", "費半", "費城半導體"]},
+    {"symbol": "^VIX", "name": "VIX 波動率恐慌指數", "market": "US", "industry": "全球指數", "aliases": ["VIX", "恐慌指數"]},
+    {"symbol": "^N225", "name": "日經 225 指數", "market": "US", "industry": "全球指數", "aliases": ["N225", "NIKKEI", "日經", "日股"]},
+    # 商品 / 不動產 / 加密 ETF
+    {"symbol": "GLD", "name": "SPDR 黃金現貨 ETF", "market": "US", "industry": "商品 ETF", "aliases": ["GLD", "黃金ETF"]},
+    {"symbol": "SLV", "name": "iShares 白銀現貨 ETF", "market": "US", "industry": "商品 ETF", "aliases": ["SLV", "白銀ETF"]},
+    {"symbol": "USO", "name": "United States 原油 ETF", "market": "US", "industry": "商品 ETF", "aliases": ["USO", "原油ETF"]},
+    {"symbol": "IBIT", "name": "iShares 比特幣現貨 ETF", "market": "US", "industry": "加密貨幣 ETF", "aliases": ["IBIT", "比特幣ETF"]},
+    {"symbol": "VNQ", "name": "Vanguard 不動產 REITs ETF", "market": "US", "industry": "REITs 不動產", "aliases": ["VNQ", "REITS", "不動產", "房地產"]},
+]
+
+GLOBAL_ASSET_MAP: Dict[str, Dict[str, Any]] = {a["symbol"].upper(): a for a in GLOBAL_ASSETS}
+
+
 def split_symbol(symbol: str) -> Tuple[str, str, Optional[str]]:
     """回傳 (代碼, 市場 'TW'|'US'|'INDEX', 明確指定的交易所 'tse'|'otc'|None)"""
     s = symbol.strip().upper()
@@ -273,7 +320,38 @@ def _quote_from_bars(bars: List[KlineBar], symbol: str, market: MarketType, sour
 
 
 # ---------------------------------------------------------------- public API
+async def resolve_symbol_query(raw: str) -> str:
+    """若輸入為中文名稱（如「互動」、「台積電」）或跨資產別名（如「黃金」、「比特幣」），自動轉換為標準代碼"""
+    s = raw.strip()
+    if not s:
+        return s
+    su = s.upper()
+    if su in GLOBAL_ASSET_MAP:
+        return GLOBAL_ASSET_MAP[su]["symbol"]
+    for asset in GLOBAL_ASSETS:
+        if su in [a.upper() for a in asset.get("aliases", [])] or s == asset["name"]:
+            return asset["symbol"]
+
+    # 若為一般英數代碼或含 .TW/.TWO/^/=/- 則直接回傳
+    if re.match(r"^[\^A-Za-z0-9.\-=]+$", s):
+        return su
+
+    # 中文名稱比對台股清單（完全一致優先 -> 前綴一致 -> 包含）
+    info = await tw_stock_info()
+    for r in info:
+        if r.get("stock_name") == s:
+            return r["stock_id"]
+    for r in info:
+        if (r.get("stock_name") or "").startswith(s):
+            return r["stock_id"]
+    for r in info:
+        if s in (r.get("stock_name") or ""):
+            return r["stock_id"]
+    return s
+
+
 async def get_quote(symbol: str) -> Optional[StockQuote]:
+    symbol = await resolve_symbol_query(symbol)
     cached = await cache_service.get_quote_cache(symbol)
     if cached:
         return cached
@@ -296,8 +374,10 @@ async def get_quote(symbol: str) -> Optional[StockQuote]:
             # 台股一律優先用中文名稱（Yahoo 備援來源的名稱是英文）
             quote.name = (await tw_name_map()).get(code) or quote.name
     else:
-        market = MarketType.US
+        market = MarketType.TW if symbol == "^TWII" else MarketType.US
         quote = await _yahoo_quote(code, symbol, market) or await _yfinance_quote(code, market)
+        if quote and symbol.upper() in GLOBAL_ASSET_MAP:
+            quote.name = GLOBAL_ASSET_MAP[symbol.upper()]["name"]
 
     if quote:
         await cache_service.set_quote_cache(symbol, quote)
@@ -318,6 +398,7 @@ async def get_quote(symbol: str) -> Optional[StockQuote]:
 
 
 async def get_history(symbol: str, period: str = "1mo", interval: str = "1d") -> List[KlineBar]:
+    symbol = await resolve_symbol_query(symbol)
     if period in ("1d", "5d") and interval == "1d":
         interval = "5m"
     key = f"{period}_{interval}"
@@ -383,30 +464,57 @@ async def get_df(symbol: str, period: str = "3mo") -> Optional[pd.DataFrame]:
 
 # ---------------------------------------------------------------- 股票基本資料
 _info_cache: Tuple[float, List[dict]] = (0.0, [])
+_info_lock = asyncio.Lock()
+
+
+def _load_bundled_tw_stocks() -> List[dict]:
+    import json
+    import pathlib
+    p = pathlib.Path(__file__).resolve().parent.parent / "data" / "tw_stocks.json"
+    if p.exists():
+        try:
+            rows = json.loads(p.read_text(encoding="utf-8"))
+            for r in rows:
+                if r.get("type") in ("twse", "tpex"):
+                    _exch_cache.setdefault(r["stock_id"], "otc" if r["type"] == "tpex" else "tse")
+            return rows
+        except Exception as e:
+            logger.warning("Failed to load bundled tw_stocks.json: %s", e)
+    return []
 
 
 async def tw_stock_info() -> List[dict]:
-    """FinMind TaiwanStockInfo (名稱 / 產業別)，快取一天"""
+    """台股清單 (上市/上櫃/興櫃/ETF)：優先載入內建快照 (<1ms)，避免冷啟動或併發卡死"""
     global _info_cache
     ts, data = _info_cache
     if data and time.time() - ts < 86400:
         return data
-    from app.services.finmind import finmind_service
-    rows = await finmind_service.get_stock_info()
-    if rows:
-        # 同一檔股票會有多筆(不同日期)，保留最新一筆；順便記下上市/上櫃
-        latest: Dict[str, dict] = {}
-        for r in rows:
-            sid = r.get("stock_id")
-            if sid and (sid not in latest or r.get("date", "") >= latest[sid].get("date", "")):
-                latest[sid] = r
-        rows = list(latest.values())
-        for r in rows:
-            if r.get("type") in ("twse", "tpex"):
-                _exch_cache.setdefault(r["stock_id"], "otc" if r["type"] == "tpex" else "tse")
-        _info_cache = (time.time(), rows)
-        return rows
-    return data
+
+    async with _info_lock:
+        ts, data = _info_cache
+        if data and time.time() - ts < 86400:
+            return data
+
+        bundled = _load_bundled_tw_stocks()
+        if bundled:
+            _info_cache = (time.time(), bundled)
+            return bundled
+
+        from app.services.finmind import finmind_service
+        rows = await finmind_service.get_stock_info()
+        if rows:
+            latest: Dict[str, dict] = {}
+            for r in rows:
+                sid = r.get("stock_id")
+                if sid and (sid not in latest or r.get("date", "") >= latest[sid].get("date", "")):
+                    latest[sid] = r
+            rows = list(latest.values())
+            for r in rows:
+                if r.get("type") in ("twse", "tpex"):
+                    _exch_cache.setdefault(r["stock_id"], "otc" if r["type"] == "tpex" else "tse")
+            _info_cache = (time.time(), rows)
+            return rows
+        return data
 
 
 async def tw_name_map() -> Dict[str, str]:

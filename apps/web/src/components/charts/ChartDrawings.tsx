@@ -13,13 +13,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { IChartApi, ISeriesApi, Logical, SeriesType } from "lightweight-charts";
 
-export type Tool = 'cursor' | 'trend' | 'ray' | 'hline' | 'vline' | 'fib' | 'rect';
+export type Tool = 'cursor' | 'trend' | 'ray' | 'channel' | 'hline' | 'vline' | 'fib' | 'rect';
 export interface Anchor { ts: number; price: number }
 export interface Drawing {
   id: string;
   type: Exclude<Tool, 'cursor'>;
   color: string;
-  title?: string;   // 例如 AI 產生的「支撐 1」
+  title?: string;   // 例如 AI 產生的「支撐 1」或「上趨勢線 (壓力)」
   p1: Anchor;
   p2?: Anchor;
 }
@@ -27,7 +27,7 @@ export interface BarInfo { ts: number; open: number; high: number; low: number; 
 
 interface Store { d: Drawing[]; i: Drawing[] }
 
-const TWO_POINT: Tool[] = ['trend', 'ray', 'fib', 'rect'];
+const TWO_POINT: Tool[] = ['trend', 'ray', 'channel', 'fib', 'rect'];
 const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
 const COLORS = ['#f59e0b', '#6366f1', '#ef4444', '#22c55e', '#e5e7eb'];
 
@@ -35,11 +35,83 @@ const TOOLS: { id: Tool; label: string; hint: string }[] = [
   { id: 'cursor', label: '選取', hint: '選取 / 拖曳已畫的線' },
   { id: 'trend', label: '趨勢線', hint: '點兩下：起點、終點' },
   { id: 'ray', label: '射線', hint: '點兩下，向右無限延伸（常用於壓力/支撐趨勢線）' },
+  { id: 'channel', label: '上下通道', hint: '點兩下：同時畫出平行上下趨勢線通道' },
   { id: 'hline', label: '水平線', hint: '點一下，標記支撐或壓力價位' },
   { id: 'vline', label: '垂直線', hint: '點一下，標記重要日期' },
   { id: 'fib', label: '斐波那契', hint: '點兩下：波段起點與終點' },
   { id: 'rect', label: '矩形', hint: '點兩下：標記區間（盤整區、缺口）' },
 ];
+
+/**
+ * 自動從目前 K 線資料計算「上趨勢線 (壓力)」與「下趨勢線 (支撐)」
+ * 採用前後波段高點包絡線 (Upper Envelope) 與前後波段低點包絡線 (Lower Envelope)
+ */
+export function computeAutoTrendlines(bars: BarInfo[]): Drawing[] {
+  if (!bars || bars.length < 10) return [];
+  const winLen = Math.min(bars.length, 75);
+  const win = bars.slice(-winLen);
+  const m = win.length;
+  const splitIdx = Math.max(3, Math.floor(m * 0.48));
+
+  // 1. 找前半段與後半段的波段高點 (Upper Trendline)
+  let iHi = 0;
+  for (let i = 1; i < splitIdx; i++) {
+    if (win[i].high >= win[iHi].high) iHi = i;
+  }
+  let jHi = Math.max(iHi + 3, splitIdx);
+  for (let j = jHi; j < m; j++) {
+    if (win[j].high >= win[jHi].high) jHi = j;
+  }
+  // 若中間有 K 棒明顯突破連線，將錨點調整至該突破高點以形成乾淨的上壓力包絡線
+  for (let k = iHi + 1; k < m; k++) {
+    if (k === jHi) continue;
+    const slope = (win[jHi].high - win[iHi].high) / Math.max(1, jHi - iHi);
+    const lineVal = win[iHi].high + slope * (k - iHi);
+    if (win[k].high > lineVal * 1.003) {
+      if (k < splitIdx) iHi = k;
+      else if (k > iHi + 2) jHi = k;
+    }
+  }
+
+  // 2. 找前半段與後半段的波段低點 (Lower Trendline)
+  let iLo = 0;
+  for (let i = 1; i < splitIdx; i++) {
+    if (win[i].low <= win[iLo].low) iLo = i;
+  }
+  let jLo = Math.max(iLo + 3, splitIdx);
+  for (let j = jLo; j < m; j++) {
+    if (win[j].low <= win[jLo].low) jLo = j;
+  }
+  // 若中間有 K 棒跌破連線，將錨點調整至該波段低點以形成乾淨的下支撐包絡線
+  for (let k = iLo + 1; k < m; k++) {
+    if (k === jLo) continue;
+    const slope = (win[jLo].low - win[iLo].low) / Math.max(1, jLo - iLo);
+    const lineVal = win[iLo].low + slope * (k - iLo);
+    if (win[k].low < lineVal * 0.997) {
+      if (k < splitIdx) iLo = k;
+      else if (k > iLo + 2) jLo = k;
+    }
+  }
+
+  return [
+    {
+      id: 'auto-trend-upper',
+      type: 'ray',
+      color: '#ef4444',
+      title: '上趨勢線 (壓力)',
+      p1: { ts: win[iHi].ts, price: win[iHi].high },
+      p2: { ts: win[jHi].ts, price: win[jHi].high },
+    },
+    {
+      id: 'auto-trend-lower',
+      type: 'ray',
+      color: '#22c55e',
+      title: '下趨勢線 (支撐)',
+      p1: { ts: win[iLo].ts, price: win[iLo].low },
+      p2: { ts: win[jLo].ts, price: win[jLo].low },
+    },
+  ];
+}
 
 const storageKey = (symbol: string) => `chart_drawings:${symbol}`;
 
@@ -88,13 +160,28 @@ export function useDrawings(symbol: string, intraday: boolean) {
   const patch = useCallback((id: string, p: Partial<Drawing>, record = false) =>
     update(l => l.map(d => (d.id === id ? { ...d, ...p } : d)), record), [update]);
   const remove = useCallback((id: string) => { update(l => l.filter(d => d.id !== id)); setSelected(null); }, [update]);
-  // 以 AI 計算的支撐/壓力取代舊的 AI 線（id 以 ai- 開頭），不進復原堆疊
-  const setAiLines = useCallback((lines: { price: number; color: string; title: string }[], ts: number) => {
+  // 以 AI 計算的支撐/壓力與上下趨勢線取代舊的 AI 線（id 以 ai- 或 auto-trend- 開頭），不進復原堆疊
+  const setAiLines = useCallback((lines: { price: number; color: string; title: string }[], ts: number, bars?: BarInfo[]) => {
+    const autoTrends = bars ? computeAutoTrendlines(bars) : [];
     update(l => [
-      ...l.filter(d => !d.id.startsWith('ai-')),
+      ...l.filter(d => !d.id.startsWith('ai-') && !d.id.startsWith('auto-trend-')),
       ...lines.map((x, i): Drawing => ({ id: `ai-${i}`, type: 'hline', color: x.color, title: x.title, p1: { ts, price: x.price } })),
+      ...autoTrends,
     ], false);
   }, [update]);
+
+  const toggleAutoTrendlines = useCallback((bars: BarInfo[]) => {
+    const hasAuto = storeRef.current[cls].some(d => d.id.startsWith('auto-trend-'));
+    if (hasAuto) {
+      update(l => l.filter(d => !d.id.startsWith('auto-trend-')));
+    } else {
+      const autoTrends = computeAutoTrendlines(bars);
+      if (autoTrends.length > 0) {
+        update(l => [...l.filter(d => !d.id.startsWith('auto-trend-')), ...autoTrends]);
+      }
+    }
+  }, [cls, update]);
+
   const clear = useCallback(() => { update(() => []); setSelected(null); }, [update]);
   const undo = useCallback(() => {
     const last = histRef.current.pop();
@@ -108,15 +195,16 @@ export function useDrawings(symbol: string, intraday: boolean) {
 
   return {
     drawings: store[cls], tool, setTool, color, setColor, selected, setSelected, magnet, setMagnet,
-    add, patch, remove, clear, undo, pushHistory, setAiLines,
+    add, patch, remove, clear, undo, pushHistory, setAiLines, toggleAutoTrendlines,
   };
 }
 
 export type DrawingsApi = ReturnType<typeof useDrawings>;
 
 // ---------------------------------------------------------------- toolbar
-export function DrawingToolbar({ api }: { api: DrawingsApi }) {
-  const { tool, setTool, color, setColor, selected, remove, clear, undo, magnet, setMagnet, drawings, setSelected } = api;
+export function DrawingToolbar({ api, bars }: { api: DrawingsApi; bars?: BarInfo[] }) {
+  const { tool, setTool, color, setColor, selected, remove, clear, undo, magnet, setMagnet, drawings, setSelected, toggleAutoTrendlines } = api;
+  const hasAutoTrend = drawings.some(d => d.id.startsWith('auto-trend-'));
   const btn = (active: boolean) =>
     `px-2.5 py-1 text-xs rounded-md border transition-colors whitespace-nowrap ${
       active ? 'border-[var(--accent)] text-accent bg-[var(--accent)]/10' : 'border-[var(--border)] text-secondary hover:text-primary'}`;
@@ -126,6 +214,16 @@ export function DrawingToolbar({ api }: { api: DrawingsApi }) {
     <div className="mb-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs text-secondary mr-1">畫線</span>
+        {bars && bars.length >= 10 && (
+          <button
+            type="button"
+            title="自動標記近期波段高點連線(上趨勢壓力線)與波段低點連線(下趨勢支撐線)"
+            className={btn(hasAutoTrend)}
+            onClick={() => toggleAutoTrendlines(bars)}
+          >
+            自動上下趨勢線
+          </button>
+        )}
         {TOOLS.map(t => (
           <button key={t.id} title={t.hint} className={btn(tool === t.id)}
             onClick={() => { setTool(t.id); setSelected(null); }}>{t.label}</button>
@@ -429,10 +527,41 @@ export function DrawingLayer({ chart, series, bars, api }: LayerProps) {
       }
       const pct = ((d.p2!.price - d.p1.price) / d.p1.price) * 100;
       const cnt = Math.round(tsToIdx(d.p2!.ts) - tsToIdx(d.p1.ts));
+      // 計算延伸至最右側 K 棒時的趨勢線價格
+      const idx1 = tsToIdx(d.p1.ts), idx2 = tsToIdx(d.p2!.ts);
+      const slopePrice = idx2 !== idx1 ? (d.p2!.price - d.p1.price) / (idx2 - idx1) : 0;
+      const endPrice = d.p1.price + slopePrice * (Math.max(0, n - 1) - idx1);
+      const labelText = d.title
+        ? `${d.title} ${fmt(endPrice)} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%)`
+        : `${pct > 0 ? '+' : ''}${pct.toFixed(2)}% · ${Math.abs(cnt)}根`;
+      const labelX = d.title ? Math.min(w - 6, Math.max(b.x + 60, w - 12)) : (a.x + b.x) / 2 + 40;
+      const labelY = d.title ? Math.min(h - 14, Math.max(16, ey - 10)) : (a.y + b.y) / 2 - 12;
       body = (<>
-        <line x1={a.x} y1={a.y} x2={ex} y2={ey} {...common} />{hit(a.x, a.y, ex, ey)}
-        {label((a.x + b.x) / 2 + 40, (a.y + b.y) / 2 - 12, `${pct > 0 ? '+' : ''}${pct.toFixed(2)}% · ${Math.abs(cnt)}根`, d.color)}
+        <line x1={a.x} y1={a.y} x2={ex} y2={ey} {...common} strokeDasharray={d.id.startsWith('auto-trend-') ? '6 3' : undefined} />
+        {hit(a.x, a.y, ex, ey)}
+        <circle cx={a.x} cy={a.y} r={3.5} fill={d.color} pointerEvents="none" />
+        <circle cx={b.x} cy={b.y} r={3.5} fill={d.color} pointerEvents="none" />
+        {label(labelX, labelY, labelText, d.color)}
       </>);
+    } else if (b && d.type === 'channel') {
+      // 上下平行趨勢通道：以 p1->p2 為中心趨勢線，上下各偏移 2.5% 價格形成上軌與下軌
+      const offsetPrice = Math.max(d.p1.price, d.p2!.price) * 0.025;
+      const aUp = toPx({ ts: d.p1.ts, price: d.p1.price + offsetPrice });
+      const bUp = toPx({ ts: d.p2!.ts, price: d.p2!.price + offsetPrice });
+      const aLo = toPx({ ts: d.p1.ts, price: d.p1.price - offsetPrice });
+      const bLo = toPx({ ts: d.p2!.ts, price: d.p2!.price - offsetPrice });
+      if (aUp && bUp && aLo && bLo) {
+        const poly = `${aUp.x},${aUp.y} ${bUp.x},${bUp.y} ${bLo.x},${bLo.y} ${aLo.x},${aLo.y}`;
+        body = (<>
+          <polygon points={poly} fill={d.color} fillOpacity={0.09} pointerEvents="none" />
+          <line x1={aUp.x} y1={aUp.y} x2={bUp.x} y2={bUp.y} stroke="#ef4444" strokeWidth={sw} pointerEvents="none" />
+          <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={d.color} strokeWidth={1.2} strokeDasharray="4 4" pointerEvents="none" />
+          <line x1={aLo.x} y1={aLo.y} x2={bLo.x} y2={bLo.y} stroke="#22c55e" strokeWidth={sw} pointerEvents="none" />
+          {hit(a.x, a.y, b.x, b.y)}
+          {label(bUp.x, bUp.y - 8, `通道上軌 ${fmt(d.p2!.price + offsetPrice)}`, '#ef4444')}
+          {label(bLo.x, bLo.y + 14, `通道下軌 ${fmt(d.p2!.price - offsetPrice)}`, '#22c55e')}
+        </>);
+      }
     } else if (b && d.type === 'rect') {
       const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y), rw = Math.abs(a.x - b.x), rh = Math.abs(a.y - b.y);
       body = (<>

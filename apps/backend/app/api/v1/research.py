@@ -54,7 +54,13 @@ async def data_health():
     return {"sources": results, "all_ok": all(r["ok"] for r in results)}
 
 
-# ---------------------------------------------------------------- 財報
+# ---------------------------------------------------------------- 財報 / ETF 追蹤資訊
+@router.get("/{symbol}/etf-info")
+async def etf_info(symbol: str):
+    from app.services.etf_info import build_etf_report
+    return await build_etf_report(symbol)
+
+
 @router.get("/{symbol}/financials")
 async def financials(symbol: str):
     report = await build_financial_report(symbol)

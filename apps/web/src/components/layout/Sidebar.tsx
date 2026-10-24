@@ -6,39 +6,69 @@ import {
   LayoutDashboard,
   LineChart,
   Wallet,
-  FlaskConical,
-  Bell,
   Settings,
   X,
   Star,
   Newspaper,
   PieChart,
-  Activity,
-  Landmark,
-  BarChart3,
   Sparkles,
-  Factory,
   TrendingUp,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { name: "戰情總覽", href: "/dashboard", icon: LayoutDashboard },
-  { name: "自選股", href: "/watchlist", icon: Star },
-  { name: "個股分析", href: "/stock", icon: LineChart },
-  { name: "ETF 專區", href: "/etf", icon: PieChart },
-  { name: "AI 選股推薦", href: "/recommend", icon: Sparkles },
-  { name: "產業研究", href: "/industry", icon: Factory },
-  { name: "量化掃描", href: "/quant", icon: Activity },
-  { name: "策略回測", href: "/backtest", icon: BarChart3 },
-  { name: "資金流向", href: "/capital-flow", icon: TrendingUp },
-  { name: "機構籌碼", href: "/institutions", icon: Landmark },
-  { name: "財經新聞", href: "/news", icon: Newspaper },
-  { name: "投資組合", href: "/portfolio", icon: Wallet },
-  { name: "模擬交易", href: "/simulator", icon: FlaskConical },
-  { name: "價格警報", href: "/alerts", icon: Bell },
-  { name: "系統設定", href: "/settings", icon: Settings },
+interface NavItem {
+  name: string;
+  href: string;
+  matchPrefixes: string[];
+  icon: any;
+}
+
+const navGroups: { title: string; items: NavItem[] }[] = [
+  {
+    title: "市場與標的",
+    items: [
+      { name: "戰情總覽", href: "/dashboard", matchPrefixes: ["/dashboard"], icon: LayoutDashboard },
+      { name: "個股與跨資產", href: "/stock", matchPrefixes: ["/stock"], icon: LineChart },
+      { name: "多元資產與 ETF", href: "/etf", matchPrefixes: ["/etf"], icon: PieChart },
+      { name: "即時財經新聞", href: "/news", matchPrefixes: ["/news"], icon: Newspaper },
+    ],
+  },
+  {
+    title: "AI 量化與籌碼",
+    items: [
+      {
+        name: "AI 選股與量化",
+        href: "/recommend",
+        matchPrefixes: ["/recommend", "/quant", "/backtest"],
+        icon: Sparkles,
+      },
+      {
+        name: "資金與法人籌碼",
+        href: "/capital-flow",
+        matchPrefixes: ["/capital-flow", "/institutions", "/industry"],
+        icon: TrendingUp,
+      },
+    ],
+  },
+  {
+    title: "部位與設定",
+    items: [
+      {
+        name: "自選與價格警報",
+        href: "/watchlist",
+        matchPrefixes: ["/watchlist", "/alerts"],
+        icon: Star,
+      },
+      {
+        name: "投資組合與模擬",
+        href: "/portfolio",
+        matchPrefixes: ["/portfolio", "/simulator"],
+        icon: Wallet,
+      },
+      { name: "系統設定", href: "/settings", matchPrefixes: ["/settings"], icon: Settings },
+    ],
+  },
 ];
 
 export const SIDEBAR_TOGGLE_EVENT = "sidebar:toggle";
@@ -77,22 +107,30 @@ export default function Sidebar() {
             <X size={18} />
           </button>
         </div>
-        <nav className="sidebar-nav">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn("nav-item", isActive && "active")}
-                onClick={() => setIsOpen(false)}
-              >
-                <Icon size={17} className="flex-shrink-0" />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
+
+        <nav className="sidebar-nav space-y-4">
+          {navGroups.map((group) => (
+            <div key={group.title} className="space-y-1">
+              <div className="px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-muted">
+                {group.title}
+              </div>
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = item.matchPrefixes.some((p) => pathname.startsWith(p));
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn("nav-item", isActive && "active")}
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <Icon size={17} className="flex-shrink-0" />
+                    <span>{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
       </aside>
     </>
