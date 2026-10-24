@@ -67,5 +67,24 @@ class SchemaFileTest(unittest.TestCase):
             self.assertIn(f"CREATE TABLE IF NOT EXISTS {table} ", schema)
 
 
+class PhantomBarTest(unittest.TestCase):
+    """Yahoo 在休市日會多給一根複製前日收盤的日線，應被丟棄"""
+
+    def test_bars_after_latest_session_are_dropped(self):
+        from datetime import datetime, timezone
+        from app.services.market_data import _chart_to_bars
+        off = 8 * 3600
+        day = lambda d: int(datetime(2026, 10, d, 1, 0, tzinfo=timezone.utc).timestamp())  # 台北 09:00
+        res = {
+            "meta": {"gmtoffset": off, "regularMarketTime": day(22) + 4 * 3600 + 30 * 60},  # 10/22 13:30
+            "timestamp": [day(21), day(22), day(23)],
+            "indicators": {"quote": [{"open": [1, 2, 2], "high": [1, 2, 2], "low": [1, 2, 2],
+                                      "close": [2420, 2385, 2385], "volume": [1, 1, 1]}]},
+        }
+        daily = _chart_to_bars(res, daily=True)
+        self.assertEqual([b.time.day for b in daily], [21, 22])
+        self.assertEqual(len(_chart_to_bars(res, daily=False)), 3)  # 分時資料不處理
+
+
 if __name__ == "__main__":
     unittest.main()

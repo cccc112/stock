@@ -163,7 +163,11 @@ async def _yahoo_chart(ysym: str, rng: str, interval: str) -> Optional[dict]:
 
 
 def _chart_to_bars(res: dict, daily: bool = False) -> List[KlineBar]:
-    off = int((res.get("meta") or {}).get("gmtoffset") or 0)
+    meta = res.get("meta") or {}
+    off = int(meta.get("gmtoffset") or 0)
+    # Yahoo 在休市日會多給一根「複製前日收盤」的假日線；以最新成交時間為準，丟掉晚於它的日線
+    session_date = (datetime.fromtimestamp(int(meta["regularMarketTime"]) + off, tz=timezone.utc).date()
+                    if meta.get("regularMarketTime") else None)
     ts = res.get("timestamp") or []
     q = ((res.get("indicators") or {}).get("quote") or [{}])[0]
     bars = []
@@ -176,6 +180,8 @@ def _chart_to_bars(res: dict, daily: bool = False) -> List[KlineBar]:
             continue
         v = (q.get("volume") or [0] * len(ts))[i] or 0
         ts_local = datetime.fromtimestamp(t + off, tz=timezone.utc).replace(tzinfo=None)
+        if daily and session_date and ts_local.date() > session_date:
+            continue
         if daily:
             ts_local = ts_local.replace(hour=0, minute=0, second=0, microsecond=0)
         bars.append(KlineBar(
@@ -189,7 +195,7 @@ async def _yahoo_quote(ysym: str, symbol: str, market: MarketType) -> Optional[S
     if not res:
         return None
     meta = res.get("meta") or {}
-    bars = _chart_to_bars(res)
+    bars = _chart_to_bars(res, daily=True)
     if not bars:
         return None
     price = _safe_float(meta.get("regularMarketPrice")) or bars[-1].close
@@ -285,8 +291,9 @@ async def get_quote(symbol: str) -> Optional[StockQuote]:
                     break
         if not quote:
             quote = _quote_from_bars(await _finmind_bars(code, 10), symbol, MarketType.TW, "finmind")
-        if quote and quote.name in (symbol, code, ""):
-            quote.name = (await tw_name_map()).get(code, quote.name)
+        if quote:
+            # 台股一律優先用中文名稱（Yahoo 備援來源的名稱是英文）
+            quote.name = (await tw_name_map()).get(code) or quote.name
     else:
         market = MarketType.US
         quote = await _yahoo_quote(code, symbol, market) or await _yfinance_quote(code, market)
