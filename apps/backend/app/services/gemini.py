@@ -23,8 +23,9 @@ class GeminiService:
         settings = get_settings()
         self.client = genai.Client(api_key=settings.gemini_api_key) if settings.gemini_api_key else None
         # 主模型 + 備援；主模型下架/額度用完時自動換下一個
-        self.models = [m for m in dict.fromkeys(
-            [settings.gemini_model, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"]) if m]
+        # 舊版模型名稱會被 Google 下架(404)；以可自動更新的別名作為最後備援
+        self.models = [m for m in dict.fromkeys([settings.gemini_model, "gemini-flash-latest"]) if m]
+        self._dead: set = set()  # 已確認下架/不存在的模型，之後不再嘗試，避免每次呼叫都白白失敗一輪
 
     def _client(self, api_key: Optional[str]) -> genai.Client:
         client = genai.Client(api_key=api_key) if api_key else self.client
@@ -38,7 +39,8 @@ class GeminiService:
         client = self._client(api_key)
         config = {"response_mime_type": "application/json"} if as_json else None
         last_err: Optional[Exception] = None
-        for m in ([model] if model else []) + self.models:
+        candidates = [m for m in ([model] if model else []) + self.models if m not in self._dead]
+        for m in candidates or self.models:
             try:
                 resp = await asyncio.to_thread(
                     client.models.generate_content, model=m, contents=prompt, config=config)
@@ -48,6 +50,8 @@ class GeminiService:
                 last_err = e
                 msg = str(e)
                 logger.warning("Gemini model %s failed: %s", m, msg[:200])
+                if "NOT_FOUND" in msg or "no longer available" in msg:
+                    self._dead.add(m)
                 # 金鑰錯誤換模型也沒用
                 if "API key" in msg or "PERMISSION_DENIED" in msg or "UNAUTHENTICATED" in msg:
                     break

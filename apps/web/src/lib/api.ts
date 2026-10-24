@@ -69,12 +69,16 @@ export const apiAlerts = {
   toggleAlert: (id: string, active: boolean) => api.patch(`/alerts/${id}`, { active }),
 };
 
+// AI 呼叫可能需要數十秒（多次呼叫 Gemini），逾時放寬到 3 分鐘
+const AI_TIMEOUT = { timeout: 180000 };
+
 export const apiAi = {
-  getMarketSummary: () => api.get('/ai/market-summary'),
-  analyzeStock: (symbol: string) => api.post(`/ai/analyze/${symbol}`, { symbol, period: '3mo' }),
-  reviewTrades: (portfolioId: string) => api.post(`/ai/review/${portfolioId}`),
-  getTradeSuggestions: () => api.get('/ai/trade-suggestions'),
-  runCommittee: (symbol: string) => api.post(`/ai/committee/${symbol}`),
+  getMarketSummary: () => api.get('/ai/market-summary', AI_TIMEOUT),
+  analyzeStock: (symbol: string) => api.post(`/ai/analyze/${symbol}`, { symbol, period: '3mo' }, AI_TIMEOUT),
+  reviewTrades: (portfolioId: string) => api.post(`/ai/review/${portfolioId}`, null, AI_TIMEOUT),
+  getTradeSuggestions: () => api.get('/ai/trade-suggestions', AI_TIMEOUT),
+  runCommittee: (symbol: string) => api.post(`/ai/committee/${symbol}`, null, AI_TIMEOUT),
+  chartAnalysis: (symbol: string) => api.post(`/ai/chart-analysis/${symbol}`, null, AI_TIMEOUT),
 };
 
 export const apiSimulator = {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Button from "@/components/ui/Button";
-import api from "@/lib/api";
+import { apiAi } from "@/lib/api";
 import { Sparkles, Loader2 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 
@@ -21,7 +21,7 @@ export default function AIChartAnalyzer({ symbol, onLinesCalculated }: AIChartAn
     setError(null);
     try {
       // Direct API call
-      const res = await api.post(`/ai/chart-analysis/${symbol}`);
+      const res = await apiAi.chartAnalysis(symbol);
       const data = res.data;
       
       const newLines: any[] = [];

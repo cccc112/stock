@@ -96,5 +96,29 @@ class FinMindBreakerTest(unittest.TestCase):
         self.assertEqual(asyncio.run(svc.get_history("2330", 10)), [])
 
 
+class GeminiFallbackTest(unittest.TestCase):
+    def test_dead_models_are_skipped_after_first_failure(self):
+        import asyncio
+        from app.services.gemini import GeminiService
+
+        calls = []
+
+        class FakeModels:
+            def generate_content(self, model, contents, config=None):
+                calls.append(model)
+                if model == "retired":
+                    raise RuntimeError("404 NOT_FOUND: no longer available")
+                return type("R", (), {"text": "ok"})()
+
+        svc = GeminiService()
+        svc.client = type("C", (), {"models": FakeModels()})()
+        svc.models = ["retired", "alive"]
+        self.assertEqual(asyncio.run(svc.generate("hi")), "ok")
+        self.assertEqual(calls, ["retired", "alive"])
+        calls.clear()
+        self.assertEqual(asyncio.run(svc.generate("hi")), "ok")
+        self.assertEqual(calls, ["alive"])  # 已下架的模型不再重試
+
+
 if __name__ == "__main__":
     unittest.main()
