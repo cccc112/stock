@@ -16,7 +16,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 15000,
+  timeout: 30000,
 });
 
 api.interceptors.request.use((config) => {
@@ -29,6 +29,37 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// 後端在免費方案閒置後會休眠，喚醒需 30～60 秒。期間的讀取請求自動重試，而不是直接顯示「-」。
+// 以 window 事件通知狀態橫幅：api:waking（正在等後端醒來）、api:ok（有請求成功）。
+export const BACKEND_WAKING_EVENT = 'api:waking';
+export const BACKEND_OK_EVENT = 'api:ok';
+const RETRY_DELAYS_MS = [3000, 6000, 10000, 15000, 20000]; // 累計約 54 秒，涵蓋喚醒期
+
+function emit(name: string) {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(name));
+}
+
+api.interceptors.response.use(
+  (response) => {
+    emit(BACKEND_OK_EVENT);
+    return response;
+  },
+  async (error) => {
+    const config = error?.config as (typeof error.config & { __retryCount?: number }) | undefined;
+    const status: number | undefined = error?.response?.status;
+    const isWakeupFailure = !error?.response || status === 502 || status === 503 || status === 504;
+    // 只重試 GET：讀取可安全重送；下單、新增等寫入請求不自動重送，避免重複寫入
+    if (!config || (config.method || 'get').toLowerCase() !== 'get' || !isWakeupFailure) {
+      return Promise.reject(error);
+    }
+    config.__retryCount = (config.__retryCount || 0) + 1;
+    if (config.__retryCount > RETRY_DELAYS_MS.length) return Promise.reject(error);
+    emit(BACKEND_WAKING_EVENT);
+    await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[config.__retryCount! - 1]));
+    return api.request(config);
+  }
+);
 
 export const apiStocks = {
   getQuote: (symbol: string) => api.get(`/stocks/${symbol}/quote`),

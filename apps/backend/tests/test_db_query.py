@@ -79,11 +79,25 @@ class PhantomBarTest(unittest.TestCase):
             "meta": {"gmtoffset": off, "regularMarketTime": day(22) + 4 * 3600 + 30 * 60},  # 10/22 13:30
             "timestamp": [day(21), day(22), day(23)],
             "indicators": {"quote": [{"open": [1, 2, 2], "high": [1, 2, 2], "low": [1, 2, 2],
-                                      "close": [2420, 2385, 2385], "volume": [1, 1, 1]}]},
+                                      "close": [2420, 2385, 2385], "volume": [100, 100, 0]}]},
         }
         daily = _chart_to_bars(res, daily=True)
         self.assertEqual([b.time.day for b in daily], [21, 22])
         self.assertEqual(len(_chart_to_bars(res, daily=False)), 3)  # 分時資料不處理
+
+    def test_real_bars_survive_a_stale_session_time(self):
+        """Yahoo 的 meta 時間偶爾過舊；有成交量的 K 棒不可被當成假日線刪掉"""
+        from datetime import datetime, timezone
+        from app.services.market_data import _chart_to_bars
+        off = 8 * 3600
+        day = lambda d: int(datetime(2026, 10, d, 1, 0, tzinfo=timezone.utc).timestamp())
+        res = {
+            "meta": {"gmtoffset": off, "regularMarketTime": day(20)},  # 過舊：停在 10/20
+            "timestamp": [day(20), day(21), day(22)],
+            "indicators": {"quote": [{"open": [1, 2, 3], "high": [1, 2, 3], "low": [1, 2, 3],
+                                      "close": [107.25, 108.15, 106.9], "volume": [100, 100, 100]}]},
+        }
+        self.assertEqual([b.time.day for b in _chart_to_bars(res, daily=True)], [20, 21, 22])
 
 
 class FinMindBreakerTest(unittest.TestCase):

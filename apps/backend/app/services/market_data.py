@@ -165,7 +165,8 @@ async def _yahoo_chart(ysym: str, rng: str, interval: str) -> Optional[dict]:
 def _chart_to_bars(res: dict, daily: bool = False) -> List[KlineBar]:
     meta = res.get("meta") or {}
     off = int(meta.get("gmtoffset") or 0)
-    # Yahoo 在休市日會多給一根「複製前日收盤」的假日線；以最新成交時間為準，丟掉晚於它的日線
+    # Yahoo 在休市日會多給一根「複製前日收盤、成交量 0」的假日線。
+    # 只丟掉「晚於最新成交日且沒有成交量」的日線：即使 meta 時間偶爾過舊，也不會誤刪真的 K 棒
     session_date = (datetime.fromtimestamp(int(meta["regularMarketTime"]) + off, tz=timezone.utc).date()
                     if meta.get("regularMarketTime") else None)
     ts = res.get("timestamp") or []
@@ -180,7 +181,7 @@ def _chart_to_bars(res: dict, daily: bool = False) -> List[KlineBar]:
             continue
         v = (q.get("volume") or [0] * len(ts))[i] or 0
         ts_local = datetime.fromtimestamp(t + off, tz=timezone.utc).replace(tzinfo=None)
-        if daily and session_date and ts_local.date() > session_date:
+        if daily and session_date and ts_local.date() > session_date and not v:
             continue
         if daily:
             ts_local = ts_local.replace(hour=0, minute=0, second=0, microsecond=0)

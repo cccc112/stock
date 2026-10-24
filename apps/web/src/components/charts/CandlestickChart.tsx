@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ColorType, createChart, CandlestickSeries, HistogramSeries, LineSeries, type IChartApi, type ISeriesApi, type SeriesType, type Time } from "lightweight-charts";
+import { ColorType, createChart, CandlestickSeries, HistogramSeries, LineSeries, PriceLineSource, type IChartApi, type ISeriesApi, type SeriesType, type Time } from "lightweight-charts";
 import { DrawingLayer, DrawingToolbar, useDrawings, type BarInfo } from "@/components/charts/ChartDrawings";
 import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 import { apiStocks } from "@/lib/api";
@@ -85,6 +85,8 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
       borderVisible: false,
       wickUpColor: upColor,
       wickDownColor: downColor,
+      // 最新價標籤固定取「最後一根 K 棒」，而不是畫面上最後一根可見的 K 棒
+      priceLineSource: PriceLineSource.LastBar,
     });
     
     const volumeSeries = chart.addSeries(HistogramSeries, {
@@ -193,6 +195,11 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
         if (candleData.length >= 60) ma60Series.setData(calculateSMA(candleData, 60));
 
         chart.timeScale().fitContent();
+        // 第一次 fitContent 時右側價格刻度寬度尚未確定；刻度變寬後繪圖區變窄，
+        // 最後幾根 K 棒會被擠出畫面（例如只顯示到前兩天）。版面穩定後再縮放一次。
+        requestAnimationFrame(() => {
+          try { chart.timeScale().fitContent(); } catch { /* chart 已被銷毀 */ }
+        });
 
         // 提供畫線圖層需要的資料：每根 K 棒的時間戳(秒)與 OHLC
         const barInfos: BarInfo[] = candleData.map((c: any) => ({
@@ -213,6 +220,8 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
     const handleResize = (width: number, height: number) => {
       if (chartRef.current && width > 0 && height > 0) {
         chartRef.current.applyOptions({ width, height });
+        // 尺寸改變後確保最新一根 K 棒仍在畫面內（保留使用者的縮放比例）
+        chartRef.current.timeScale().scrollToRealTime();
       }
     };
 

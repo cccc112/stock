@@ -1,39 +1,60 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getApiBaseUrl } from "@/lib/api";
+import { BACKEND_OK_EVENT, BACKEND_WAKING_EVENT, getApiBaseUrl } from "@/lib/api";
 import axios from "axios";
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, RefreshCw, Server, WifiOff } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, RefreshCw, Server, WifiOff } from "lucide-react";
 import Button from "@/components/ui/Button";
 
+type Status = "ok" | "waking" | "down";
+
 export default function BackendStatusBanner() {
-  const [isError, setIsError] = useState(false);
-  const [currentUrl, setCurrentUrl] = useState("");
+  const [status, setStatus] = useState<Status>("ok");
+  const [currentUrl] = useState(() => (typeof window !== "undefined" ? getApiBaseUrl() : ""));
   const [inputUrl, setInputUrl] = useState("");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [showConfig, setShowConfig] = useState(false);
 
-  // 用輕量的 /health 檢查（免費方案休眠後喚醒最久約 60 秒，故逾時放寬並重試一次）
   const healthUrl = (apiBase: string) => `${apiBase.replace(/\/api\/v1$/, "")}/health`;
 
+  // 免費方案的後端閒置會休眠，喚醒約 30～60 秒：先顯示「喚醒中」，最多等約 90 秒才判定連不上
   const checkConnection = async () => {
     const url = getApiBaseUrl();
-    setCurrentUrl(url);
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        await axios.get(healthUrl(url), { timeout: 20000 });
-        setIsError(false);
-        return;
-      } catch (err) {
-        console.warn("Backend connectivity check failed:", err);
+    const slow = setTimeout(() => setStatus((s) => (s === "ok" ? "waking" : s)), 2500);
+    try {
+      // 90 秒內持續重試：休眠喚醒時請求可能卡住，也可能快速回 502/503 或連線被拒
+      const deadline = Date.now() + 90000;
+      while (Date.now() < deadline) {
+        try {
+          await axios.get(healthUrl(url), { timeout: 45000 });
+          setStatus("ok");
+          return;
+        } catch (err) {
+          console.warn("Backend connectivity check failed:", err);
+          setStatus((s) => (s === "ok" ? "waking" : s));
+          await new Promise((r) => setTimeout(r, 5000));
+        }
       }
+      setStatus("down");
+    } finally {
+      clearTimeout(slow);
     }
-    setIsError(true);
   };
 
   useEffect(() => {
-    checkConnection();
+    void checkConnection();
+    // 頁面上的讀取請求也會回報：正在重試 → 顯示喚醒中；任何請求成功 → 隱藏橫幅
+    const onWaking = () => setStatus((s) => (s === "down" ? s : "waking"));
+    const onOk = () => setStatus("ok");
+    window.addEventListener(BACKEND_WAKING_EVENT, onWaking);
+    window.addEventListener(BACKEND_OK_EVENT, onOk);
+    return () => {
+      window.removeEventListener(BACKEND_WAKING_EVENT, onWaking);
+      window.removeEventListener(BACKEND_OK_EVENT, onOk);
+    };
+    // 只在掛載時檢查一次；之後由右側按鈕手動重新檢測
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSaveUrl = async () => {
@@ -63,7 +84,18 @@ export default function BackendStatusBanner() {
     window.location.reload();
   };
 
-  if (!isError) return null;
+  if (status === "ok") return null;
+
+  if (status === "waking") {
+    return (
+      <div className="bg-yellow-500/10 border-b border-yellow-500/30 text-yellow-200 px-4 py-2 text-xs sm:text-sm">
+        <div className="max-w-7xl mx-auto flex items-center gap-2">
+          <Loader2 className="animate-spin flex-shrink-0" size={16} />
+          <span>後端伺服器喚醒中（免費方案閒置後會休眠），約需 30～60 秒，資料會自動載入，請稍候…</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-red-500/15 border-b border-red-500/30 text-red-200 px-4 py-3 text-xs sm:text-sm">
