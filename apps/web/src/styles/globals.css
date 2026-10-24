@@ -142,7 +142,7 @@ h1, h2, h3, h4, h5, h6 { font-family: 'Outfit', sans-serif; font-weight: 600; le
 .top-bar { height: 64px; flex-shrink: 0; background-color: rgba(5,5,5,0.8); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; z-index: 40; }
 .page-content { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 24px; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; touch-action: pan-y; }
 
-@media (max-width: 1023px) {
+@media (max-width: 768px) {
   .sidebar {
     position: fixed; top: 0; left: 0; bottom: 0; z-index: 70;
     width: min(280px, 82vw);

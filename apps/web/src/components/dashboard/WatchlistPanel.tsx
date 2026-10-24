@@ -14,11 +14,12 @@ export default function WatchlistPanel() {
   return (
     <Card 
       title="自選股報價" 
+      className="h-full"
       headerAction={<button className="text-secondary hover:text-primary"><Search size={18} /></button>}
     >
-      <div className="overflow-x-auto overflow-y-auto max-h-[440px] pr-1">
+      <div className="overflow-x-auto">
         <table className="data-table">
-          <thead className="sticky top-0 bg-[var(--bg-secondary)] z-10">
+          <thead>
             <tr>
               <th>代號</th>
               <th>名稱</th>

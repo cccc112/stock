@@ -15,13 +15,12 @@ export default function DashboardPage() {
 
       <MarketOverview />
 
-
-      <div className="dashboard-grid gap-6">
-        <div className="flex flex-col space-y-6 min-w-0">
+      <div className="dashboard-grid h-[calc(100vh-280px)] min-h-[500px]">
+        <div className="flex flex-col h-full overflow-y-auto pr-2 hide-scrollbar space-y-6">
           <TrendingPanel />
           <WatchlistPanel />
         </div>
-        <div className="flex flex-col space-y-6 min-w-0">
+        <div className="flex flex-col h-full overflow-y-auto pr-2 hide-scrollbar space-y-6">
           <AITradeCard />
           <AlertFeed />
           <AIInsightCard />

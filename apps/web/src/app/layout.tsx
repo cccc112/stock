@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "../styles/globals.css";
+import "@/styles/globals.css";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import BackendStatusBanner from "@/components/layout/BackendStatusBanner";
 
-const inter = Inter({ subsets: ["latin"] });
-
 export const metadata: Metadata = {
-  title: "AI 戰情室 | 專業台美股分析",
-  description: "專業台美股 AI 戰情室，提供即時報價、量化分析與 AI 診斷",
+  title: "AI Stock Monitor - 智慧台美股投資系統",
+  description: "結合 AI 與量化分析的台美股即時監控戰情室",
 };
 
 export default function RootLayout({
@@ -17,10 +14,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-
   return (
-    <html lang="zh-TW" className="dark">
-      <body className={inter.className}>
+    <html lang="zh-TW">
+      <body>
         <div className="app-layout">
           <Sidebar />
           <div className="main-content">
@@ -28,10 +24,10 @@ export default function RootLayout({
             <TopBar />
             <main className="page-content">
               {children}
-              <footer className="disclaimer">
-                免責聲明：本系統僅供模擬與學術討論，非投資建議。
-              </footer>
             </main>
+            <footer className="disclaimer">
+              免責聲明：本系統僅供模擬與學術討論，非投資建議。
+            </footer>
           </div>
         </div>
       </body>
