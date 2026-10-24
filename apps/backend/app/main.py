@@ -4,6 +4,9 @@ from contextlib import asynccontextmanager
 import asyncio
 import json
 
+import psycopg
+from fastapi.responses import JSONResponse
+
 from app.services.cache import cache_service
 from app.api.v1 import stocks, watchlist, portfolio, quant, alerts, ai, simulator, market, institutions, research
 
@@ -69,6 +72,12 @@ async def lifespan(app: FastAPI):
     await _init_database()
     yield
     warm_task.cancel()
+    try:
+        from app.core.db import _db
+        if _db:
+            _db.close()
+    except Exception:
+        pass
     # Shutdown
     if cache_service._redis:
         try:
@@ -85,6 +94,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(psycopg.errors.UniqueViolation)
+async def _unique_violation(_, exc):
+    return JSONResponse(status_code=409, content={"detail": "資料已存在"})
+
+
+@app.exception_handler(psycopg.errors.IntegrityError)
+async def _integrity_error(_, exc):
+    # 例如外鍵不存在、CHECK 約束不符(market 只能是 TW/US)
+    return JSONResponse(status_code=400, content={"detail": "資料不符合資料庫限制，請檢查欄位內容"})
+
+
+@app.exception_handler(psycopg.OperationalError)
+async def _db_unavailable(_, exc):
+    return JSONResponse(status_code=503, content={"detail": "資料庫暫時無法連線，請稍後再試"})
+
 
 # Mount Routers
 app.include_router(stocks.router, prefix="/api/v1/stocks", tags=["stocks"])

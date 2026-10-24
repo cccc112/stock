@@ -16,6 +16,10 @@ async def get_watchlist(db=Depends(get_db)):
 
 @router.post("/items", response_model=WatchlistItem)
 async def add_watchlist_item(item: WatchlistCreate, db=Depends(get_db)):
+    # 已在清單中就直接回傳（重複加入不應報錯）
+    exist = db.table("watchlist").select("*").eq("symbol", item.symbol).execute()
+    if exist.data:
+        return WatchlistItem(**exist.data[0])
     new_item = {
         "id": str(uuid.uuid4()),
         "symbol": item.symbol,
