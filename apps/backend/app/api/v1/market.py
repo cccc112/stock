@@ -1,5 +1,6 @@
 import asyncio
 import json
+import httpx
 from fastapi import APIRouter
 from typing import List
 from app.models.schemas import StockQuote
@@ -17,6 +18,20 @@ STOCK_NAMES = {
     "MSFT": "Microsoft", "AMD": "AMD", "SPY": "S&P 500 ETF", "QQQ": "Nasdaq ETF",
 }
 
+# 上市 (TWSE) 與上櫃 (TPEx) 高流動性代表股池（當證交所/櫃買中心全市場 OpenAPI 逾時時，即時拉取現價與真實成交量動態排序）
+TWSE_LIQUID_POOL = ["2330", "2317", "2454", "2382", "3231", "2603", "2881", "2882", "2303", "3037", "2357", "2609", "3017", "2376"]
+TPEX_LIQUID_POOL = ["8069", "6488", "3293", "5347", "3324", "6223", "3529", "8299", "6187", "5483", "3105", "6547"]
+
+
+def _parse_num(val) -> float:
+    if val is None:
+        return 0.0
+    s = str(val).replace(",", "").replace("+", "").replace("X", "").strip()
+    try:
+        return float(s)
+    except Exception:
+        return 0.0
+
 
 async def fetch_single_quote(symbol: str) -> StockQuote | None:
     quote = await market_data.get_quote(symbol)
@@ -27,14 +42,156 @@ async def fetch_single_quote(symbol: str) -> StockQuote | None:
     return quote
 
 
+async def _fetch_twse_openapi_top(limit: int = 10) -> list[dict]:
+    """從證交所 STOCK_DAY_ALL 抓取真實上市成交值/量排行"""
+    async with httpx.AsyncClient(timeout=4.0, verify=False) as client:
+        r = await client.get("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL")
+        if r.status_code != 200:
+            return []
+        rows = r.json()
+    items = []
+    for row in rows:
+        code = str(row.get("Code", "")).strip()
+        if not (len(code) == 4 and code.isdigit()):
+            continue
+        price = _parse_num(row.get("ClosingPrice"))
+        vol_shares = int(_parse_num(row.get("TradeVolume")))
+        val_ntd = _parse_num(row.get("TradeValue"))
+        chg = _parse_num(row.get("Change"))
+        if price <= 0 or vol_shares <= 0:
+            continue
+        prev = price - chg
+        chg_pct = round(chg / prev * 100, 2) if prev > 0 else 0.0
+        items.append({
+            "symbol": code,
+            "name": str(row.get("Name", code)).strip(),
+            "market": "TWSE",
+            "price": price,
+            "change": chg,
+            "change_pct": chg_pct,
+            "volume": vol_shares,
+            "turnover_b": round(val_ntd / 1e8, 2),
+            "stale": False,
+        })
+    items.sort(key=lambda x: (x["turnover_b"], x["volume"]), reverse=True)
+    return items[:limit]
+
+
+async def _fetch_tpex_openapi_top(limit: int = 10) -> list[dict]:
+    """從櫃買中心 OpenAPI 抓取真實上櫃成交值/量排行"""
+    async with httpx.AsyncClient(timeout=4.0, verify=False) as client:
+        r = await client.get("https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes")
+        if r.status_code != 200:
+            return []
+        rows = r.json()
+    items = []
+    for row in rows:
+        code = str(row.get("SecuritiesCompanyCode", "")).strip()
+        if not (len(code) == 4 and code.isdigit()):
+            continue
+        price = _parse_num(row.get("Close"))
+        vol_shares = int(_parse_num(row.get("TradingShares")))
+        val_ntd = _parse_num(row.get("TransactionAmount"))
+        chg = _parse_num(row.get("Change"))
+        if price <= 0 or vol_shares <= 0:
+            continue
+        prev = price - chg
+        chg_pct = round(chg / prev * 100, 2) if prev > 0 else 0.0
+        items.append({
+            "symbol": code,
+            "name": str(row.get("CompanyName", code)).strip(),
+            "market": "TPEx",
+            "price": price,
+            "change": chg,
+            "change_pct": chg_pct,
+            "volume": vol_shares,
+            "turnover_b": round(val_ntd / 1e8, 2),
+            "stale": False,
+        })
+    items.sort(key=lambda x: (x["turnover_b"], x["volume"]), reverse=True)
+    return items[:limit]
+
+
+async def _fallback_pool_rankings(pool: list[str], market_label: str, limit: int = 10) -> list[dict]:
+    quotes = await asyncio.gather(*[fetch_single_quote(s) for s in pool], return_exceptions=True)
+    items = []
+    for q in quotes:
+        if isinstance(q, StockQuote) and q.price > 0:
+            code = market_data.split_symbol(q.symbol)[0]
+            vol = int(q.volume or 0)
+            turnover_b = round((q.price * vol) / 1e8, 2)
+            items.append({
+                "symbol": code,
+                "name": q.name or code,
+                "market": market_label,
+                "price": q.price,
+                "change": q.change,
+                "change_pct": q.change_pct,
+                "volume": vol,
+                "turnover_b": turnover_b,
+                "stale": q.stale,
+            })
+    items.sort(key=lambda x: (x["volume"], x["turnover_b"]), reverse=True)
+    return items[:limit]
+
+
+@router.get("/rankings")
+async def get_market_rankings(limit: int = 10):
+    """真實台股上市 (TWSE) 與上櫃 (TPEx) 熱門成交排行（依真實成交量/成交值動態排序）"""
+    cache_key = f"market:rankings:v2:{limit}"
+    cached = await cache_service.get(cache_key)
+    if cached:
+        try:
+            return json.loads(cached)
+        except Exception:
+            pass
+
+    twse_list, tpex_list = [], []
+    try:
+        twse_res, tpex_res = await asyncio.gather(
+            _fetch_twse_openapi_top(limit),
+            _fetch_tpex_openapi_top(limit),
+            return_exceptions=True,
+        )
+        if isinstance(twse_res, list) and len(twse_res) >= 5:
+            twse_list = twse_res
+        if isinstance(tpex_res, list) and len(tpex_res) >= 5:
+            tpex_list = tpex_res
+    except Exception:
+        pass
+
+    if not twse_list:
+        twse_list = await _fallback_pool_rankings(TWSE_LIQUID_POOL, "TWSE", limit)
+    if not tpex_list:
+        tpex_list = await _fallback_pool_rankings(TPEX_LIQUID_POOL, "TPEx", limit)
+
+    data = {
+        "twse": twse_list,
+        "tpex": tpex_list,
+    }
+    if twse_list or tpex_list:
+        await cache_service.set(cache_key, json.dumps(data), ttl=600)
+    return data
+
+
 @router.get("/trending", response_model=List[StockQuote])
 async def get_trending():
-    """熱門股票（台股，依成交量排序）"""
-    symbols = ["2330", "2317", "2454", "3231", "2382", "2603", "2881"]
-    quotes = await asyncio.gather(*[fetch_single_quote(s) for s in symbols], return_exceptions=True)
-    valid = [q for q in quotes if isinstance(q, StockQuote)]
-    valid.sort(key=lambda x: x.volume or 0, reverse=True)
-    return valid
+    """熱門股票（台股上市+上櫃真實成交量排行）"""
+    rankings = await get_market_rankings(limit=8)
+    combined = (rankings.get("twse", [])[:6] + rankings.get("tpex", [])[:4])
+    combined.sort(key=lambda x: x.get("volume", 0), reverse=True)
+    return [
+        StockQuote(
+            symbol=item["symbol"],
+            name=item["name"],
+            price=item["price"],
+            change=item["change"],
+            change_pct=item["change_pct"],
+            volume=item["volume"],
+            stale=item.get("stale", False),
+        )
+        for item in combined[:8]
+    ]
 
 
 @router.get("/etfs", response_model=List[StockQuote])

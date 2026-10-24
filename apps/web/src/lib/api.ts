@@ -123,6 +123,7 @@ export const apiSimulator = {
 
 export const apiMarket = {
   getTrending: () => api.get('/market/trending'),
+  getRankings: (limit: number = 10) => api.get('/market/rankings', { params: { limit } }),
   getPopularETFs: () => api.get('/market/etfs'),
   getCapitalFlow: () => api.get('/market/capital-flow'),
   getMultiAssets: () => api.get('/market/multi-assets'),
@@ -131,6 +132,7 @@ export const apiMarket = {
 export const apiResearch = {
   getEtfInfo: (symbol: string) => api.get(`/research/${encodeURIComponent(symbol)}/etf-info`),
   getFinancials: (symbol: string) => api.get(`/research/${encodeURIComponent(symbol)}/financials`),
+  getDeepReport: (symbol: string) => api.get(`/research/${encodeURIComponent(symbol)}/deep-report`, { timeout: 60000 }),
   getFinancialAdvice: (symbol: string) => api.post(`/research/${encodeURIComponent(symbol)}/financial-advice`, null, { timeout: 90000 }),
   getRecommendations: (params: { market?: string; style?: string; sector?: string; top?: number; universe?: string }) =>
     api.get('/research/recommend', { params, timeout: 120000 }),

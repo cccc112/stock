@@ -7,8 +7,8 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { formatNumber, formatVolume, getChangeColorClass } from "@/lib/utils";
-import { Sparkles, Plus, Check } from "lucide-react";
-import { apiStocks } from "@/lib/api";
+import { Sparkles, Plus, Check, Layers } from "lucide-react";
+import { apiStocks, apiResearch } from "@/lib/api";
 import QuantDashboard from "@/components/dashboard/QuantDashboard";
 import NewsSection from "@/components/dashboard/NewsSection";
 import InstitutionalSection from "@/components/dashboard/InstitutionalSection";
@@ -18,6 +18,7 @@ import AIChartAnalyzer from "@/components/charts/AIChartAnalyzer";
 import FinancialsSection from "@/components/stock/FinancialsSection";
 import ETFInfoSection from "@/components/stock/ETFInfoSection";
 import AICommitteeSection from "@/components/dashboard/AICommitteeSection";
+import SnowflakeRadar from "@/components/stock/SnowflakeRadar";
 
 const CandlestickChart = dynamic(() => import('@/components/charts/CandlestickChart'), { ssr: false });
 
@@ -80,10 +81,13 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   const [loading, setLoading] = useState(true);
   const [inWatchlist, setInWatchlist] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("kline");
   const [priceLines, setPriceLines] = useState<{ price: number; color: string; title: string }[]>([]);
+  const [deepSummary, setDeepSummary] = useState<any | null>(null);
 
   useEffect(() => {
     setInWatchlist(getStoredSymbols().includes(symbol));
+    setDeepSummary(null);
 
     const fetchQuote = async () => {
       try {
@@ -96,6 +100,10 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       }
     };
     fetchQuote();
+    apiResearch
+      .getDeepReport(symbol)
+      .then((r) => setDeepSummary(r.data))
+      .catch(() => {});
     const timer = setInterval(fetchQuote, 30000);
     return () => clearInterval(timer);
   }, [symbol]);
@@ -187,6 +195,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
               const assetType = detectAssetType(canonical);
               return (
                 <Tabs 
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
                   tabs={[
                     {
                       id: 'kline',
@@ -201,8 +211,17 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                     assetType === 'STOCK'
                       ? {
                           id: 'financials',
-                          label: '財報與基本面',
-                          content: <FinancialsSection key={canonical} symbol={canonical} />
+                          label: '財報與四大交易模型',
+                          content: (
+                            <FinancialsSection
+                              key={canonical}
+                              symbol={canonical}
+                              onApplyStrategyLines={(lines) => {
+                                setPriceLines(lines);
+                                setActiveTab('kline');
+                              }}
+                            />
+                          )
                         }
                       : {
                           id: 'etf-info',
@@ -247,6 +266,130 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
 
         {/* Sidebar */}
         <div className="lg:col-span-1 space-y-6">
+          {deepSummary?.verdict && (
+            <Card
+              title="最終多空裁決與五維雷達"
+              subtitle="整合財報、杜邦與四大經典策略模型"
+              variant="accent-border"
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-secondary">綜合多空評級</span>
+                  <span className="px-2.5 py-1 rounded-md bg-accent/15 text-accent text-xs font-bold font-mono">
+                    {deepSummary.verdict.rating} ({deepSummary.verdict.total_score}/100)
+                  </span>
+                </div>
+
+                {deepSummary.radar && (
+                  <div className="flex justify-center py-1 bg-[var(--bg-primary)]/60 rounded-lg border border-[var(--border)]">
+                    <SnowflakeRadar
+                      items={deepSummary.radar}
+                      totalScore={deepSummary.verdict.total_score}
+                      size={205}
+                    />
+                  </div>
+                )}
+
+                {deepSummary.models && (
+                  <div className="space-y-1.5 text-xs border-t border-[var(--border)] pt-3">
+                    <div className="flex justify-between">
+                      <span className="text-secondary">Piotroski F-Score</span>
+                      <span className="font-mono font-semibold text-primary">
+                        {deepSummary.models.piotroski?.score}/{deepSummary.models.piotroski?.max_score} ({deepSummary.models.piotroski?.status})
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-secondary">O&apos;Neil CANSLIM</span>
+                      <span className="font-mono font-semibold text-primary">
+                        {deepSummary.models.canslim?.score}/{deepSummary.models.canslim?.max_score} ({deepSummary.models.canslim?.status})
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-secondary">Minervini VCP</span>
+                      <span className="font-mono font-semibold text-primary">
+                        {deepSummary.models.minervini?.score}/{deepSummary.models.minervini?.max_score} ({deepSummary.models.minervini?.status})
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-secondary">SMC 聰明錢結構</span>
+                      <span className="font-mono font-semibold text-primary">
+                        {deepSummary.models.smc?.score}/{deepSummary.models.smc?.max_score} ({deepSummary.models.smc?.status})
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-1.5 text-center pt-2 border-t border-[var(--border)] text-xs">
+                  <div className="p-1.5 rounded bg-[var(--bg-primary)]">
+                    <div className="text-[10px] text-secondary">進場區間</div>
+                    <div className="font-mono font-bold text-indigo-400">
+                      {deepSummary.verdict.entry_zone?.[0]}
+                    </div>
+                  </div>
+                  <div className="p-1.5 rounded bg-[var(--bg-primary)]">
+                    <div className="text-[10px] text-secondary">防守停損</div>
+                    <div className="font-mono font-bold text-rose-400">
+                      {deepSummary.verdict.stop_loss}
+                    </div>
+                  </div>
+                  <div className="p-1.5 rounded bg-[var(--bg-primary)]">
+                    <div className="text-[10px] text-secondary">目標價</div>
+                    <div className="font-mono font-bold text-emerald-400">
+                      {deepSummary.verdict.target_price}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="w-full"
+                    onClick={() => {
+                      const v = deepSummary.verdict;
+                      const smc = deepSummary.models?.smc;
+                      const lines: { price: number; color: string; title: string }[] = [
+                        { price: v.target_price, color: "#10b981", title: "目標價 (Target)" },
+                        { price: v.entry_zone[1], color: "#6366f1", title: "建議進場上緣" },
+                        { price: v.entry_zone[0], color: "#3b82f6", title: "建議進場下緣" },
+                        { price: v.stop_loss, color: "#ef4444", title: "防守停損 (Stop)" },
+                      ];
+                      if (smc?.bullish_ob?.low) {
+                        lines.push({
+                          price: smc.bullish_ob.low,
+                          color: "#22c55e",
+                          title: "SMC 多方訂單塊支撐",
+                        });
+                      }
+                      if (smc?.bearish_ob?.high) {
+                        lines.push({
+                          price: smc.bearish_ob.high,
+                          color: "#f97316",
+                          title: "SMC 空方訂單塊壓力",
+                        });
+                      }
+                      setPriceLines(lines);
+                      setActiveTab("kline");
+                    }}
+                  >
+                    <Layers size={13} />
+                    <span>套用模型價位與訂單塊至 K 線</span>
+                  </Button>
+                  {detectAssetType(stock.symbol) === "STOCK" && activeTab !== "financials" && (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      className="w-full"
+                      onClick={() => setActiveTab("financials")}
+                    >
+                      <span>查看完整財報與四大模型報告</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </Card>
+          )}
+
           <Card title="今日行情明細">
             <div className="divide-y divide-[var(--border)] text-sm">
               <div className="flex justify-between py-2.5"><span className="text-secondary">開盤價</span><span className="font-mono tabular-nums font-medium">{formatNumber(stock.open, 2)}</span></div>

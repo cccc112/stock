@@ -8,6 +8,7 @@ from app.services import market_data, screener
 from app.services.finmind import finmind_service
 from app.services.fundamentals import build_financial_report
 from app.services.gemini import gemini_service
+from app.services.strategy_models import build_deep_research_report
 
 router = APIRouter()
 
@@ -67,6 +68,12 @@ async def financials(symbol: str):
     if not report.get("has_data"):
         raise HTTPException(status_code=404, detail=f"查無 {symbol} 的財報資料（ETF/指數沒有財報，或資料源暫時無回應）")
     return report
+
+
+@router.get("/{symbol}/deep-report")
+async def deep_report(symbol: str):
+    """整合 Simply Wall St 五維雷達、財報狗杜邦/現金流分析、四大經典開源策略模型與最終多空結論裁決"""
+    return await build_deep_research_report(symbol)
 
 
 @router.post("/{symbol}/financial-advice")
