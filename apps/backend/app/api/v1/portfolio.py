@@ -70,7 +70,8 @@ async def record_transaction(tx: PortfolioTxCreate, db=Depends(get_db)):
     res = db.table("portfolio_transactions").insert({
         "id": str(uuid.uuid4()),
         "symbol": tx.symbol.strip().upper(),
-        "market": tx.market.value,
+        # 市場以代號為準：純數字(含 00679B 這類 ETF)必為台股，避免使用者忘了切換市場
+        "market": "TW" if market_data.split_symbol(tx.symbol.strip())[1] == "TW" else tx.market.value,
         "type": tx.type.value,
         "price": tx.price,
         "shares": tx.shares,

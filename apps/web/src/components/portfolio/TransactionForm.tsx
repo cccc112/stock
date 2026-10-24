@@ -99,7 +99,7 @@ export default function TransactionForm({ isOpen, onClose, defaultSymbol }: Tran
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-secondary mb-1">股票代號</label>
-              <input type="text" className="input-field" placeholder="e.g. 2330" value={symbol} onChange={e => setSymbol(e.target.value)} required />
+              <input type="text" className="input-field" placeholder="e.g. 2330" value={symbol} onChange={e => { setSymbol(e.target.value); setMarket(/^\d/.test(e.target.value.trim()) ? 'TW' : 'US'); }} required />
             </div>
             <div>
               <label className="block text-sm text-secondary mb-1">市場</label>
