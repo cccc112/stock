@@ -6,6 +6,7 @@ import Badge from "@/components/ui/Badge";
 import { formatNumber, formatVolume, getChangeColorClass } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { apiMarket } from "@/lib/api";
+import { Term } from "@/components/ui/TermTooltip";
 
 interface RankedStock {
   symbol: string;
@@ -73,7 +74,7 @@ export default function TrendingPanel() {
 
   return (
     <Card
-      title="台股真實熱門成交排行"
+      title={<Term k="twse_tpex" label="台股真實熱門成交排行" />}
       subtitle="依證交所 (上市) 與櫃買中心 (上櫃) 即時成交量動態排序"
       headerAction={
         <div className="flex bg-[var(--bg-primary)] p-0.5 rounded-lg border border-[var(--border)]">

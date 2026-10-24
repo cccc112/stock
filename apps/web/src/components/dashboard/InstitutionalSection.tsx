@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 import { formatNumber } from "@/lib/utils";
+import { Term } from "@/components/ui/TermTooltip";
 
 export default function InstitutionalSection({ symbol }: { symbol: string }) {
   const [data, setData] = useState<any[]>([]);
@@ -78,9 +79,9 @@ export default function InstitutionalSection({ symbol }: { symbol: string }) {
           <thead className="sticky top-0 bg-[var(--bg-secondary)] z-10 shadow-sm">
             <tr>
               <th className="text-left py-3 px-4">日期</th>
-              <th className="text-right py-3 px-4">外資買賣超</th>
-              <th className="text-right py-3 px-4">投信買賣超</th>
-              <th className="text-right py-3 px-4">自營商買賣超</th>
+              <th className="text-right py-3 px-4"><Term k="foreign_inv" label="外資買賣超" /></th>
+              <th className="text-right py-3 px-4"><Term k="trust_inv" label="投信買賣超" /></th>
+              <th className="text-right py-3 px-4"><Term k="dealer_inv" label="自營商買賣超" /></th>
               <th className="text-right py-3 px-4">合計</th>
             </tr>
           </thead>

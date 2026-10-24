@@ -6,6 +6,7 @@ import VAPChart from "@/components/charts/VAPChart";
 import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 import Badge from "@/components/ui/Badge";
 import { formatNumber } from "@/lib/utils";
+import { Term } from "@/components/ui/TermTooltip";
 
 interface QuantDashboardProps {
   symbol: string;
@@ -92,7 +93,9 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
       {/* Left Column: VAP & Anomaly */}
       <div className="space-y-6">
         <div>
-          <h3 className="font-semibold mb-4 text-lg">價量分佈 (VAP)</h3>
+          <h3 className="font-semibold mb-4 text-lg">
+            <Term k="vap" label="價量分佈 (VAP)" />
+          </h3>
           <VAPChart data={vap} currentPrice={currentPrice} />
         </div>
 
@@ -150,7 +153,9 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
           <h3 className="font-semibold mb-4 text-lg">技術指標</h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-[var(--bg-tertiary)] p-4 rounded-md">
-              <div className="text-secondary text-sm mb-1">RSI (14)</div>
+              <div className="text-secondary text-sm mb-1">
+                <Term k="rsi" label="RSI (14)" />
+              </div>
               <div className={`text-xl font-semibold ${indicators?.RSI > 70 ? 'text-down-tw' : indicators?.RSI < 30 ? 'text-up-tw' : ''}`}>
                 {indicators?.RSI ? indicators.RSI.toFixed(1) : '-'}
               </div>
@@ -160,7 +165,9 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
             </div>
 
             <div className="bg-[var(--bg-tertiary)] p-4 rounded-md">
-              <div className="text-secondary text-sm mb-1">MACD</div>
+              <div className="text-secondary text-sm mb-1">
+                <Term k="macd" label="MACD" />
+              </div>
               <div className="text-xl font-semibold">
                 {indicators?.MACD?.histogram > 0 ? (
                   <span className="text-up-tw">偏多</span>
@@ -174,7 +181,9 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
             </div>
             
             <div className="bg-[var(--bg-tertiary)] p-4 rounded-md col-span-2">
-              <div className="text-secondary text-sm mb-2">移動平均線 (MA)</div>
+              <div className="text-secondary text-sm mb-2">
+                <Term k="ma" label="移動平均線 (MA)" />
+              </div>
               <div className="grid grid-cols-4 gap-2 text-sm text-center">
                 <div>
                   <div className="text-secondary text-xs">5MA</div>

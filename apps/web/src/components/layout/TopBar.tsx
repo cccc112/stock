@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { Menu, Search } from "lucide-react";
 import { SIDEBAR_TOGGLE_EVENT } from "@/components/layout/Sidebar";
 import { apiStocks } from "@/lib/api";
+import { useBeginnerMode } from "@/components/ui/TermTooltip";
 
 export default function TopBar() {
   const [time, setTime] = useState("");
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
+  const { beginnerMode, toggleBeginnerMode } = useBeginnerMode();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -167,8 +169,36 @@ export default function TopBar() {
         </div>
       </div>
 
-      <div className="text-xs text-secondary font-mono tabular-nums hidden md:block flex-shrink-0">
-        {time}
+      <div className="flex items-center gap-3 flex-shrink-0">
+        <button
+          type="button"
+          onClick={toggleBeginnerMode}
+          title={
+            beginnerMode
+              ? "目前開啟新手註解：專有名詞旁會顯示「!」小圖示，滑鼠移過或手機點擊可看白話解釋"
+              : "點擊開啟新手模式：顯示專有名詞「!」白話解釋"
+          }
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
+            beginnerMode
+              ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
+              : "bg-[var(--bg-tertiary)] border-[var(--border)] text-secondary hover:text-primary"
+          }`}
+        >
+          <span
+            className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-mono font-bold ${
+              beginnerMode
+                ? "bg-amber-500 text-slate-950"
+                : "bg-[var(--bg-secondary)] text-secondary border border-[var(--border)]"
+            }`}
+          >
+            !
+          </span>
+          <span>新手模式：{beginnerMode ? "開" : "關"}</span>
+        </button>
+
+        <div className="text-xs text-secondary font-mono tabular-nums hidden md:block">
+          {time}
+        </div>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { ColorType, createChart, CandlestickSeries, HistogramSeries, LineSeries,
 import { DrawingLayer, DrawingToolbar, useDrawings, type BarInfo } from "@/components/charts/ChartDrawings";
 import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 import { apiStocks } from "@/lib/api";
+import { InfoTip } from "@/components/ui/TermTooltip";
 
 interface CandlestickChartProps {
   symbol: string;
@@ -293,16 +294,17 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
 
       <div className="relative h-[400px] border border-[var(--border)] rounded-xl bg-[var(--bg-secondary)]/50 overflow-hidden shadow-inner">
         {/* Legends */}
-        <div className="absolute top-3 left-4 z-10 flex flex-wrap gap-4 text-xs font-mono pointer-events-none">
-          <div className="flex gap-2 items-center">
+        <div className="absolute top-3 left-4 z-10 flex flex-wrap items-center gap-4 text-xs font-mono">
+          <div className="flex gap-2 items-center pointer-events-none">
             <span className="w-2 h-2 rounded-full bg-[#6366f1]"></span> 5MA
           </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center pointer-events-none">
             <span className="w-2 h-2 rounded-full bg-[#f59e0b]"></span> 20MA
           </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center pointer-events-none">
             <span className="w-2 h-2 rounded-full bg-[#10b981]"></span> 60MA
           </div>
+          <InfoTip term="ma" />
         </div>
 
         {/* Tooltip */}

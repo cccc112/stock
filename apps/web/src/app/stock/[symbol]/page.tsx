@@ -19,6 +19,7 @@ import FinancialsSection from "@/components/stock/FinancialsSection";
 import ETFInfoSection from "@/components/stock/ETFInfoSection";
 import AICommitteeSection from "@/components/dashboard/AICommitteeSection";
 import SnowflakeRadar from "@/components/stock/SnowflakeRadar";
+import { Term, InfoTip } from "@/components/ui/TermTooltip";
 
 const CandlestickChart = dynamic(() => import('@/components/charts/CandlestickChart'), { ssr: false });
 
@@ -268,7 +269,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         <div className="lg:col-span-1 space-y-6">
           {deepSummary?.verdict && (
             <Card
-              title="最終多空裁決與五維雷達"
+              title={<Term k="snowflake_radar" label="最終多空裁決與五維雷達" />}
               subtitle="整合財報、杜邦與四大經典策略模型"
               variant="accent-border"
             >
@@ -292,26 +293,26 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
 
                 {deepSummary.models && (
                   <div className="space-y-1.5 text-xs border-t border-[var(--border)] pt-3">
-                    <div className="flex justify-between">
-                      <span className="text-secondary">Piotroski F-Score</span>
+                    <div className="flex justify-between items-center">
+                      <Term k="piotroski" label="Piotroski F-Score" className="text-secondary" />
                       <span className="font-mono font-semibold text-primary">
                         {deepSummary.models.piotroski?.score}/{deepSummary.models.piotroski?.max_score} ({deepSummary.models.piotroski?.status})
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-secondary">O&apos;Neil CANSLIM</span>
+                    <div className="flex justify-between items-center">
+                      <Term k="canslim" label="O'Neil CANSLIM" className="text-secondary" />
                       <span className="font-mono font-semibold text-primary">
                         {deepSummary.models.canslim?.score}/{deepSummary.models.canslim?.max_score} ({deepSummary.models.canslim?.status})
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-secondary">Minervini VCP</span>
+                    <div className="flex justify-between items-center">
+                      <Term k="minervini" label="Minervini VCP" className="text-secondary" />
                       <span className="font-mono font-semibold text-primary">
                         {deepSummary.models.minervini?.score}/{deepSummary.models.minervini?.max_score} ({deepSummary.models.minervini?.status})
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-secondary">SMC 聰明錢結構</span>
+                    <div className="flex justify-between items-center">
+                      <Term k="smc" label="SMC 聰明錢結構" className="text-secondary" />
                       <span className="font-mono font-semibold text-primary">
                         {deepSummary.models.smc?.score}/{deepSummary.models.smc?.max_score} ({deepSummary.models.smc?.status})
                       </span>
@@ -321,19 +322,28 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
 
                 <div className="grid grid-cols-3 gap-1.5 text-center pt-2 border-t border-[var(--border)] text-xs">
                   <div className="p-1.5 rounded bg-[var(--bg-primary)]">
-                    <div className="text-[10px] text-secondary">進場區間</div>
+                    <div className="text-[10px] text-secondary flex items-center justify-center">
+                      <span>進場區</span>
+                      <InfoTip term="entry_zone" />
+                    </div>
                     <div className="font-mono font-bold text-indigo-400">
                       {deepSummary.verdict.entry_zone?.[0]}
                     </div>
                   </div>
                   <div className="p-1.5 rounded bg-[var(--bg-primary)]">
-                    <div className="text-[10px] text-secondary">防守停損</div>
+                    <div className="text-[10px] text-secondary flex items-center justify-center">
+                      <span>停損價</span>
+                      <InfoTip term="stop_loss" />
+                    </div>
                     <div className="font-mono font-bold text-rose-400">
                       {deepSummary.verdict.stop_loss}
                     </div>
                   </div>
                   <div className="p-1.5 rounded bg-[var(--bg-primary)]">
-                    <div className="text-[10px] text-secondary">目標價</div>
+                    <div className="text-[10px] text-secondary flex items-center justify-center">
+                      <span>目標價</span>
+                      <InfoTip term="target_price" />
+                    </div>
                     <div className="font-mono font-bold text-emerald-400">
                       {deepSummary.verdict.target_price}
                     </div>

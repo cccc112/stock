@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { IChartApi, ISeriesApi, Logical, SeriesType } from "lightweight-charts";
+import { InfoTip } from "@/components/ui/TermTooltip";
 
 export type Tool = 'cursor' | 'trend' | 'ray' | 'channel' | 'hline' | 'vline' | 'fib' | 'rect';
 export interface Anchor { ts: number; price: number }
@@ -44,90 +45,198 @@ const TOOLS: { id: Tool; label: string; hint: string }[] = [
 
 /**
  * 自動從目前 K 線資料計算「上趨勢線 (壓力)」與「下趨勢線 (支撐)」
- * 採用前後波段高點包絡線 (Upper Envelope) 與前後波段低點包絡線 (Lower Envelope)
+ * 採用「受約束波段轉折包絡線 + 線性回歸趨勢校正 (Constrained Swing Envelope + OLS Regression)」：
+ * 1. 確保前後兩個轉折錨點間距至少達視窗寬度的 30% 以上，杜絕相鄰 K 棒連出極端斜率。
+ * 2. 嚴格懲罰穿刺 K 棒實體的連線，找出最貼合波段高點的上壓力線與最貼合波段低點的下支撐線。
+ * 3. 以最新一根 K 棒為終點 (type: 'trend')，不會向畫面外無限亂射。
  */
 export function computeAutoTrendlines(bars: BarInfo[]): Drawing[] {
-  if (!bars || bars.length < 10) return [];
-  const winLen = Math.min(bars.length, 75);
+  if (!bars || bars.length < 12) return [];
+  const winLen = Math.min(bars.length, 55);
   const win = bars.slice(-winLen);
   const m = win.length;
-  const splitIdx = Math.max(3, Math.floor(m * 0.48));
 
-  // 1. 找前半段與後半段的波段高點 (Upper Trendline)
-  let iHi = 0;
-  for (let i = 1; i < splitIdx; i++) {
-    if (win[i].high >= win[iHi].high) iHi = i;
+  // 計算收盤價線性回歸斜率與區間振幅，作為斜率合理性基準
+  let sumX = 0,
+    sumY = 0,
+    maxH = -Infinity,
+    minL = Infinity;
+  for (let i = 0; i < m; i++) {
+    sumX += i;
+    sumY += win[i].close;
+    if (win[i].high > maxH) maxH = win[i].high;
+    if (win[i].low < minL) minL = win[i].low;
   }
-  let jHi = Math.max(iHi + 3, splitIdx);
-  for (let j = jHi; j < m; j++) {
-    if (win[j].high >= win[jHi].high) jHi = j;
+  const meanX = sumX / m;
+  const meanY = sumY / m;
+  let num = 0,
+    den = 0;
+  for (let i = 0; i < m; i++) {
+    num += (i - meanX) * (win[i].close - meanY);
+    den += (i - meanX) * (i - meanX);
   }
-  // 若中間有 K 棒明顯突破連線，將錨點調整至該突破高點以形成乾淨的上壓力包絡線
-  for (let k = iHi + 1; k < m; k++) {
-    if (k === jHi) continue;
-    const slope = (win[jHi].high - win[iHi].high) / Math.max(1, jHi - iHi);
-    const lineVal = win[iHi].high + slope * (k - iHi);
-    if (win[k].high > lineVal * 1.003) {
-      if (k < splitIdx) iHi = k;
-      else if (k > iHi + 2) jHi = k;
+  const regSlope = den > 0 ? num / den : 0;
+  const priceRange = Math.max(maxH - minL, meanY * 0.04, 0.01);
+  const minSpan = Math.max(8, Math.floor(m * 0.32));
+  const firstHalfEnd = Math.floor(m * 0.52);
+  const lastClose = win[m - 1].close;
+
+  // 1. 搜尋最佳上趨勢壓力線 (Upper Resistance Trendline)
+  let bestUpper: { i1: number; endPrice: number; cost: number } | null = null;
+  for (let i1 = 0; i1 <= firstHalfEnd; i1++) {
+    for (let i2 = i1 + minSpan; i2 < m; i2++) {
+      const slope = (win[i2].high - win[i1].high) / (i2 - i1);
+      // 排除斜率過於誇張（整段高低差超過區間振幅 1.35 倍）的異常線
+      if (Math.abs(slope * m) > priceRange * 1.35) continue;
+      const endPrice = win[i1].high + slope * (m - 1 - i1);
+      if (endPrice > maxH + priceRange * 0.35 || endPrice < lastClose - priceRange * 0.08) continue;
+
+      let cost = 0;
+      let pierced = 0;
+      for (let k = i1; k < m; k++) {
+        const lineY = win[i1].high + slope * (k - i1);
+        const bodyTop = Math.max(win[k].open, win[k].close);
+        if (bodyTop > lineY + priceRange * 0.015) {
+          pierced += 2;
+          cost += (bodyTop - lineY) * 90;
+        } else if (win[k].high > lineY + priceRange * 0.01) {
+          pierced += 1;
+          cost += (win[k].high - lineY) * 35;
+        } else {
+          cost += lineY - win[k].high;
+        }
+      }
+      if (pierced > Math.max(3, Math.floor(m * 0.06))) continue;
+      // 加入與整體趨勢斜率的一致性權重
+      cost += Math.abs(slope - regSlope) * m * 0.35;
+      if (!bestUpper || cost < bestUpper.cost) {
+        bestUpper = { i1, endPrice, cost };
+      }
     }
   }
 
-  // 2. 找前半段與後半段的波段低點 (Lower Trendline)
-  let iLo = 0;
-  for (let i = 1; i < splitIdx; i++) {
-    if (win[i].low <= win[iLo].low) iLo = i;
-  }
-  let jLo = Math.max(iLo + 3, splitIdx);
-  for (let j = jLo; j < m; j++) {
-    if (win[j].low <= win[jLo].low) jLo = j;
-  }
-  // 若中間有 K 棒跌破連線，將錨點調整至該波段低點以形成乾淨的下支撐包絡線
-  for (let k = iLo + 1; k < m; k++) {
-    if (k === jLo) continue;
-    const slope = (win[jLo].low - win[iLo].low) / Math.max(1, jLo - iLo);
-    const lineVal = win[iLo].low + slope * (k - iLo);
-    if (win[k].low < lineVal * 0.997) {
-      if (k < splitIdx) iLo = k;
-      else if (k > iLo + 2) jLo = k;
+  // 2. 搜尋最佳下趨勢支撐線 (Lower Support Trendline)
+  let bestLower: { j1: number; endPrice: number; cost: number } | null = null;
+  for (let j1 = 0; j1 <= firstHalfEnd; j1++) {
+    for (let j2 = j1 + minSpan; j2 < m; j2++) {
+      const slope = (win[j2].low - win[j1].low) / (j2 - j1);
+      if (Math.abs(slope * m) > priceRange * 1.35) continue;
+      const endPrice = win[j1].low + slope * (m - 1 - j1);
+      if (endPrice < minL - priceRange * 0.35 || endPrice > lastClose + priceRange * 0.08) continue;
+
+      let cost = 0;
+      let pierced = 0;
+      for (let k = j1; k < m; k++) {
+        const lineY = win[j1].low + slope * (k - j1);
+        const bodyBot = Math.min(win[k].open, win[k].close);
+        if (bodyBot < lineY - priceRange * 0.015) {
+          pierced += 2;
+          cost += (lineY - bodyBot) * 90;
+        } else if (win[k].low < lineY - priceRange * 0.01) {
+          pierced += 1;
+          cost += (lineY - win[k].low) * 35;
+        } else {
+          cost += win[k].low - lineY;
+        }
+      }
+      if (pierced > Math.max(3, Math.floor(m * 0.06))) continue;
+      cost += Math.abs(slope - regSlope) * m * 0.35;
+      if (!bestLower || cost < bestLower.cost) {
+        bestLower = { j1, endPrice, cost };
+      }
     }
+  }
+
+  // 若極端行情未找到合格雙轉折點，退回線性回歸平行包絡通道 (Regression Channel)
+  let upStartIdx = 0,
+    upStartPrice = 0,
+    upEndPrice = 0;
+  if (bestUpper) {
+    upStartIdx = bestUpper.i1;
+    upStartPrice = win[bestUpper.i1].high;
+    upEndPrice = bestUpper.endPrice;
+  } else {
+    let maxRes = 0;
+    for (let i = 0; i < m; i++) {
+      const regY = meanY + regSlope * (i - meanX);
+      maxRes = Math.max(maxRes, win[i].high - regY);
+    }
+    upStartIdx = 0;
+    upStartPrice = meanY + regSlope * (0 - meanX) + maxRes;
+    upEndPrice = meanY + regSlope * (m - 1 - meanX) + maxRes;
+  }
+
+  let loStartIdx = 0,
+    loStartPrice = 0,
+    loEndPrice = 0;
+  if (bestLower) {
+    loStartIdx = bestLower.j1;
+    loStartPrice = win[bestLower.j1].low;
+    loEndPrice = bestLower.endPrice;
+  } else {
+    let maxNegRes = 0;
+    for (let i = 0; i < m; i++) {
+      const regY = meanY + regSlope * (i - meanX);
+      maxNegRes = Math.max(maxNegRes, regY - win[i].low);
+    }
+    loStartIdx = 0;
+    loStartPrice = meanY + regSlope * (0 - meanX) - maxNegRes;
+    loEndPrice = meanY + regSlope * (m - 1 - meanX) - maxNegRes;
+  }
+
+  // 確保終點上軌必高於下軌
+  if (upEndPrice <= loEndPrice) {
+    upEndPrice = Math.max(upEndPrice, lastClose + priceRange * 0.15);
+    loEndPrice = Math.min(loEndPrice, lastClose - priceRange * 0.15);
   }
 
   return [
     {
       id: 'auto-trend-upper',
-      type: 'ray',
+      type: 'trend',
       color: '#ef4444',
       title: '上趨勢線 (壓力)',
-      p1: { ts: win[iHi].ts, price: win[iHi].high },
-      p2: { ts: win[jHi].ts, price: win[jHi].high },
+      p1: { ts: win[upStartIdx].ts, price: Number(upStartPrice.toFixed(2)) },
+      p2: { ts: win[m - 1].ts, price: Number(upEndPrice.toFixed(2)) },
     },
     {
       id: 'auto-trend-lower',
-      type: 'ray',
+      type: 'trend',
       color: '#22c55e',
       title: '下趨勢線 (支撐)',
-      p1: { ts: win[iLo].ts, price: win[iLo].low },
-      p2: { ts: win[jLo].ts, price: win[jLo].low },
+      p1: { ts: win[loStartIdx].ts, price: Number(loStartPrice.toFixed(2)) },
+      p2: { ts: win[m - 1].ts, price: Number(loEndPrice.toFixed(2)) },
     },
   ];
 }
 
 const storageKey = (symbol: string) => `chart_drawings:${symbol}`;
 
+const isManualDrawing = (d: Drawing) =>
+  d && typeof d.id === 'string' && !d.id.startsWith('auto-trend-') && !d.id.startsWith('ai-');
+
 function loadStore(symbol: string): Store {
   try {
     const raw = localStorage.getItem(storageKey(symbol));
     if (raw) {
       const p = JSON.parse(raw);
-      return { d: Array.isArray(p.d) ? p.d : [], i: Array.isArray(p.i) ? p.i : [] };
+      return {
+        d: Array.isArray(p.d) ? p.d.filter(isManualDrawing) : [],
+        i: Array.isArray(p.i) ? p.i.filter(isManualDrawing) : [],
+      };
     }
   } catch { /* localStorage 不可用就當作沒有 */ }
   return { d: [], i: [] };
 }
 
 function saveStore(symbol: string, store: Store) {
-  try { localStorage.setItem(storageKey(symbol), JSON.stringify(store)); } catch { /* ignore */ }
+  try {
+    const clean: Store = {
+      d: store.d.filter(isManualDrawing),
+      i: store.i.filter(isManualDrawing),
+    };
+    localStorage.setItem(storageKey(symbol), JSON.stringify(clean));
+  } catch { /* ignore */ }
 }
 
 const newId = () => Math.random().toString(36).slice(2, 10);
@@ -214,19 +323,26 @@ export function DrawingToolbar({ api, bars }: { api: DrawingsApi; bars?: BarInfo
     <div className="mb-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs text-secondary mr-1">畫線</span>
-        {bars && bars.length >= 10 && (
-          <button
-            type="button"
-            title="自動標記近期波段高點連線(上趨勢壓力線)與波段低點連線(下趨勢支撐線)"
-            className={btn(hasAutoTrend)}
-            onClick={() => toggleAutoTrendlines(bars)}
-          >
-            自動上下趨勢線
-          </button>
+        {bars && bars.length >= 12 && (
+          <div className="inline-flex items-center">
+            <button
+              type="button"
+              title="自動標記近期波段高點連線(上趨勢壓力線)與波段低點連線(下趨勢支撐線)"
+              className={btn(hasAutoTrend)}
+              onClick={() => toggleAutoTrendlines(bars)}
+            >
+              自動上下趨勢線
+            </button>
+            <InfoTip term="auto_trendlines" />
+          </div>
         )}
         {TOOLS.map(t => (
-          <button key={t.id} title={t.hint} className={btn(tool === t.id)}
-            onClick={() => { setTool(t.id); setSelected(null); }}>{t.label}</button>
+          <div key={t.id} className="inline-flex items-center">
+            <button title={t.hint} className={btn(tool === t.id)}
+              onClick={() => { setTool(t.id); setSelected(null); }}>{t.label}</button>
+            {t.id === 'fib' && <InfoTip term="fib_tool" />}
+            {t.id === 'channel' && <InfoTip term="channel_tool" />}
+          </div>
         ))}
         <span className="w-px h-5 bg-[var(--border)] mx-1" />
         {COLORS.map(c => (
@@ -319,6 +435,8 @@ export function DrawingLayer({ chart, series, bars, api }: LayerProps) {
           r?.from?.toFixed(2), r?.to?.toFixed(2),
           series.priceToCoordinate(0)?.toFixed(1), series.priceToCoordinate(1000)?.toFixed(1),
           chart.paneSize().height,
+          chart.priceScale('left').width(),
+          chart.timeScale().width(),
         ].join('|');
         if (sig !== last) { last = sig; setTick(t => t + 1); }
       } catch { /* chart 已被銷毀 */ }
@@ -330,7 +448,7 @@ export function DrawingLayer({ chart, series, bars, api }: LayerProps) {
       chart.timeScale().subscribeVisibleTimeRangeChange(handler);
     } catch { /* ignore */ }
 
-    // 僅在使用者滾動或拖曳圖表時維持短暫動畫更新，靜止時完全零 CPU 負擔
+    // 僅在使用者滾動或拖曳圖表、以及初次掛載後版面穩定期間維持短暫動畫更新，靜止時完全零 CPU 負擔
     let activeRaf = 0;
     let stopTime = 0;
     const pollLoop = () => {
@@ -342,11 +460,14 @@ export function DrawingLayer({ chart, series, bars, api }: LayerProps) {
       }
     };
     const onUserInteraction = () => {
-      stopTime = Date.now() + 400;
+      stopTime = Date.now() + 450;
       if (!activeRaf) {
         activeRaf = requestAnimationFrame(pollLoop);
       }
     };
+
+    // 初次載入或切換週期時啟動 450ms 追蹤，確保 lightweight-charts 完成座標軸寬度與價格縮放後精準對齊 K 棒
+    onUserInteraction();
 
     window.addEventListener('resize', update);
     window.addEventListener('wheel', onUserInteraction, { passive: true });
@@ -527,17 +648,17 @@ export function DrawingLayer({ chart, series, bars, api }: LayerProps) {
       }
       const pct = ((d.p2!.price - d.p1.price) / d.p1.price) * 100;
       const cnt = Math.round(tsToIdx(d.p2!.ts) - tsToIdx(d.p1.ts));
-      // 計算延伸至最右側 K 棒時的趨勢線價格
-      const idx1 = tsToIdx(d.p1.ts), idx2 = tsToIdx(d.p2!.ts);
-      const slopePrice = idx2 !== idx1 ? (d.p2!.price - d.p1.price) / (idx2 - idx1) : 0;
-      const endPrice = d.p1.price + slopePrice * (Math.max(0, n - 1) - idx1);
+      const isAuto = d.id.startsWith('auto-trend-');
       const labelText = d.title
-        ? `${d.title} ${fmt(endPrice)} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%)`
+        ? `${d.title} ${fmt(d.p2!.price)} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%)`
         : `${pct > 0 ? '+' : ''}${pct.toFixed(2)}% · ${Math.abs(cnt)}根`;
-      const labelX = d.title ? Math.min(w - 6, Math.max(b.x + 60, w - 12)) : (a.x + b.x) / 2 + 40;
-      const labelY = d.title ? Math.min(h - 14, Math.max(16, ey - 10)) : (a.y + b.y) / 2 - 12;
+      const isUpper = d.id === 'auto-trend-upper';
+      const labelX = isAuto ? Math.min(w - 8, Math.max(120, ex - 4)) : (a.x + b.x) / 2 + 40;
+      const labelY = isAuto
+        ? Math.min(h - 14, Math.max(16, isUpper ? ey - 10 : ey + 14))
+        : (a.y + b.y) / 2 - 12;
       body = (<>
-        <line x1={a.x} y1={a.y} x2={ex} y2={ey} {...common} strokeDasharray={d.id.startsWith('auto-trend-') ? '6 3' : undefined} />
+        <line x1={a.x} y1={a.y} x2={ex} y2={ey} {...common} strokeDasharray={isAuto ? '6 3' : undefined} />
         {hit(a.x, a.y, ex, ey)}
         <circle cx={a.x} cy={a.y} r={3.5} fill={d.color} pointerEvents="none" />
         <circle cx={b.x} cy={b.y} r={3.5} fill={d.color} pointerEvents="none" />

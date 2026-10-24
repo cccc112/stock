@@ -9,6 +9,32 @@ import { apiResearch, apiErrorMessage } from "@/lib/api";
 import { Sparkles, CheckCircle2, XCircle, ArrowRight, ShieldCheck, AlertTriangle, Layers } from "lucide-react";
 import { BarTrend, LineTrend } from "@/components/stock/TrendCharts";
 import SnowflakeRadar, { RadarItem } from "@/components/stock/SnowflakeRadar";
+import { InfoTip, Term } from "@/components/ui/TermTooltip";
+
+function detectCriterionTerm(label: string): string | undefined {
+  if (label.includes("ROA")) return "roa";
+  if (label.includes("營業現金流")) return "ocf";
+  if (label.includes("盈餘品質") || label.includes("含金量")) return "ocf_to_ni";
+  if (label.includes("負債比")) return "debt_ratio";
+  if (label.includes("流動比率")) return "current_ratio";
+  if (label.includes("毛利率")) return "gross_margin";
+  if (label.includes("週轉率")) return "asset_turnover";
+  if (label.includes("ROE")) return "roe";
+  if (label.includes("VCP") || label.includes("波動收斂")) return "vcp_ratio";
+  if (label.includes("BOS") || label.includes("結構突破")) return "bos";
+  if (label.includes("訂單塊") && label.includes("多方")) return "bull_ob";
+  if (label.includes("訂單塊") && label.includes("空方")) return "bear_ob";
+  if (label.includes("FVG") || label.includes("失衡缺口")) return "fvg";
+  if (label.includes("50 日均線") || label.includes("均線")) return "ma";
+  return undefined;
+}
+
+function detectModelTerm(name: string): string {
+  if (name.includes("Piotroski")) return "piotroski";
+  if (name.includes("CANSLIM")) return "canslim";
+  if (name.includes("Minervini")) return "minervini";
+  return "smc";
+}
 
 interface Quarter {
   quarter: string;
@@ -259,8 +285,9 @@ export default function FinancialsSection({
               <span className="text-xs font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-accent/15 text-accent">
                 Executive Research Verdict
               </span>
-              <h3 className="text-base font-bold text-primary m-0">
-                五維雪花體質雷達與最終多空結論裁決書
+              <h3 className="text-base font-bold text-primary m-0 flex items-center">
+                <span>五維雪花體質雷達與最終多空結論裁決書</span>
+                <InfoTip term="snowflake_radar" />
               </h3>
             </div>
             <p className="text-xs text-secondary mt-1">
@@ -291,7 +318,10 @@ export default function FinancialsSection({
             <div className="grid grid-cols-5 gap-1.5 w-full mt-2 pt-3 border-t border-[var(--border)] text-center">
               {data.radar.map((r) => (
                 <div key={r.key} className="px-1">
-                  <div className="text-[11px] text-secondary truncate">{r.axis}</div>
+                  <div className="text-[11px] text-secondary truncate flex items-center justify-center">
+                    <span>{r.axis}</span>
+                    <InfoTip term={r.key} />
+                  </div>
                   <div className="font-mono text-xs font-bold text-primary mt-0.5">
                     {r.score}
                   </div>
@@ -310,25 +340,33 @@ export default function FinancialsSection({
             {/* 策略價位與風報比 */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)]">
-                <div className="text-[11px] text-secondary">建議分批進場區間</div>
+                <div className="text-[11px] text-secondary">
+                  <Term k="entry_zone" label="建議分批進場區間" />
+                </div>
                 <div className="font-mono text-sm font-bold text-indigo-400 mt-1">
                   {verdict.entry_zone[0]} ~ {verdict.entry_zone[1]}
                 </div>
               </div>
               <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)]">
-                <div className="text-[11px] text-secondary">嚴格防守停損價</div>
+                <div className="text-[11px] text-secondary">
+                  <Term k="stop_loss" label="嚴格防守停損價" />
+                </div>
                 <div className="font-mono text-sm font-bold text-rose-400 mt-1">
                   {verdict.stop_loss}
                 </div>
               </div>
               <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)]">
-                <div className="text-[11px] text-secondary">波段目標價</div>
+                <div className="text-[11px] text-secondary">
+                  <Term k="target_price" label="波段目標價" />
+                </div>
                 <div className="font-mono text-sm font-bold text-emerald-400 mt-1">
                   {verdict.target_price}
                 </div>
               </div>
               <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)]">
-                <div className="text-[11px] text-secondary">預估風險報酬比</div>
+                <div className="text-[11px] text-secondary">
+                  <Term k="risk_reward" label="預估風險報酬比" />
+                </div>
                 <div className="font-mono text-sm font-bold text-primary mt-1">
                   1 : {verdict.risk_reward}
                 </div>
@@ -403,7 +441,10 @@ export default function FinancialsSection({
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div>
-                      <div className="text-sm font-bold text-primary">{model.name}</div>
+                      <div className="text-sm font-bold text-primary flex items-center">
+                        <span>{model.name}</span>
+                        <InfoTip term={detectModelTerm(model.name)} />
+                      </div>
                       <div className="text-xs text-secondary">{model.subtitle}</div>
                     </div>
                     <div className="text-right flex-shrink-0">
@@ -430,7 +471,9 @@ export default function FinancialsSection({
                   {(model.bullish_ob || model.bearish_ob || model.fvg) && (
                     <div className="grid grid-cols-2 gap-2 mb-3 p-2.5 rounded-lg bg-[var(--bg-tertiary)]/70 border border-[var(--border)] text-xs">
                       <div>
-                        <span className="text-muted block text-[11px]">多方機構訂單塊 (Bull OB)</span>
+                        <span className="text-muted block text-[11px]">
+                          <Term k="bull_ob" label="多方機構訂單塊 (Bull OB)" />
+                        </span>
                         <span className="font-mono font-semibold text-emerald-400">
                           {model.bullish_ob
                             ? `${model.bullish_ob.low} ~ ${model.bullish_ob.high}`
@@ -438,7 +481,9 @@ export default function FinancialsSection({
                         </span>
                       </div>
                       <div>
-                        <span className="text-muted block text-[11px]">空方機構訂單塊 (Bear OB)</span>
+                        <span className="text-muted block text-[11px]">
+                          <Term k="bear_ob" label="空方機構訂單塊 (Bear OB)" />
+                        </span>
                         <span className="font-mono font-semibold text-rose-400">
                           {model.bearish_ob
                             ? `${model.bearish_ob.low} ~ ${model.bearish_ob.high}`
@@ -450,30 +495,34 @@ export default function FinancialsSection({
 
                   {/* 檢核條件明細 */}
                   <div className="space-y-1.5 border-t border-[var(--border)] pt-2.5">
-                    {model.criteria.map((c) => (
-                      <div
-                        key={c.id}
-                        className="flex items-center justify-between text-xs gap-2 py-0.5"
-                      >
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          {c.pass ? (
-                            <CheckCircle2 size={13} className="text-emerald-400 flex-shrink-0" />
-                          ) : (
-                            <XCircle size={13} className="text-slate-500 flex-shrink-0" />
-                          )}
-                          <span
-                            className={`truncate ${
-                              c.pass ? "text-primary font-medium" : "text-secondary"
-                            }`}
-                          >
-                            {c.label}
+                    {model.criteria.map((c) => {
+                      const cTerm = detectCriterionTerm(c.label);
+                      return (
+                        <div
+                          key={c.id}
+                          className="flex items-center justify-between text-xs gap-2 py-0.5"
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {c.pass ? (
+                              <CheckCircle2 size={13} className="text-emerald-400 flex-shrink-0" />
+                            ) : (
+                              <XCircle size={13} className="text-slate-500 flex-shrink-0" />
+                            )}
+                            <span
+                              className={`truncate ${
+                                c.pass ? "text-primary font-medium" : "text-secondary"
+                              }`}
+                            >
+                              {c.label}
+                            </span>
+                            {cTerm && <InfoTip term={cTerm} />}
+                          </div>
+                          <span className="font-mono text-[11px] text-secondary flex-shrink-0">
+                            {c.detail}
                           </span>
                         </div>
-                        <span className="font-mono text-[11px] text-secondary flex-shrink-0">
-                          {c.detail}
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -489,8 +538,9 @@ export default function FinancialsSection({
           <div className="lg:col-span-7 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h4 className="text-sm font-bold text-primary m-0">
-                  杜邦分析 ROE 三因子拆解 (DuPont Identity)
+                <h4 className="text-sm font-bold text-primary m-0 flex items-center">
+                  <span>杜邦分析 ROE 三因子拆解 (DuPont Identity)</span>
+                  <InfoTip term="dupont" />
                 </h4>
                 <p className="text-xs text-secondary mt-0.5">
                   拆解股東權益報酬率來源：獲利護城河 vs 總資產周轉效率 vs 財務槓桿
@@ -505,28 +555,40 @@ export default function FinancialsSection({
 
             <div className="grid grid-cols-1 sm:grid-cols-7 gap-2 items-center my-3 text-center">
               <div className="sm:col-span-1 p-3 rounded-lg bg-accent/10 border border-accent/30">
-                <div className="text-[11px] text-secondary">近四季 ROE</div>
+                <div className="text-[11px] text-secondary flex items-center justify-center">
+                  <span>近四季 ROE</span>
+                  <InfoTip term="roe" />
+                </div>
                 <div className="font-mono text-lg font-bold text-accent mt-0.5">
                   {fmtPct(dupont.roe_ttm ?? report.balance.roe_ttm)}
                 </div>
               </div>
               <div className="font-mono text-base font-bold text-muted">=</div>
               <div className="sm:col-span-1 p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)]">
-                <div className="text-[11px] text-secondary">稅後淨利率</div>
+                <div className="text-[11px] text-secondary flex items-center justify-center">
+                  <span>稅後淨利率</span>
+                  <InfoTip term="net_margin" />
+                </div>
                 <div className="font-mono text-base font-bold text-primary mt-0.5">
                   {fmtPct(dupont.net_margin_ttm)}
                 </div>
               </div>
               <div className="font-mono text-base font-bold text-muted">×</div>
               <div className="sm:col-span-1 p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)]">
-                <div className="text-[11px] text-secondary">資產週轉率</div>
+                <div className="text-[11px] text-secondary flex items-center justify-center">
+                  <span>資產週轉率</span>
+                  <InfoTip term="asset_turnover" />
+                </div>
                 <div className="font-mono text-base font-bold text-primary mt-0.5">
                   {dupont.asset_turnover != null ? `${dupont.asset_turnover.toFixed(2)}x` : "—"}
                 </div>
               </div>
               <div className="font-mono text-base font-bold text-muted">×</div>
               <div className="sm:col-span-1 p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)]">
-                <div className="text-[11px] text-secondary">權益乘數 (槓桿)</div>
+                <div className="text-[11px] text-secondary flex items-center justify-center">
+                  <span>權益乘數</span>
+                  <InfoTip term="equity_multiplier" />
+                </div>
                 <div className="font-mono text-base font-bold text-primary mt-0.5">
                   {dupont.equity_multiplier != null
                     ? `${dupont.equity_multiplier.toFixed(2)}x`
@@ -540,7 +602,10 @@ export default function FinancialsSection({
           <div className="lg:col-span-5 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-bold text-primary m-0">歷史估值位階尺 (PER Band)</h4>
+                <h4 className="text-sm font-bold text-primary m-0 flex items-center">
+                  <span>歷史估值位階尺 (PER Band)</span>
+                  <InfoTip term="per_band" />
+                </h4>
                 <span className="font-mono text-xs text-secondary">
                   百分位：{val.per_percentile != null ? `${val.per_percentile}%` : "—"}
                 </span>
@@ -572,19 +637,28 @@ export default function FinancialsSection({
 
             <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[var(--border)] text-center">
               <div>
-                <div className="text-[11px] text-secondary">目前 PER</div>
+                <div className="text-[11px] text-secondary flex items-center justify-center">
+                  <span>目前 PER</span>
+                  <InfoTip term="per" />
+                </div>
                 <div className="font-mono text-sm font-bold text-primary">
                   {val.per != null ? `${Number(val.per).toFixed(1)}x` : "—"}
                 </div>
               </div>
               <div>
-                <div className="text-[11px] text-secondary">股價淨值比 PBR</div>
+                <div className="text-[11px] text-secondary flex items-center justify-center">
+                  <span>股價淨值比 PBR</span>
+                  <InfoTip term="pbr" />
+                </div>
                 <div className="font-mono text-sm font-bold text-primary">
                   {val.pbr != null ? `${Number(val.pbr).toFixed(2)}x` : "—"}
                 </div>
               </div>
               <div>
-                <div className="text-[11px] text-secondary">現金殖利率</div>
+                <div className="text-[11px] text-secondary flex items-center justify-center">
+                  <span>現金殖利率</span>
+                  <InfoTip term="dividend_yield" />
+                </div>
                 <div className="font-mono text-sm font-bold text-emerald-400">
                   {val.dividend_yield != null ? `${Number(val.dividend_yield).toFixed(2)}%` : "—"}
                 </div>
@@ -661,15 +735,15 @@ export default function FinancialsSection({
                 <tr className="bg-[var(--bg-tertiary)] text-secondary text-xs text-right border-b border-[var(--border)]">
                   <th className="text-left py-2.5 px-3">季度</th>
                   <th className="px-3">營收</th>
-                  <th className="px-3">毛利率</th>
-                  <th className="px-3">營益率</th>
-                  <th className="px-3">淨利率</th>
-                  <th className="px-3">EPS</th>
-                  <th className="px-3">營業現金流</th>
-                  <th className="px-3">自由現金流</th>
-                  <th className="px-3">含金量(OCF/NI)</th>
-                  <th className="px-3">營收YoY</th>
-                  <th className="px-3">EPS YoY</th>
+                  <th className="px-3"><Term k="gross_margin" label="毛利率" /></th>
+                  <th className="px-3"><Term k="operating_margin" label="營益率" /></th>
+                  <th className="px-3"><Term k="net_margin" label="淨利率" /></th>
+                  <th className="px-3"><Term k="eps" label="EPS" /></th>
+                  <th className="px-3"><Term k="ocf" label="營業現金流" /></th>
+                  <th className="px-3"><Term k="fcf" label="自由現金流" /></th>
+                  <th className="px-3"><Term k="ocf_to_ni" label="含金量(OCF/NI)" /></th>
+                  <th className="px-3"><Term k="yoy" label="營收YoY" /></th>
+                  <th className="px-3"><Term k="yoy" label="EPS YoY" /></th>
                 </tr>
               </thead>
               <tbody>
@@ -732,8 +806,8 @@ export default function FinancialsSection({
                   <th className="px-3">產業分類</th>
                   <th className="px-3">現價</th>
                   <th className="px-3">當日漲跌</th>
-                  <th className="px-3">20日相對動能</th>
-                  <th className="px-3">近3月營收YoY</th>
+                  <th className="px-3"><Term k="ret_20d" label="20日相對動能" /></th>
+                  <th className="px-3"><Term k="yoy" label="近3月營收YoY" /></th>
                   <th className="px-3">綜合量化評分</th>
                   <th className="px-3">研究</th>
                 </tr>

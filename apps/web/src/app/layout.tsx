@@ -3,6 +3,7 @@ import "@/styles/globals.css";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import BackendStatusBanner from "@/components/layout/BackendStatusBanner";
+import { BeginnerModeProvider } from "@/components/ui/TermTooltip";
 
 export const metadata: Metadata = {
   title: "AI Stock Monitor - 智慧台美股投資系統",
@@ -17,19 +18,21 @@ export default function RootLayout({
   return (
     <html lang="zh-TW">
       <body>
-        <div className="app-layout">
-          <Sidebar />
-          <div className="main-content">
-            <BackendStatusBanner />
-            <TopBar />
-            <main className="page-content">
-              {children}
-            </main>
-            <footer className="disclaimer">
-              免責聲明：本系統僅供模擬與學術討論，非投資建議。
-            </footer>
+        <BeginnerModeProvider>
+          <div className="app-layout">
+            <Sidebar />
+            <div className="main-content">
+              <BackendStatusBanner />
+              <TopBar />
+              <main className="page-content">
+                {children}
+              </main>
+              <footer className="disclaimer">
+                免責聲明：本系統僅供模擬與學術討論，非投資建議。
+              </footer>
+            </div>
           </div>
-        </div>
+        </BeginnerModeProvider>
       </body>
     </html>
   );
