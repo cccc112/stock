@@ -17,7 +17,7 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
-        value: gemini-flash-latest
+        value: gemini-3.8-flash
       # Neon (Postgres) 連線字串：自選股 / 投資組合 / 模擬交易 / 警報需要。
       # 格式 postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require ；後端啟動時會自動建表
       - key: DATABASE_URL

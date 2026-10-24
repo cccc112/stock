@@ -120,5 +120,44 @@ class GeminiFallbackTest(unittest.TestCase):
         self.assertEqual(calls, ["alive"])  # 已下架的模型不再重試
 
 
+    def test_transient_overload_is_retried_on_the_same_model(self):
+        import asyncio
+        from app.services.gemini import GeminiService
+
+        calls = []
+
+        class FlakyModels:
+            def generate_content(self, model, contents, config=None):
+                calls.append(model)
+                if len(calls) == 1:
+                    raise RuntimeError("503 UNAVAILABLE: high demand")
+                return type("R", (), {"text": "ok"})()
+
+        svc = GeminiService()
+        svc.client = type("C", (), {"models": FlakyModels()})()
+        svc.models, svc.retry_delay = ["m1", "m2"], 0
+        self.assertEqual(asyncio.run(svc.generate("hi")), "ok")
+        self.assertEqual(calls, ["m1", "m1"])         # 同一個模型重試一次就成功
+        self.assertNotIn("m1", svc._dead)             # 過載不代表模型下架
+
+    def test_bad_api_key_stops_immediately(self):
+        import asyncio
+        from app.services.gemini import GeminiService
+
+        calls = []
+
+        class BadKey:
+            def generate_content(self, model, contents, config=None):
+                calls.append(model)
+                raise RuntimeError("400 API key not valid")
+
+        svc = GeminiService()
+        svc.client = type("C", (), {"models": BadKey()})()
+        svc.models = ["m1", "m2"]
+        with self.assertRaises(RuntimeError):
+            asyncio.run(svc.generate("hi"))
+        self.assertEqual(calls, ["m1"])               # 金鑰錯誤不必再試其他模型
+
+
 if __name__ == "__main__":
     unittest.main()

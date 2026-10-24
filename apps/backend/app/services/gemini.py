@@ -1,9 +1,11 @@
 import asyncio
 import json
 import logging
+import time
 from typing import Optional
 
 from google import genai
+from google.genai import types
 
 from app.core.config import get_settings
 
@@ -21,40 +23,60 @@ SYSTEM_RULES = (
 class GeminiService:
     def __init__(self):
         settings = get_settings()
-        self.client = genai.Client(api_key=settings.gemini_api_key) if settings.gemini_api_key else None
-        # 主模型 + 備援；主模型下架/額度用完時自動換下一個
-        # 舊版模型名稱會被 Google 下架(404)；以可自動更新的別名作為最後備援
-        self.models = [m for m in dict.fromkeys([settings.gemini_model, "gemini-flash-latest"]) if m]
-        self._dead: set = set()  # 已確認下架/不存在的模型，之後不再嘗試，避免每次呼叫都白白失敗一輪
+        self.client = self._make_client(settings.gemini_api_key) if settings.gemini_api_key else None
+        # 設定的模型 -> Google 建議的新版 -> 會自動更新的別名；舊模型名稱會被下架(404)而自動跳過
+        self.models = [m for m in dict.fromkeys([settings.gemini_model, "gemini-3.8-flash", "gemini-flash-latest"]) if m]
+        self._dead: set = set()   # 已確認下架的模型，之後不再嘗試
+        self.retry_delay = 2.0    # 遇到暫時性錯誤(過載/限流)時的重試間隔(秒)
+        self.total_budget = 95.0  # 單一請求最多花多久；超過就放棄，避免卡過代理(Render)逾時
+
+    @staticmethod
+    def _make_client(api_key: str) -> genai.Client:
+        # 單次呼叫逾時 40 秒（SDK 預設可能等非常久）
+        return genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=40_000))
 
     def _client(self, api_key: Optional[str]) -> genai.Client:
-        client = genai.Client(api_key=api_key) if api_key else self.client
+        client = self._make_client(api_key) if api_key else self.client
         if not client:
             raise ValueError(NO_KEY_MSG)
         return client
 
     async def generate(self, prompt: str, api_key: Optional[str] = None, as_json: bool = False,
                        model: Optional[str] = None) -> str:
-        """非阻塞呼叫 Gemini，含模型備援"""
+        """非阻塞呼叫 Gemini：模型備援 + 暫時性錯誤(503/429/逾時)短暫重試 + 總時間上限"""
         client = self._client(api_key)
         config = {"response_mime_type": "application/json"} if as_json else None
+        deadline = time.monotonic() + self.total_budget
+        candidates = [m for m in ([model] if model else []) + self.models if m not in self._dead] or self.models
         last_err: Optional[Exception] = None
-        candidates = [m for m in ([model] if model else []) + self.models if m not in self._dead]
-        for m in candidates or self.models:
-            try:
-                resp = await asyncio.to_thread(
-                    client.models.generate_content, model=m, contents=prompt, config=config)
-                if resp.text:
-                    return resp.text
-            except Exception as e:
-                last_err = e
-                msg = str(e)
-                logger.warning("Gemini model %s failed: %s", m, msg[:200])
-                if "NOT_FOUND" in msg or "no longer available" in msg:
-                    self._dead.add(m)
-                # 金鑰錯誤換模型也沒用
-                if "API key" in msg or "PERMISSION_DENIED" in msg or "UNAUTHENTICATED" in msg:
+        fatal = False
+        for m in candidates:
+            for attempt in range(2):
+                if time.monotonic() > deadline:
                     break
+                try:
+                    resp = await asyncio.to_thread(
+                        client.models.generate_content, model=m, contents=prompt, config=config)
+                    if resp.text:
+                        return resp.text
+                    break
+                except Exception as e:
+                    last_err, msg = e, str(e)
+                    logger.warning("Gemini model %s failed (attempt %d): %s", m, attempt + 1, msg[:200])
+                    if "API key" in msg or "PERMISSION_DENIED" in msg or "UNAUTHENTICATED" in msg:
+                        fatal = True  # 金鑰錯誤換模型也沒用
+                        break
+                    if "NOT_FOUND" in msg or "no longer available" in msg:
+                        self._dead.add(m)
+                        break
+                    transient = any(k in msg for k in ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED",
+                                                       "overloaded", "high demand", "timed out", "Timeout"))
+                    if transient and attempt == 0:
+                        await asyncio.sleep(self.retry_delay)
+                        continue
+                    break
+            if fatal or time.monotonic() > deadline:
+                break
         raise RuntimeError(f"Gemini 呼叫失敗: {last_err}")
 
     async def generate_json(self, prompt: str, api_key: Optional[str] = None) -> dict:
