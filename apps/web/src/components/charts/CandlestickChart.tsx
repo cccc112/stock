@@ -26,6 +26,144 @@ const calculateSMA = (data: any[], count: number) => {
   return result;
 };
 
+/**
+ * 原生計算 K 線「上趨勢壓力線 (Upper Resistance)」與「下趨勢支撐線 (Lower Support)」：
+ * 1. 先對近期主趨勢區間計算典型價格 (H+L+C)/3 的最小平方法線性回歸 (OLS) 取得基準趨勢斜率 b_reg。
+ * 2. 將每根 K 棒的高低點扣除基準趨勢 (去趨勢化 Detrending)，分別在前半段與後半段找出最具代表性的波段高點 (Peak 1, Peak 2) 與波段低點 (Trough 1, Trough 2)。
+ * 3. 結合雙波峰/雙波谷斜率與回歸斜率進行平滑約束，杜絕單根異常長影線造成斜率亂飛。
+ * 4. 嚴格以所有 K 棒實體上緣/下緣為邊界校準截距，保證上下趨勢線 100% 貼合波段高低點且絕不穿刺任何 K 棒實體，直接以 lightweight-charts 原生 LineSeries 繪製。
+ */
+const calculateAutoTrendChannel = (candleData: any[]) => {
+  if (!candleData || candleData.length < 10) {
+    return { upperData: [], lowerData: [] };
+  }
+  const n = candleData.length;
+  const winLen = Math.min(n, Math.max(24, Math.min(85, Math.floor(n * 0.72))));
+  const win = candleData.slice(n - winLen);
+  const m = win.length;
+
+  let sumX = 0;
+  let sumY = 0;
+  let maxH = -Infinity;
+  let minL = Infinity;
+  for (let k = 0; k < m; k++) {
+    const tp = (win[k].high + win[k].low + win[k].close) / 3;
+    sumX += k;
+    sumY += tp;
+    if (win[k].high > maxH) maxH = win[k].high;
+    if (win[k].low < minL) minL = win[k].low;
+  }
+  const meanX = sumX / m;
+  const meanY = sumY / m;
+
+  let num = 0;
+  let den = 0;
+  for (let k = 0; k < m; k++) {
+    const tp = (win[k].high + win[k].low + win[k].close) / 3;
+    num += (k - meanX) * (tp - meanY);
+    den += (k - meanX) * (k - meanX);
+  }
+  const regSlope = den > 0 ? num / den : 0;
+  const priceRange = Math.max(maxH - minL, meanY * 0.03, 0.01);
+
+  const leftEnd = Math.max(2, Math.floor(m * 0.45));
+  const rightStart = Math.min(m - 2, Math.max(leftEnd + 3, Math.floor(m * 0.55)));
+
+  // 找出前半段與後半段去趨勢化後最突出的波段高點與波段低點
+  let i1 = 0;
+  let maxDetrendH1 = -Infinity;
+  let j1 = 0;
+  let maxDetrendL1 = -Infinity;
+  for (let k = 0; k <= leftEnd; k++) {
+    const base = meanY + regSlope * (k - meanX);
+    const dH = win[k].high - base;
+    const dL = base - win[k].low;
+    if (dH > maxDetrendH1) {
+      maxDetrendH1 = dH;
+      i1 = k;
+    }
+    if (dL > maxDetrendL1) {
+      maxDetrendL1 = dL;
+      j1 = k;
+    }
+  }
+
+  let i2 = rightStart;
+  let maxDetrendH2 = -Infinity;
+  let j2 = rightStart;
+  let maxDetrendL2 = -Infinity;
+  for (let k = rightStart; k < m; k++) {
+    const base = meanY + regSlope * (k - meanX);
+    const dH = win[k].high - base;
+    const dL = base - win[k].low;
+    if (dH > maxDetrendH2) {
+      maxDetrendH2 = dH;
+      i2 = k;
+    }
+    if (dL > maxDetrendL2) {
+      maxDetrendL2 = dL;
+      j2 = k;
+    }
+  }
+
+  const rawUpSlope = i2 > i1 ? (win[i2].high - win[i1].high) / (i2 - i1) : regSlope;
+  const rawLoSlope = j2 > j1 ? (win[j2].low - win[j1].low) / (j2 - j1) : regSlope;
+  const maxSlopeDev = (priceRange * 0.42) / m;
+
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  const upSlope = clamp(
+    0.65 * rawUpSlope + 0.35 * regSlope,
+    regSlope - maxSlopeDev,
+    regSlope + maxSlopeDev
+  );
+  const loSlope = clamp(
+    0.65 * rawLoSlope + 0.35 * regSlope,
+    regSlope - maxSlopeDev,
+    regSlope + maxSlopeDev
+  );
+
+  // 校準上軌截距：貼合 97% 分位波段高點，且絕對不低於任何一根 K 棒實體頂部
+  const highOffsets: number[] = [];
+  let maxBodyTopOffset = -Infinity;
+  const lowOffsets: number[] = [];
+  let minBodyBotOffset = Infinity;
+
+  for (let k = 0; k < m; k++) {
+    const hOff = win[k].high - upSlope * k;
+    const bodyTopOff = Math.max(win[k].open, win[k].close) - upSlope * k;
+    highOffsets.push(hOff);
+    if (bodyTopOff > maxBodyTopOffset) maxBodyTopOffset = bodyTopOff;
+
+    const lOff = win[k].low - loSlope * k;
+    const bodyBotOff = Math.min(win[k].open, win[k].close) - loSlope * k;
+    lowOffsets.push(lOff);
+    if (bodyBotOff < minBodyBotOffset) minBodyBotOffset = bodyBotOff;
+  }
+
+  highOffsets.sort((a, b) => a - b);
+  lowOffsets.sort((a, b) => a - b);
+
+  const upIntercept = Math.max(
+    highOffsets[Math.min(m - 1, Math.floor(m * 0.96))],
+    maxBodyTopOffset + priceRange * 0.005
+  );
+  const loIntercept = Math.min(
+    lowOffsets[Math.max(0, Math.floor(m * 0.04))],
+    minBodyBotOffset - priceRange * 0.005
+  );
+
+  const upperData = win.map((bar, k) => ({
+    time: bar.time,
+    value: Number((upIntercept + upSlope * k).toFixed(2)),
+  }));
+  const lowerData = win.map((bar, k) => ({
+    time: bar.time,
+    value: Number((loIntercept + loSlope * k).toFixed(2)),
+  }));
+
+  return { upperData, lowerData };
+};
+
 export default function CandlestickChart(props: CandlestickChartProps) {
   // 換股票時整個重建，畫線資料才不會混到別檔
   return <CandlestickChartInner key={props.symbol} {...props} />;
@@ -34,9 +172,12 @@ export default function CandlestickChart(props: CandlestickChartProps) {
 function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLines = [] }: CandlestickChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  const upperTrendRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const lowerTrendRef = useRef<ISeriesApi<"Line"> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activePeriod, setActivePeriod] = useState(period);
+  const [showAutoTrends, setShowAutoTrends] = useState(true);
   const [tooltipData, setTooltipData] = useState<any>(null);
   const [overlay, setOverlay] = useState<{ chart: IChartApi; series: ISeriesApi<SeriesType>; bars: BarInfo[] } | null>(null);
   const drawingsApi = useDrawings(symbol, activePeriod === '1d' || activePeriod === '5d');
@@ -109,6 +250,30 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
     const ma5Series = chart.addSeries(LineSeries, { color: '#6366f1', ...maOptions });
     const ma20Series = chart.addSeries(LineSeries, { color: '#f59e0b', ...maOptions });
     const ma60Series = chart.addSeries(LineSeries, { color: '#10b981', ...maOptions });
+
+    // 原生上下趨勢通道線 (Upper Resistance & Lower Support Trendlines)
+    const upperTrendSeries = chart.addSeries(LineSeries, {
+      color: '#ef4444',
+      lineWidth: 2,
+      lineStyle: 2, // Dashed
+      crosshairMarkerVisible: false,
+      lastValueVisible: true,
+      priceLineVisible: false,
+      title: '上壓',
+      visible: showAutoTrends,
+    });
+    const lowerTrendSeries = chart.addSeries(LineSeries, {
+      color: '#22c55e',
+      lineWidth: 2,
+      lineStyle: 2, // Dashed
+      crosshairMarkerVisible: false,
+      lastValueVisible: true,
+      priceLineVisible: false,
+      title: '下撐',
+      visible: showAutoTrends,
+    });
+    upperTrendRef.current = upperTrendSeries;
+    lowerTrendRef.current = lowerTrendSeries;
 
     chart.subscribeCrosshairMove((param) => {
       if (
@@ -201,6 +366,10 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
         if (candleData.length >= 20) ma20Series.setData(calculateSMA(candleData, 20));
         if (candleData.length >= 60) ma60Series.setData(calculateSMA(candleData, 60));
 
+        const { upperData, lowerData } = calculateAutoTrendChannel(candleData);
+        if (upperData.length > 0) upperTrendSeries.setData(upperData);
+        if (lowerData.length > 0) lowerTrendSeries.setData(lowerData);
+
         chart.timeScale().fitContent();
         // 第一次 fitContent 時右側價格刻度寬度尚未確定；刻度變寬後繪圖區變窄，
         // 最後幾根 K 棒會被擠出畫面（例如只顯示到前兩天）。版面穩定後再縮放一次。
@@ -244,6 +413,8 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
 
     return () => {
       setOverlay(null);
+      upperTrendRef.current = null;
+      lowerTrendRef.current = null;
       resizeObserver.disconnect();
       if (chartRef.current) {
         chartRef.current.remove();
@@ -252,12 +423,22 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
     };
   }, [symbol, market, activePeriod, upColor, downColor]);
 
-  // 自動畫出上下趨勢線，若 AI 有算出水平支撐/壓力線則一併標記在圖上
+  // 切換原生自動上下趨勢線顯示狀態
+  useEffect(() => {
+    try {
+      upperTrendRef.current?.applyOptions({ visible: showAutoTrends });
+      lowerTrendRef.current?.applyOptions({ visible: showAutoTrends });
+    } catch {
+      /* ignore if disposed */
+    }
+  }, [showAutoTrends]);
+
+  // 若 AI 有算出水平支撐/壓力線則一併標記在圖上
   const aiKey = JSON.stringify(priceLines);
   const { setAiLines } = drawingsApi;
   useEffect(() => {
     if (!overlay || overlay.bars.length === 0) return;
-    setAiLines(priceLines, overlay.bars[overlay.bars.length - 1].ts, overlay.bars);
+    setAiLines(priceLines, overlay.bars[overlay.bars.length - 1].ts);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiKey, overlay, setAiLines]);
 
@@ -290,21 +471,35 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
         ))}
       </div>
       
-      <DrawingToolbar api={drawingsApi} bars={overlay?.bars} />
+      <DrawingToolbar
+        api={drawingsApi}
+        bars={overlay?.bars}
+        showAutoTrends={showAutoTrends}
+        onToggleAutoTrends={() => setShowAutoTrends(prev => !prev)}
+      />
 
       <div className="relative h-[400px] border border-[var(--border)] rounded-xl bg-[var(--bg-secondary)]/50 overflow-hidden shadow-inner">
         {/* Legends */}
-        <div className="absolute top-3 left-4 z-10 flex flex-wrap items-center gap-4 text-xs font-mono">
-          <div className="flex gap-2 items-center pointer-events-none">
-            <span className="w-2 h-2 rounded-full bg-[#6366f1]"></span> 5MA
+        <div className="absolute top-3 left-4 z-10 flex flex-wrap items-center gap-3 text-xs font-mono">
+          <div className="flex gap-1.5 items-center">
+            <span className="w-2 h-2 rounded-full bg-[#6366f1]"></span> 5MA <InfoTip term="ma5" />
           </div>
-          <div className="flex gap-2 items-center pointer-events-none">
-            <span className="w-2 h-2 rounded-full bg-[#f59e0b]"></span> 20MA
+          <div className="flex gap-1.5 items-center">
+            <span className="w-2 h-2 rounded-full bg-[#f59e0b]"></span> 20MA <InfoTip term="ma20" />
           </div>
-          <div className="flex gap-2 items-center pointer-events-none">
-            <span className="w-2 h-2 rounded-full bg-[#10b981]"></span> 60MA
+          <div className="flex gap-1.5 items-center">
+            <span className="w-2 h-2 rounded-full bg-[#10b981]"></span> 60MA <InfoTip term="ma60" />
           </div>
-          <InfoTip term="ma" />
+          {showAutoTrends && (
+            <>
+              <div className="flex gap-1.5 items-center text-[#ef4444]">
+                <span className="w-3 border-t-2 border-dashed border-[#ef4444]"></span> 上趨勢壓力
+              </div>
+              <div className="flex gap-1.5 items-center text-[#22c55e]">
+                <span className="w-3 border-t-2 border-dashed border-[#22c55e]"></span> 下趨勢支撐
+              </div>
+            </>
+          )}
         </div>
 
         {/* Tooltip */}

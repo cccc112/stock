@@ -432,6 +432,165 @@ ETF_PROFILES: Dict[str, Dict[str, Any]] = {
             {"sector": "Cash", "weight": 0.5},
         ],
     },
+    "00940": {
+        "name": "元大台灣價值高息",
+        "issuer": "元大投信",
+        "category": "價值高股息 (月配型)",
+        "tracking_index": "臺灣價值高息指數",
+        "expense_ratio": "0.41%",
+        "dividend_freq": "月配息",
+        "aum": "約 1,560 億 TWD",
+        "dividend_yield_est": 5.80,
+        "focus_points": [
+            "導入巴菲特價值投資指標（自由現金流量收益率、ROE、本益比）篩選 50 檔低估值高息股。",
+            "單一成分股權重上限 8%，產業分佈涵蓋航運、金融、半導體與電子通路。"
+        ],
+        "holdings": [
+            {"symbol": "2603", "name": "長榮", "weight": 8.1},
+            {"symbol": "2303", "name": "聯電", "weight": 5.4},
+            {"symbol": "2891", "name": "中信金", "weight": 5.1},
+            {"symbol": "2357", "name": "華碩", "weight": 4.8},
+            {"symbol": "3034", "name": "聯詠", "weight": 4.3},
+            {"symbol": "4938", "name": "和碩", "weight": 3.9},
+            {"symbol": "2618", "name": "長榮航", "weight": 3.7},
+            {"symbol": "3711", "name": "日月光投控", "weight": 3.5},
+        ],
+        "sector_weights": [
+            {"sector": "半導體業", "weight": 29.0},
+            {"sector": "航運業", "weight": 18.0},
+            {"sector": "電腦及週邊設備", "weight": 17.5},
+            {"sector": "金融與電子通路", "weight": 35.5},
+        ],
+    },
+    "00939": {
+        "name": "統一台灣高息動能",
+        "issuer": "統一投信",
+        "category": "動能高股息 (月配型)",
+        "tracking_index": "特選臺灣高息動能指數",
+        "expense_ratio": "0.41%",
+        "dividend_freq": "月配息",
+        "aum": "約 520 億 TWD",
+        "dividend_yield_est": 6.10,
+        "focus_points": [
+            "每年 5 月依股利率選股，9 月與 1 月利用夏普值動態加減碼強勢動能股。"
+        ],
+        "holdings": [
+            {"symbol": "2454", "name": "聯發科", "weight": 7.5},
+            {"symbol": "2412", "name": "中華電", "weight": 6.8},
+            {"symbol": "2891", "name": "中信金", "weight": 6.2},
+            {"symbol": "2303", "name": "聯電", "weight": 5.9},
+            {"symbol": "3045", "name": "台灣大", "weight": 5.4},
+            {"symbol": "2603", "name": "長榮", "weight": 5.1},
+        ],
+        "sector_weights": [
+            {"sector": "半導體業", "weight": 34.0},
+            {"sector": "通信網路業", "weight": 18.5},
+            {"sector": "電腦及週邊設備", "weight": 17.0},
+            {"sector": "金融與航運", "weight": 30.5},
+        ],
+    },
+    "00713": {
+        "name": "元大台灣高息低波",
+        "issuer": "元大投信",
+        "category": "高息低波動型",
+        "tracking_index": "臺灣指數公司特選高股息低波動指數",
+        "expense_ratio": "0.48%",
+        "dividend_freq": "季配息 (3、6、9、12月)",
+        "aum": "約 1,180 億 TWD",
+        "dividend_yield_est": 7.40,
+        "focus_points": [
+            "透過最小變異數演算法控制投資組合整體波動度，回撤控制能力優異。"
+        ],
+        "holdings": [
+            {"symbol": "2412", "name": "中華電", "weight": 7.2},
+            {"symbol": "1216", "name": "統一", "weight": 6.8},
+            {"symbol": "3045", "name": "台灣大", "weight": 6.1},
+            {"symbol": "2891", "name": "中信金", "weight": 5.4},
+            {"symbol": "2303", "name": "聯電", "weight": 4.8},
+        ],
+        "sector_weights": [
+            {"sector": "通信網路與民生消費", "weight": 31.0},
+            {"sector": "金融保險", "weight": 24.5},
+            {"sector": "電腦及電子通路", "weight": 23.5},
+            {"sector": "半導體與其他", "weight": 21.0},
+        ],
+    },
+    "00692": {
+        "name": "富邦公司治理",
+        "issuer": "富邦投信",
+        "category": "市值 / ESG 公司治理型",
+        "tracking_index": "臺灣公司治理100指數",
+        "expense_ratio": "0.24%",
+        "dividend_freq": "半年配 (7月、11月)",
+        "aum": "約 340 億 TWD",
+        "dividend_yield_est": 3.80,
+        "focus_points": [
+            "以公司治理評鑑前 20% 加上 ROE、營收成長篩選 100 檔成分股。"
+        ],
+        "holdings": [
+            {"symbol": "2330", "name": "台積電", "weight": 43.2},
+            {"symbol": "2454", "name": "聯發科", "weight": 4.8},
+            {"symbol": "2881", "name": "富邦金", "weight": 3.1},
+            {"symbol": "2308", "name": "台達電", "weight": 2.7},
+            {"symbol": "2882", "name": "國泰金", "weight": 2.5},
+        ],
+        "sector_weights": [
+            {"sector": "半導體業", "weight": 52.0},
+            {"sector": "金融保險", "weight": 18.5},
+            {"sector": "電腦及週邊設備", "weight": 14.0},
+            {"sector": "電子零組件與其他", "weight": 15.5},
+        ],
+    },
+    "00891": {
+        "name": "中信關鍵半導體",
+        "issuer": "中國信託投信",
+        "category": "半導體產業型",
+        "tracking_index": "ICE FactSet 臺灣ESG永續關鍵半導體指數",
+        "expense_ratio": "0.49%",
+        "dividend_freq": "季配息 (2、5、8、11月)",
+        "aum": "約 210 億 TWD",
+        "dividend_yield_est": 5.10,
+        "focus_points": [
+            "純度 100% 台灣半導體上中下游（IC設計、晶圓代工、封測）。"
+        ],
+        "holdings": [
+            {"symbol": "2454", "name": "聯發科", "weight": 20.4},
+            {"symbol": "2330", "name": "台積電", "weight": 19.8},
+            {"symbol": "2303", "name": "聯電", "weight": 8.5},
+            {"symbol": "3711", "name": "日月光投控", "weight": 8.1},
+            {"symbol": "3034", "name": "聯詠", "weight": 6.2},
+        ],
+        "sector_weights": [
+            {"sector": "IC 設計", "weight": 46.0},
+            {"sector": "晶圓代工", "weight": 34.0},
+            {"sector": "半導體封測與材料", "weight": 20.0},
+        ],
+    },
+    "00830": {
+        "name": "國泰費城半導體",
+        "issuer": "國泰投信",
+        "category": "海外半導體產業型",
+        "tracking_index": "美國費城半導體指數 (PHLX Semiconductor Sector Index)",
+        "expense_ratio": "0.55%",
+        "dividend_freq": "年配息 (1月)",
+        "aum": "約 315 億 TWD",
+        "dividend_yield_est": 1.50,
+        "focus_points": [
+            "直接追蹤美國費城半導體指數(^SOX)，涵蓋 NVIDIA、Broadcom、AMD、ASML 與台積電 ADR。"
+        ],
+        "holdings": [
+            {"symbol": "NVDA", "name": "NVIDIA Corp.", "weight": 12.4},
+            {"symbol": "AVGO", "name": "Broadcom Inc.", "weight": 10.8},
+            {"symbol": "AMD", "name": "Advanced Micro Devices", "weight": 8.2},
+            {"symbol": "TSM", "name": "Taiwan Semiconductor (ADR)", "weight": 7.6},
+            {"symbol": "ASML", "name": "ASML Holding", "weight": 6.5},
+        ],
+        "sector_weights": [
+            {"sector": "AI 與 IC 設計巨頭", "weight": 54.0},
+            {"sector": "先進半導體設備", "weight": 26.0},
+            {"sector": "晶圓代工與記憶體", "weight": 20.0},
+        ],
+    },
 }
 
 

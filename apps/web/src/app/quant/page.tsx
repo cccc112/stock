@@ -7,6 +7,7 @@ import { formatNumber, getChangeColorClass } from "@/lib/utils";
 import { apiMarket, apiQuant } from "@/lib/api";
 import { Activity, AlertTriangle, Play, Settings } from "lucide-react";
 import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
+import { Term, InfoTip } from "@/components/ui/TermTooltip";
 
 interface ScanResult {
   symbol: string;
@@ -34,14 +35,14 @@ export default function QuantScreenerPage() {
     kdj_n: 9, vol_ma: 50
   });
 
-  const TABS = [
+  const TABS: { label: string; value: string; term?: string }[] = [
     { label: '全部', value: 'all' },
-    { label: '量價異動', value: 'volume_anomaly' },
-    { label: '均線交叉', value: 'golden_death_cross' },
-    { label: 'MACD背離', value: 'macd_divergence' },
-    { label: '布林擠壓', value: 'bollinger_squeeze' },
-    { label: 'KDJ交叉', value: 'kdj_cross' },
-    { label: '爆量突破', value: 'volume_breakout' }
+    { label: '量價異動', value: 'volume_anomaly', term: 'volume_anomaly' },
+    { label: '均線交叉', value: 'golden_death_cross', term: 'golden_death_cross' },
+    { label: 'MACD背離', value: 'macd_divergence', term: 'macd_divergence' },
+    { label: '布林擠壓', value: 'bollinger_squeeze', term: 'bollinger_squeeze' },
+    { label: 'KDJ交叉', value: 'kdj_cross', term: 'kd' },
+    { label: '爆量突破', value: 'volume_breakout', term: 'volume_breakout' }
   ];
 
   const runScan = useCallback(async () => {
@@ -174,7 +175,9 @@ export default function QuantScreenerPage() {
           {stock.anomaly && stock.anomaly.type !== "NORMAL" && (
             <div className="flex items-center gap-2 text-sm bg-[var(--bg-tertiary)] p-2 rounded">
               <AlertTriangle size={16} className={stock.anomaly.type === 'HIGH_SELL_PRESSURE' ? 'text-down-tw' : 'text-up-tw'} />
-              <span className="font-medium text-primary">量價異常</span>
+              <span className="font-medium text-primary">
+                <Term term="volume_anomaly" label="量價異常" />
+              </span>
               <span className="text-secondary text-xs ml-auto">
                 {stock.anomaly.type === 'HIGH_SELL_PRESSURE' ? '高檔爆量 (留意賣壓)' : '低檔爆量 (支撐浮現)'}
               </span>
@@ -191,6 +194,7 @@ export default function QuantScreenerPage() {
         <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
           <Activity className="text-accent" size={32} />
           量化訊號掃描儀
+          <InfoTip term="quant_scanner" />
         </h1>
         <p className="text-secondary">每日自動掃描台美股熱門標的，透過量價與技術指標捕捉交易機會</p>
       </header>
@@ -268,19 +272,21 @@ export default function QuantScreenerPage() {
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
               {[
-                { key: 'ma_short', label: '短均線 (日)' },
-                { key: 'ma_mid', label: '中均線 (日)' },
-                { key: 'ma_long', label: '長均線 (日)' },
-                { key: 'vol_ma', label: '均量線 (日)' },
-                { key: 'boll_period', label: '布林週期' },
-                { key: 'boll_std', label: '布林標準差' },
-                { key: 'macd_fast', label: 'MACD 快線' },
-                { key: 'macd_slow', label: 'MACD 慢線' },
-                { key: 'macd_signal', label: 'MACD 訊號' },
-                { key: 'kdj_n', label: 'KDJ 週期' }
-              ].map(({ key, label }) => (
+                { key: 'ma_short', label: '短均線 (日)', term: 'ma5' },
+                { key: 'ma_mid', label: '中均線 (日)', term: 'ma20' },
+                { key: 'ma_long', label: '長均線 (日)', term: 'ma60' },
+                { key: 'vol_ma', label: '均量線 (日)', term: 'vol_ma' },
+                { key: 'boll_period', label: '布林週期', term: 'bollinger' },
+                { key: 'boll_std', label: '布林標準差', term: 'boll_std' },
+                { key: 'macd_fast', label: 'MACD 快線', term: 'macd' },
+                { key: 'macd_slow', label: 'MACD 慢線', term: 'macd' },
+                { key: 'macd_signal', label: 'MACD 訊號', term: 'macd' },
+                { key: 'kdj_n', label: 'KDJ 週期', term: 'kd' }
+              ].map(({ key, label, term }) => (
                 <div key={key} className="flex flex-col gap-1">
-                  <label className="text-xs text-secondary">{label}</label>
+                  <label className="text-xs text-secondary">
+                    <Term term={term} label={label} />
+                  </label>
                   <input 
                     type="number" 
                     value={(params as any)[key]}
@@ -297,17 +303,19 @@ export default function QuantScreenerPage() {
       {/* Tabs */}
       <div className="flex flex-wrap gap-2 mb-6">
         {TABS.map(tab => (
-          <button
-            key={tab.label}
-            onClick={() => setActiveTab(tab.label)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-              activeTab === tab.label
-                ? 'bg-accent text-white'
-                : 'bg-[var(--bg-tertiary)] text-secondary hover:text-primary hover:bg-[var(--border)]'
-            }`}
-          >
-            {tab.label}
-          </button>
+          <div key={tab.label} className="inline-flex items-center">
+            <button
+              onClick={() => setActiveTab(tab.label)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                activeTab === tab.label
+                  ? 'bg-accent text-white'
+                  : 'bg-[var(--bg-tertiary)] text-secondary hover:text-primary hover:bg-[var(--border)]'
+              }`}
+            >
+              {tab.label}
+            </button>
+            {tab.term && <InfoTip term={tab.term} />}
+          </div>
         ))}
       </div>
 

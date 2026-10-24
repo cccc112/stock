@@ -11,6 +11,7 @@ import BacktestPage from "@/app/backtest/page";
 import { apiResearch, apiErrorMessage } from "@/lib/api";
 import { getChangeColorClass } from "@/lib/utils";
 import { Sparkles, RefreshCw } from "lucide-react";
+import { Term } from "@/components/ui/TermTooltip";
 
 interface Pick {
   symbol: string;
@@ -40,11 +41,11 @@ const MARKETS = [{ id: 'tw', label: '台股' }, { id: 'us', label: '美股' }, {
 
 const scoreColor = (s: number) => (s >= 75 ? 'text-green-500' : s >= 60 ? 'text-yellow-500' : 'text-secondary');
 
-function Bar({ label, v }: { label: string; v: number | null }) {
+function Bar({ label, term, v }: { label: string; term?: string; v: number | null }) {
   if (v == null) return null;
   return (
     <div className="flex items-center gap-2 text-xs">
-      <span className="w-8 text-secondary">{label}</span>
+      <span className="w-12 text-secondary">{term ? <Term term={term} label={label} /> : label}</span>
       <div className="flex-1 h-1.5 rounded bg-[var(--bg-tertiary)]">
         <div className="h-full rounded bg-[var(--accent)]" style={{ width: `${v}%` }} />
       </div>
@@ -204,18 +205,27 @@ function RecommendInner() {
                 </div>
               </div>
               <div className="mt-3 space-y-1">
-                <Bar label="技術" v={p.scores.tech} />
-                <Bar label="籌碼" v={p.scores.chips} />
-                <Bar label="成長" v={p.scores.growth} />
+                <Bar label="技術" term="ma" v={p.scores.tech} />
+                <Bar label="籌碼" term="institutional_net" v={p.scores.chips} />
+                <Bar label="成長" term="rev_yoy" v={p.scores.growth} />
               </div>
               <div className="mt-3 text-sm font-medium">{p.action}</div>
               <ul className="mt-1 text-xs text-secondary space-y-0.5 list-disc pl-4">
                 {p.signals.slice(0, 6).map((s, j) => <li key={j}>{s}</li>)}
               </ul>
               <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-center">
-                <div className="rounded bg-[var(--bg-tertiary)] p-2"><div className="text-secondary">參考進場</div>{p.entry_zone[0]} ~ {p.entry_zone[1]}</div>
-                <div className="rounded bg-[var(--bg-tertiary)] p-2"><div className="text-secondary">停損</div>{p.stop_loss}</div>
-                <div className="rounded bg-[var(--bg-tertiary)] p-2"><div className="text-secondary">目標</div>{p.target}</div>
+                <div className="rounded bg-[var(--bg-tertiary)] p-2">
+                  <div className="text-secondary"><Term term="entry_zone" label="參考進場" /></div>
+                  {p.entry_zone[0]} ~ {p.entry_zone[1]}
+                </div>
+                <div className="rounded bg-[var(--bg-tertiary)] p-2">
+                  <div className="text-secondary"><Term term="stop_loss" label="停損" /></div>
+                  {p.stop_loss}
+                </div>
+                <div className="rounded bg-[var(--bg-tertiary)] p-2">
+                  <div className="text-secondary"><Term term="target_price" label="目標" /></div>
+                  {p.target}
+                </div>
               </div>
             </Card>
           ))}
@@ -242,7 +252,7 @@ function RecommendInner() {
       )}
 
       <p className="text-xs text-secondary">
-        進場區間、停損、目標價以 ATR（平均真實波幅）估算：停損 = 現價 − 2×ATR，目標 = 現價 + 3×ATR。推薦清單來自你所選的股票池（產業代表股或全市場成交值前 60 名），僅供研究參考，非投資建議。
+        進場區間、停損、目標價以 <Term term="atr" label="ATR（平均真實波幅）" /> 估算：停損 = 現價 − 2×ATR，目標 = 現價 + 3×ATR。推薦清單來自你所選的股票池（產業代表股或全市場成交值前 60 名），僅供研究參考，非投資建議。
       </p>
     </div>
   );

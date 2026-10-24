@@ -269,27 +269,13 @@ export function useDrawings(symbol: string, intraday: boolean) {
   const patch = useCallback((id: string, p: Partial<Drawing>, record = false) =>
     update(l => l.map(d => (d.id === id ? { ...d, ...p } : d)), record), [update]);
   const remove = useCallback((id: string) => { update(l => l.filter(d => d.id !== id)); setSelected(null); }, [update]);
-  // 以 AI 計算的支撐/壓力與上下趨勢線取代舊的 AI 線（id 以 ai- 或 auto-trend- 開頭），不進復原堆疊
-  const setAiLines = useCallback((lines: { price: number; color: string; title: string }[], ts: number, bars?: BarInfo[]) => {
-    const autoTrends = bars ? computeAutoTrendlines(bars) : [];
+  // 以 AI 計算的支撐/壓力水平線取代舊的 AI 線（id 以 ai- 開頭），不進復原堆疊
+  const setAiLines = useCallback((lines: { price: number; color: string; title: string }[], ts: number) => {
     update(l => [
       ...l.filter(d => !d.id.startsWith('ai-') && !d.id.startsWith('auto-trend-')),
       ...lines.map((x, i): Drawing => ({ id: `ai-${i}`, type: 'hline', color: x.color, title: x.title, p1: { ts, price: x.price } })),
-      ...autoTrends,
     ], false);
   }, [update]);
-
-  const toggleAutoTrendlines = useCallback((bars: BarInfo[]) => {
-    const hasAuto = storeRef.current[cls].some(d => d.id.startsWith('auto-trend-'));
-    if (hasAuto) {
-      update(l => l.filter(d => !d.id.startsWith('auto-trend-')));
-    } else {
-      const autoTrends = computeAutoTrendlines(bars);
-      if (autoTrends.length > 0) {
-        update(l => [...l.filter(d => !d.id.startsWith('auto-trend-')), ...autoTrends]);
-      }
-    }
-  }, [cls, update]);
 
   const clear = useCallback(() => { update(() => []); setSelected(null); }, [update]);
   const undo = useCallback(() => {
@@ -304,16 +290,24 @@ export function useDrawings(symbol: string, intraday: boolean) {
 
   return {
     drawings: store[cls], tool, setTool, color, setColor, selected, setSelected, magnet, setMagnet,
-    add, patch, remove, clear, undo, pushHistory, setAiLines, toggleAutoTrendlines,
+    add, patch, remove, clear, undo, pushHistory, setAiLines,
   };
 }
 
 export type DrawingsApi = ReturnType<typeof useDrawings>;
 
 // ---------------------------------------------------------------- toolbar
-export function DrawingToolbar({ api, bars }: { api: DrawingsApi; bars?: BarInfo[] }) {
-  const { tool, setTool, color, setColor, selected, remove, clear, undo, magnet, setMagnet, drawings, setSelected, toggleAutoTrendlines } = api;
-  const hasAutoTrend = drawings.some(d => d.id.startsWith('auto-trend-'));
+export function DrawingToolbar({
+  api,
+  showAutoTrends = true,
+  onToggleAutoTrends,
+}: {
+  api: DrawingsApi;
+  bars?: BarInfo[];
+  showAutoTrends?: boolean;
+  onToggleAutoTrends?: () => void;
+}) {
+  const { tool, setTool, color, setColor, selected, remove, clear, undo, magnet, setMagnet, drawings, setSelected } = api;
   const btn = (active: boolean) =>
     `px-2.5 py-1 text-xs rounded-md border transition-colors whitespace-nowrap ${
       active ? 'border-[var(--accent)] text-accent bg-[var(--accent)]/10' : 'border-[var(--border)] text-secondary hover:text-primary'}`;
@@ -323,13 +317,13 @@ export function DrawingToolbar({ api, bars }: { api: DrawingsApi; bars?: BarInfo
     <div className="mb-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs text-secondary mr-1">畫線</span>
-        {bars && bars.length >= 12 && (
+        {onToggleAutoTrends && (
           <div className="inline-flex items-center">
             <button
               type="button"
               title="自動標記近期波段高點連線(上趨勢壓力線)與波段低點連線(下趨勢支撐線)"
-              className={btn(hasAutoTrend)}
-              onClick={() => toggleAutoTrendlines(bars)}
+              className={btn(showAutoTrends)}
+              onClick={onToggleAutoTrends}
             >
               自動上下趨勢線
             </button>

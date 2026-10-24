@@ -9,6 +9,7 @@ import Button from "@/components/ui/Button";
 import { formatNumber, formatVolume, getChangeColorClass } from "@/lib/utils";
 import { Sparkles, Plus, Check, Layers } from "lucide-react";
 import { apiStocks, apiResearch } from "@/lib/api";
+import { fetchOrBuildDeepReport } from "@/lib/clientDeepReport";
 import QuantDashboard from "@/components/dashboard/QuantDashboard";
 import NewsSection from "@/components/dashboard/NewsSection";
 import InstitutionalSection from "@/components/dashboard/InstitutionalSection";
@@ -101,9 +102,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       }
     };
     fetchQuote();
-    apiResearch
-      .getDeepReport(symbol)
-      .then((r) => setDeepSummary(r.data))
+    fetchOrBuildDeepReport(symbol)
+      .then((resData) => setDeepSummary(resData))
       .catch(() => {});
     const timer = setInterval(fetchQuote, 30000);
     return () => clearInterval(timer);

@@ -26,6 +26,7 @@ import {
   HelpCircle
 } from "lucide-react";
 import { STRATEGY_EXPLANATIONS, GLOBAL_PARAM_GUIDE } from "@/lib/quantStrategyGuides";
+import { Term, InfoTip } from "@/components/ui/TermTooltip";
 import {
   ResponsiveContainer,
   LineChart,
@@ -199,7 +200,10 @@ export default function BacktestPage() {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-bold">量化策略研究與歷史回測系統</h1>
+            <h1 className="text-2xl font-bold flex items-center">
+              量化策略研究與歷史回測系統
+              <InfoTip term="backtest_intro" />
+            </h1>
             <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
               GitHub Open-Source Quant
             </span>
@@ -478,7 +482,9 @@ export default function BacktestPage() {
               />
             </div>
             <div className="mt-2 flex items-center gap-2">
-              <span className="text-xs text-secondary">停損 % (可選):</span>
+              <span className="text-xs text-secondary">
+                <Term term="stop_loss" label="停損 % (可選)" />:
+              </span>
               <input
                 type="number"
                 value={stopLossPct}
@@ -569,7 +575,9 @@ export default function BacktestPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {/* 累積報酬率 */}
             <Card className="p-4 flex flex-col justify-between">
-              <span className="text-xs text-secondary">策略累積報酬</span>
+              <span className="text-xs text-secondary">
+                <Term term="total_return" label="策略累積報酬" />
+              </span>
               <div className="my-1">
                 <span
                   className={`text-2xl font-bold font-mono ${
@@ -587,7 +595,9 @@ export default function BacktestPage() {
 
             {/* 超額報酬 (Alpha) */}
             <Card className="p-4 flex flex-col justify-between">
-              <span className="text-xs text-secondary">超額報酬 (Alpha)</span>
+              <span className="text-xs text-secondary">
+                <Term term="alpha" label="超額報酬 (Alpha)" />
+              </span>
               <div className="my-1">
                 <span
                   className={`text-2xl font-bold font-mono ${
@@ -603,7 +613,9 @@ export default function BacktestPage() {
 
             {/* 最大回撤 (MDD) */}
             <Card className="p-4 flex flex-col justify-between">
-              <span className="text-xs text-secondary">最大回撤 (MDD)</span>
+              <span className="text-xs text-secondary">
+                <Term term="mdd" label="最大回撤 (MDD)" />
+              </span>
               <div className="my-1">
                 <span className="text-2xl font-bold font-mono text-down-tw">
                   -{result.summary.max_drawdown_pct.toFixed(2)}%
@@ -614,7 +626,9 @@ export default function BacktestPage() {
 
             {/* 夏普比率 (Sharpe) */}
             <Card className="p-4 flex flex-col justify-between">
-              <span className="text-xs text-secondary">夏普比率 (Sharpe)</span>
+              <span className="text-xs text-secondary">
+                <Term term="sharpe" label="夏普比率 (Sharpe)" />
+              </span>
               <div className="my-1">
                 <span className="text-2xl font-bold font-mono text-primary">
                   {result.summary.sharpe_ratio.toFixed(2)}
@@ -625,7 +639,9 @@ export default function BacktestPage() {
 
             {/* 勝率 (Win Rate) */}
             <Card className="p-4 flex flex-col justify-between">
-              <span className="text-xs text-secondary">交易勝率</span>
+              <span className="text-xs text-secondary">
+                <Term term="win_rate" label="交易勝率" />
+              </span>
               <div className="my-1">
                 <span className="text-2xl font-bold font-mono text-primary">
                   {result.summary.win_rate_pct.toFixed(1)}%
@@ -638,7 +654,9 @@ export default function BacktestPage() {
 
             {/* 盈虧比 (Profit Factor) */}
             <Card className="p-4 flex flex-col justify-between">
-              <span className="text-xs text-secondary">獲利因子 (P/L Ratio)</span>
+              <span className="text-xs text-secondary">
+                <Term term="profit_factor" label="獲利因子 (P/L Ratio)" />
+              </span>
               <div className="my-1">
                 <span className="text-2xl font-bold font-mono text-primary">
                   {result.summary.profit_factor.toFixed(2)}
@@ -651,7 +669,7 @@ export default function BacktestPage() {
           </div>
 
           {/* 策略資產累積曲線 (Equity Curve) */}
-          <Card title="資產淨值走勢 (策略 vs 買入持有基準)" className="p-5">
+          <Card title={<Term term="equity_curve" label="資產淨值走勢 (策略 vs 買入持有基準)" />} className="p-5">
             <div className="h-[380px] w-full mt-2">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={result.equity_curve} margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
@@ -705,7 +723,7 @@ export default function BacktestPage() {
           </Card>
 
           {/* 回撤水下圖 (Underwater Drawdown Chart) */}
-          <Card title="回撤風險走勢 (Underwater Drawdown %)" className="p-5">
+          <Card title={<Term term="underwater_dd" label="回撤風險走勢 (Underwater Drawdown %)" />} className="p-5">
             <div className="h-[200px] w-full mt-2">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={result.equity_curve} margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>

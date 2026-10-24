@@ -6,11 +6,22 @@ import VAPChart from "@/components/charts/VAPChart";
 import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 import Badge from "@/components/ui/Badge";
 import { formatNumber } from "@/lib/utils";
-import { Term } from "@/components/ui/TermTooltip";
+import { Term, InfoTip } from "@/components/ui/TermTooltip";
 
 interface QuantDashboardProps {
   symbol: string;
   currentPrice: number;
+}
+
+function resolveStrategyTerm(strategyName: string): string {
+  const s = (strategyName || "").toUpperCase();
+  if (s.includes("均線") || s.includes("MA") || s.includes("交叉")) return "golden_death_cross";
+  if (s.includes("MACD")) return "macd";
+  if (s.includes("RSI")) return "rsi";
+  if (s.includes("KD")) return "kd";
+  if (s.includes("布林") || s.includes("BOLL")) return "bollinger";
+  if (s.includes("量") || s.includes("突破")) return "volume_breakout";
+  return "quant_signals";
 }
 
 export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardProps) {
@@ -55,19 +66,23 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
     <div className="flex flex-col gap-6 pt-2">
       {/* 策略訊號 Section */}
       <div>
-        <h3 className="font-semibold mb-4 text-lg">策略訊號</h3>
+        <h3 className="font-semibold mb-4 text-lg flex items-center">
+          <Term k="quant_signals" label="策略訊號" />
+        </h3>
         {strategies && strategies.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {strategies.map((sig: any, i: number) => {
               const isBuy = sig.direction === 'BUY';
               const isSell = sig.direction === 'SELL';
               const borderClass = isBuy ? 'border-up-tw' : isSell ? 'border-down-tw' : 'border-[var(--bg-tertiary)]';
-              const textClass = isBuy ? 'text-up-tw' : isSell ? 'text-down-tw' : 'text-secondary';
               
               return (
                 <div key={i} className={`p-4 bg-[var(--bg-tertiary)] border-l-4 rounded-md shadow-sm ${borderClass}`}>
                   <div className="flex justify-between items-start mb-2">
-                    <span className="font-medium">{sig.strategy}</span>
+                    <span className="font-medium inline-flex items-center">
+                      {sig.strategy}
+                      <InfoTip term={resolveStrategyTerm(sig.strategy)} />
+                    </span>
                     <span 
                       className={`px-2 py-1 text-xs rounded-md ${isBuy ? 'bg-up-tw/20 text-up-tw' : isSell ? 'bg-down-tw/20 text-down-tw' : 'bg-secondary/20 text-secondary'}`}
                     >
@@ -75,8 +90,10 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
                     </span>
                   </div>
                   <p className="text-sm text-primary mb-3">{sig.description}</p>
-                  <div className="text-xs text-secondary flex justify-between">
-                    <span>信心度: {(sig.confidence * 100).toFixed(0)}%</span>
+                  <div className="text-xs text-secondary flex justify-between items-center">
+                    <span>
+                      <Term k="signal_confidence" label="信心度" />: {(sig.confidence * 100).toFixed(0)}%
+                    </span>
                   </div>
                 </div>
               );
@@ -93,21 +110,28 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
       {/* Left Column: VAP & Anomaly */}
       <div className="space-y-6">
         <div>
-          <h3 className="font-semibold mb-4 text-lg">
-            <Term k="vap" label="價量分佈 (VAP)" />
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-lg">
+              <Term k="vap" label="價量分佈 (VAP)" />
+            </h3>
+            <span className="text-xs text-secondary inline-flex items-center">
+              紫色高亮柱＝<Term k="poc" label="POC 最大量成本區" />
+            </span>
+          </div>
           <VAPChart data={vap} currentPrice={currentPrice} />
         </div>
 
         {volume_anomaly?.type !== "NORMAL" && (
           <div className="bg-warning/10 border border-warning/30 p-4 rounded-lg">
-            <h4 className="text-warning font-semibold mb-1">異常量價偵測</h4>
+            <h4 className="text-warning font-semibold mb-1">
+              <Term k="volume_anomaly" label="異常量價偵測" />
+            </h4>
             <p className="text-sm">
               {volume_anomaly.type === "HIGH_SELL_PRESSURE" && "高檔爆量：近期來到波段高點且成交量異常放大，留意倒貨風險。"}
               {volume_anomaly.type === "LOW_BUY_SUPPORT" && "低檔爆量：近期來到波段低點且成交量放大，可能為底部換手或支撐浮現。"}
             </p>
             <div className="text-xs text-secondary mt-2">
-              信心指數: {(volume_anomaly.confidence * 100).toFixed(0)}%
+              <Term k="signal_confidence" label="信心指數" />: {(volume_anomaly.confidence * 100).toFixed(0)}%
             </div>
           </div>
         )}
@@ -116,7 +140,9 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
       {/* Right Column: Indicators & Support/Resistance */}
       <div className="space-y-6">
         <div>
-          <h3 className="font-semibold mb-4 text-lg">關鍵價位雷達</h3>
+          <h3 className="font-semibold mb-4 text-lg">
+            <Term k="support_resistance" label="關鍵價位雷達 (支撐 / 壓力)" />
+          </h3>
           <div className="space-y-2">
             {support_resistance?.length > 0 ? (
               support_resistance
@@ -136,9 +162,12 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
                         <span className="text-xs text-secondary">
                           距離 {dist > 0 ? "+" : ""}{dist.toFixed(1)}%
                         </span>
-                        <Badge value={level.strength} isPercent={false} size="sm" className="bg-accent/20 text-accent">
-                          強度 {level.strength}
-                        </Badge>
+                        <span className="inline-flex items-center">
+                          <Badge value={level.strength} isPercent={false} size="sm" className="bg-accent/20 text-accent">
+                            強度 {level.strength}
+                          </Badge>
+                          <InfoTip term="level_strength" />
+                        </span>
                       </div>
                     </div>
                   );
@@ -176,7 +205,7 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
                 )}
               </div>
               <div className="text-xs text-secondary mt-1">
-                柱狀體: {indicators?.MACD?.histogram?.toFixed(2)}
+                <Term k="macd_hist" label="柱狀體" />: {indicators?.MACD?.histogram?.toFixed(2)}
               </div>
             </div>
             
@@ -186,25 +215,33 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
               </div>
               <div className="grid grid-cols-4 gap-2 text-sm text-center">
                 <div>
-                  <div className="text-secondary text-xs">5MA</div>
+                  <div className="text-secondary text-xs">
+                    <Term k="ma5" label="5MA" />
+                  </div>
                   <div className={currentPrice > indicators?.MA?.MA5 ? 'text-up-tw' : 'text-down-tw'}>
                     {indicators?.MA?.MA5?.toFixed(1)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-secondary text-xs">20MA</div>
+                  <div className="text-secondary text-xs">
+                    <Term k="ma20" label="20MA" />
+                  </div>
                   <div className={currentPrice > indicators?.MA?.MA20 ? 'text-up-tw' : 'text-down-tw'}>
                     {indicators?.MA?.MA20?.toFixed(1)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-secondary text-xs">60MA</div>
+                  <div className="text-secondary text-xs">
+                    <Term k="ma60" label="60MA" />
+                  </div>
                   <div className={currentPrice > indicators?.MA?.MA60 ? 'text-up-tw' : 'text-down-tw'}>
                     {indicators?.MA?.MA60?.toFixed(1)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-secondary text-xs">120MA</div>
+                  <div className="text-secondary text-xs">
+                    <Term k="ma120" label="120MA" />
+                  </div>
                   <div className={currentPrice > indicators?.MA?.MA120 ? 'text-up-tw' : 'text-down-tw'}>
                     {indicators?.MA?.MA120?.toFixed(1) ?? '-'}
                   </div>

@@ -6,6 +6,7 @@ import Link from "next/link";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import { apiResearch, apiErrorMessage } from "@/lib/api";
+import { fetchOrBuildDeepReport } from "@/lib/clientDeepReport";
 import { Sparkles, CheckCircle2, XCircle, ArrowRight, ShieldCheck, AlertTriangle, Layers } from "lucide-react";
 import { BarTrend, LineTrend } from "@/components/stock/TrendCharts";
 import SnowflakeRadar, { RadarItem } from "@/components/stock/SnowflakeRadar";
@@ -192,10 +193,9 @@ export default function FinancialsSection({
     let alive = true;
     setLoading(true);
     setError("");
-    apiResearch
-      .getDeepReport(symbol)
-      .then((r) => {
-        if (alive) setData(r.data);
+    fetchOrBuildDeepReport(symbol)
+      .then((resData) => {
+        if (alive) setData(resData);
       })
       .catch((e) => {
         if (alive) setError(apiErrorMessage(e));
