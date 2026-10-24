@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS portfolio_transactions (
   type        VARCHAR(10) NOT NULL CHECK (type IN ('BUY', 'SELL')),
   price       NUMERIC(18,4) NOT NULL,
   shares      NUMERIC(18,4) NOT NULL,
+  fee         NUMERIC(18,2) NOT NULL DEFAULT 0,
+  tax         NUMERIC(18,2) NOT NULL DEFAULT 0,
   "timestamp" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_portfolio_tx_symbol ON portfolio_transactions(symbol);
@@ -23,7 +25,9 @@ CREATE INDEX IF NOT EXISTS idx_portfolio_tx_ts ON portfolio_transactions("timest
 CREATE TABLE IF NOT EXISTS alerts (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   symbol      VARCHAR(20) NOT NULL,
-  condition   VARCHAR(30) NOT NULL DEFAULT 'VOLUME_ANOMALY',
+  condition   TEXT NOT NULL DEFAULT 'VOLUME_ANOMALY',
+  value       TEXT,
+  message     TEXT,
   is_active   BOOLEAN NOT NULL DEFAULT true,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -44,6 +48,7 @@ CREATE TABLE IF NOT EXISTS sim_transactions (
   type         VARCHAR(10) NOT NULL CHECK (type IN ('BUY', 'SELL')),
   price        NUMERIC(18,4) NOT NULL,
   shares       NUMERIC(18,4) NOT NULL,
+  reason       TEXT,
   "timestamp"  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_sim_tx_portfolio ON sim_transactions(portfolio_id);
@@ -63,3 +68,11 @@ CREATE TABLE IF NOT EXISTS market_symbols (
   type          VARCHAR(20) NOT NULL,
   listing_date  DATE
 );
+
+-- 既有資料庫的升級（上面的 CREATE 對已存在的表不會生效；皆可重複執行）
+ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS fee NUMERIC(18,2) NOT NULL DEFAULT 0;
+ALTER TABLE portfolio_transactions ADD COLUMN IF NOT EXISTS tax NUMERIC(18,2) NOT NULL DEFAULT 0;
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS value TEXT;
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS message TEXT;
+ALTER TABLE alerts ALTER COLUMN condition TYPE TEXT;
+ALTER TABLE sim_transactions ADD COLUMN IF NOT EXISTS reason TEXT;

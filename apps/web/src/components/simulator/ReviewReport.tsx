@@ -21,7 +21,7 @@ export default function ReviewReport({ portfolioId }: ReviewReportProps) {
       const { data } = await apiSimulator.requestReview(portfolioId);
       setReview(data.review || data.analysis || JSON.stringify(data));
     } catch (e: any) {
-      setError("無法取得 AI 覆盤報告");
+      setError(e?.response?.data?.detail || "無法取得 AI 覆盤報告");
       console.error(e);
     } finally {
       setLoading(false);

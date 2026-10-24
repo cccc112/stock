@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Card from "@/components/ui/Card";
 import Link from "next/link";
 import { formatNumber, getChangeColorClass } from "@/lib/utils";
-import { apiMarket, apiQuant, apiWatchlist } from "@/lib/api";
+import { apiMarket, apiQuant } from "@/lib/api";
 import { Activity, AlertTriangle, Play, Settings } from "lucide-react";
 import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 
@@ -59,9 +59,10 @@ export default function QuantScreenerPage() {
         targetUniverse = Array.from(new Map(universe.map((item: any) => [item.symbol, item])).values()).slice(0, 20);
         targetSymbols = targetUniverse.map(t => t.symbol);
       } else if (source === 'watchlist') {
-        const watchlistRes = await apiWatchlist.getWatchlist();
-        const universe = watchlistRes.data || [];
-        targetUniverse = universe.map((item: any) => ({ symbol: item.symbol, name: item.name || item.symbol, price: 0, change: 0, change_pct: 0, market: 'TW' }));
+        // 自選股存在瀏覽器（與「自選股」頁一致），不是後端資料庫
+        let stored: string[] = [];
+        try { stored = JSON.parse(localStorage.getItem('watchlist_symbols') || '[]'); } catch { stored = []; }
+        targetUniverse = stored.map((symbol: string) => ({ symbol, name: symbol, price: 0, change: 0, change_pct: 0, market: /^\d/.test(symbol) ? 'TW' : 'US' }));
         targetSymbols = targetUniverse.map(t => t.symbol);
       } else if (source === 'custom') {
         targetSymbols = customSymbols.split(',').map(s => s.trim()).filter(s => s);

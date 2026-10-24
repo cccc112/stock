@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
-from app.models.schemas import PortfolioHolding, PortfolioTransaction, PnLSummary, TransactionType
+from app.models.schemas import PortfolioHolding, PortfolioTransaction, PortfolioTxCreate, PnLSummary, TransactionType
+from app.services import market_data
 from app.core.deps import get_db
 from app.api.v1.stocks import get_quote
 import uuid
@@ -31,6 +32,7 @@ async def get_holdings(db=Depends(get_db)):
                 holdings_dict[sym]['total_cost'] -= avg * sold_shares
             holdings_dict[sym]['shares'] -= sold_shares
             
+    names = await market_data.tw_name_map()
     holdings = []
     for sym, data in holdings_dict.items():
         if data['shares'] > 0:
@@ -45,6 +47,7 @@ async def get_holdings(db=Depends(get_db)):
             pnl_pct = (current_price - avg_price) / avg_price * 100 if avg_price > 0 else 0
             
             holdings.append(PortfolioHolding(
+                name=names.get(market_data.split_symbol(sym)[0], ""),
                 symbol=sym,
                 shares=data['shares'],
                 avg_price=avg_price,
@@ -57,13 +60,24 @@ async def get_holdings(db=Depends(get_db)):
     return holdings
 
 @router.post("/transactions", response_model=PortfolioTransaction)
-async def record_transaction(transaction: PortfolioTransaction, db=Depends(get_db)):
-    data = transaction.dict()
-    data['timestamp'] = data['timestamp'].isoformat()
-    data['type'] = data['type'].value
-    data['market'] = data['market'].value
-    
-    res = db.table("portfolio_transactions").insert(data).execute()
+async def record_transaction(tx: PortfolioTxCreate, db=Depends(get_db)):
+    if tx.price <= 0 or tx.shares <= 0:
+        raise HTTPException(status_code=400, detail="價格與股數必須大於 0")
+    try:
+        when = datetime.fromisoformat(tx.date) if tx.date else datetime.utcnow()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="日期格式需為 YYYY-MM-DD")
+    res = db.table("portfolio_transactions").insert({
+        "id": str(uuid.uuid4()),
+        "symbol": tx.symbol.strip().upper(),
+        "market": tx.market.value,
+        "type": tx.type.value,
+        "price": tx.price,
+        "shares": tx.shares,
+        "fee": tx.fee,
+        "tax": tx.tax,
+        "timestamp": when.isoformat(),
+    }).execute()
     if not res.data:
         raise HTTPException(status_code=500, detail="Failed to record transaction")
     return PortfolioTransaction(**res.data[0])

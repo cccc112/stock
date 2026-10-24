@@ -64,7 +64,19 @@ class PortfolioTransaction(BaseModel):
     timestamp: datetime
     market: MarketType
 
+class PortfolioTxCreate(BaseModel):
+    """前端新增交易時送出的內容（id / timestamp 由後端產生）"""
+    symbol: str
+    market: MarketType
+    type: TransactionType
+    price: float
+    shares: float
+    fee: float = 0
+    tax: float = 0
+    date: Optional[str] = None  # YYYY-MM-DD；未提供則用現在時間
+
 class PortfolioHolding(BaseModel):
+    name: str = ""
     symbol: str
     shares: float
     avg_price: float
@@ -80,6 +92,13 @@ class PnLSummary(BaseModel):
 class AlertCreate(BaseModel):
     symbol: str
     condition: str = "VOLUME_ANOMALY"
+    value: Optional[str] = None
+    message: Optional[str] = None
+    type: Optional[str] = None
+
+
+class AlertToggle(BaseModel):
+    active: bool
 
 class Alert(AlertCreate):
     id: str
@@ -100,13 +119,21 @@ class SimTransaction(BaseModel):
     type: TransactionType
     price: float
     shares: float
+    reason: Optional[str] = None
     timestamp: datetime
+
+class SimPortfolioCreate(BaseModel):
+    name: str
+    initial_cash: float = 1_000_000.0
 
 class SimTradeRequest(BaseModel):
     symbol: str
-    type: TransactionType
-    price: float
+    type: Optional[TransactionType] = None
+    action: Optional[TransactionType] = None   # 前端欄位名稱為 action
+    price: Optional[float] = None              # 留空 = 以市價成交
     shares: float
+    reason: Optional[str] = None
+    portfolio_id: Optional[str] = None
     
 class AIAnalysisRequest(BaseModel):
     symbol: Optional[str] = None

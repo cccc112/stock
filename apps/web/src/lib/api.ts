@@ -39,8 +39,8 @@ export const apiStocks = {
 
 export const apiWatchlist = {
   getWatchlist: () => api.get('/watchlist'),
-  addItem: (symbol: string) => api.post('/watchlist', { symbol }),
-  removeItem: (symbol: string) => api.delete(`/watchlist/${symbol}`),
+  addItem: (symbol: string, market: 'TW' | 'US' = 'TW') => api.post('/watchlist/items', { symbol, market }),
+  removeItem: (symbol: string) => api.delete(`/watchlist/items/${symbol}`),
   getQuotes: () => api.get('/watchlist/quotes'),
 };
 
@@ -81,8 +81,8 @@ export const apiSimulator = {
   getPortfolios: () => api.get('/simulator/portfolios'),
   createPortfolio: (data: any) => api.post('/simulator/portfolios', data),
   executeTrade: (data: any) => api.post('/simulator/trade', data),
-  getPerformance: (id: string) => api.get(`/simulator/portfolios/${id}/performance`),
-  requestReview: (id: string) => api.post(`/simulator/portfolios/${id}/review`),
+  getPerformance: (id: string) => api.get(`/simulator/${id}/performance`),
+  requestReview: (id: string) => api.post(`/simulator/${id}/review`, null, { timeout: 90000 }),
 };
 
 export const apiMarket = {

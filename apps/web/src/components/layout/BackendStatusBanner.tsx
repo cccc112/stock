@@ -14,18 +14,22 @@ export default function BackendStatusBanner() {
   const [testResult, setTestResult] = useState<string | null>(null);
   const [showConfig, setShowConfig] = useState(false);
 
+  // 用輕量的 /health 檢查（免費方案休眠後喚醒最久約 60 秒，故逾時放寬並重試一次）
+  const healthUrl = (apiBase: string) => `${apiBase.replace(/\/api\/v1$/, "")}/health`;
+
   const checkConnection = async () => {
     const url = getApiBaseUrl();
     setCurrentUrl(url);
-    try {
-      // Test basic endpoint with short timeout
-      const testEndpoint = `${url}/market/trending`;
-      await axios.get(testEndpoint, { timeout: 4000 });
-      setIsError(false);
-    } catch (err: any) {
-      console.warn("Backend connectivity check failed:", err);
-      setIsError(true);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await axios.get(healthUrl(url), { timeout: 20000 });
+        setIsError(false);
+        return;
+      } catch (err) {
+        console.warn("Backend connectivity check failed:", err);
+      }
     }
+    setIsError(true);
   };
 
   useEffect(() => {
@@ -38,17 +42,17 @@ export default function BackendStatusBanner() {
     setTestResult(null);
 
     const formatted = inputUrl.trim().replace(/\/+$/, '').replace(/\/api\/v1$/, '');
-    const targetTest = `${formatted}/api/v1/market/trending`;
+    const targetTest = `${formatted}/health`;
 
     try {
-      await axios.get(targetTest, { timeout: 6000 });
+      await axios.get(targetTest, { timeout: 30000 });
       localStorage.setItem("backend_api_url", formatted);
       setTestResult("連線成功！正在重新整理頁面...");
       setTimeout(() => {
         window.location.reload();
       }, 1000);
     } catch (err: any) {
-      setTestResult(`連線失敗: ${err.message || "無法連上該伺服器，請確認網址正確或 Railway 已部署成功"}`);
+      setTestResult(`連線失敗: ${err.message || "無法連上該伺服器，請確認網址正確且後端已部署成功（免費方案休眠時請稍候再試）"}`);
     } finally {
       setTesting(false);
     }
@@ -72,7 +76,7 @@ export default function BackendStatusBanner() {
               目前瀏覽器請求目標為: <code className="bg-red-950/60 px-1.5 py-0.5 rounded text-red-300 font-mono text-xs">{currentUrl}</code>
             </span>
             <p className="text-xs text-red-300/70 mt-0.5">
-              若您是在 Vercel 線上瀏覽，通常是因為尚未指定 Railway 後端伺服器網址，導致瀏覽器被阻擋連線。
+              若您是在 Vercel 線上瀏覽，通常是因為尚未指定後端伺服器網址；免費方案的後端閒置後會休眠，喚醒約需 30～60 秒，可稍後按右側重新檢測。
             </p>
           </div>
         </div>
@@ -83,7 +87,7 @@ export default function BackendStatusBanner() {
             className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-white rounded-md font-medium text-xs transition-colors"
           >
             <Server size={14} />
-            設定 Railway 網址
+            設定後端網址
             {showConfig ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
           <button
@@ -102,7 +106,7 @@ export default function BackendStatusBanner() {
             type="text"
             value={inputUrl}
             onChange={(e) => setInputUrl(e.target.value)}
-            placeholder="貼上你的 Railway 網址 (如 https://xxxx.up.railway.app)"
+            placeholder="貼上後端網址 (如 https://xxxx.onrender.com)"
             className="w-full sm:max-w-md px-3 py-1.5 text-xs bg-[var(--bg-secondary)] border border-[var(--border)] rounded text-primary focus:outline-none"
           />
           <div className="flex gap-2 w-full sm:w-auto">

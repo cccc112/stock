@@ -74,7 +74,7 @@ export default function TransactionForm({ isOpen, onClose, defaultSymbol }: Tran
         setSuccess(false);
       }, 1500);
     } catch (err: any) {
-      setError(err?.response?.data?.message || '新增失敗');
+      setError(err?.response?.data?.detail || err?.response?.data?.message || '新增失敗');
     } finally {
       setLoading(false);
     }

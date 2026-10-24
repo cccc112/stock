@@ -31,7 +31,7 @@ export default function TradeForm({ portfolioId, onTradeSuccess }: { portfolioId
       setPrice("");
       setReason("");
     } catch (err: any) {
-      alert(err?.response?.data?.message || "交易失敗");
+      alert(err?.response?.data?.detail || err?.response?.data?.message || "交易失敗");
     } finally {
       setLoading(false);
     }
