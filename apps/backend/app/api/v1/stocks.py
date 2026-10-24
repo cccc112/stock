@@ -1,6 +1,10 @@
-from fastapi import APIRouter, HTTPException
-from typing import List
 import logging
+import urllib.parse
+import xml.etree.ElementTree as ET
+from typing import Any, Dict, List
+
+import httpx
+from fastapi import APIRouter, HTTPException
 
 from app.models.schemas import StockQuote, KlineBar, OrderBook
 from app.services import market_data
@@ -11,6 +15,32 @@ from app.services.finmind import finmind_service
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def fetch_rss_news(query: str, limit: int = 20) -> List[Dict[str, Any]]:
+    """Google News RSS 即時備援，保證永遠有新聞且支援美股/台股"""
+    try:
+        url = f"https://news.google.com/rss/search?q={urllib.parse.quote(query)}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+        async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
+            resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+            if resp.status_code == 200:
+                root = ET.fromstring(resp.content)
+                items = []
+                for el in root.findall(".//item")[:limit]:
+                    title = el.findtext("title") or ""
+                    link = el.findtext("link") or ""
+                    pub_date = el.findtext("pubDate") or ""
+                    source = el.findtext("source") or "財經新聞"
+                    items.append({
+                        "title": title,
+                        "link": link,
+                        "date": pub_date,
+                        "source": source,
+                    })
+                return items
+    except Exception as e:
+        logger.warning(f"fetch_rss_news failed for {query}: {e}")
+    return []
 
 
 @router.get("/search", response_model=List[dict])
@@ -80,9 +110,30 @@ async def get_financials(symbol: str, years: int = 3):
 
 @router.get("/{symbol}/institutional")
 async def get_institutional(symbol: str, days: int = 30):
-    return await finmind_service.get_institutional_investors(market_data.split_symbol(symbol)[0], days)
+    code, kind, _ = market_data.split_symbol(symbol)
+    if kind != "TW":
+        return []
+    return await finmind_service.get_institutional_investors(code, days)
 
 
 @router.get("/{symbol}/news")
-async def get_news(symbol: str, days: int = 30):
-    return await finmind_service.get_news(market_data.split_symbol(symbol)[0], days)
+async def get_news(symbol: str, days: int = 5):
+    code, market, _ = market_data.split_symbol(symbol)
+    news = []
+    if market == "TW":
+        try:
+            news = await finmind_service.get_news(code, days)
+        except Exception as e:
+            logger.warning(f"finmind get_news failed: {e}")
+            news = []
+
+    # 若 FinMind 無資料、遇週末或為美股，以 Google News 即時財經 RSS 備援
+    if not news:
+        name = ""
+        quote = await market_data.get_quote(symbol)
+        if quote and quote.name:
+            name = quote.name
+        query = f"{code} {name}".strip()
+        news = await fetch_rss_news(query)
+
+    return news

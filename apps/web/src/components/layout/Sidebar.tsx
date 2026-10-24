@@ -9,7 +9,6 @@ import {
   FlaskConical, 
   Bell, 
   Settings,
-  Menu,
   X,
   Star,
   Newspaper,
@@ -20,7 +19,7 @@ import {
   Sparkles,
   Factory
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -41,26 +40,32 @@ const navItems = [
   { name: "設定", href: "/settings", icon: Settings },
 ];
 
+export const SIDEBAR_TOGGLE_EVENT = "sidebar:toggle";
+
 export default function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
+  useEffect(() => {
+    const toggle = () => setIsOpen((v) => !v);
+    window.addEventListener(SIDEBAR_TOGGLE_EVENT, toggle);
+    return () => window.removeEventListener(SIDEBAR_TOGGLE_EVENT, toggle);
+  }, []);
+
+  // 換頁後自動收起抽屜
+  useEffect(() => {
+    setIsOpen(false);
+  }, [pathname]);
+
   return (
     <>
-      {/* Mobile Toggle */}
-      <button 
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-secondary rounded-md"
-        onClick={() => setIsOpen(!isOpen)}
-        style={{ display: 'none' }} // Assuming handled by topbar on mobile
-      >
-        <Menu size={24} />
-      </button>
+      {isOpen && <div className="sidebar-backdrop" onClick={() => setIsOpen(false)} />}
 
       <div className={cn("sidebar", isOpen ? "open" : "")}>
         <div className="sidebar-header">
           <span>📊</span>
           <span>AI 戰情室</span>
-          <button className="md:hidden ml-auto" onClick={() => setIsOpen(false)}>
+          <button className="sidebar-close" onClick={() => setIsOpen(false)} aria-label="關閉選單">
             <X size={20} />
           </button>
         </div>

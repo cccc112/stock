@@ -29,7 +29,8 @@ class FinMindService:
         return time.time() < self._blocked_until
 
     async def _fetch_data(self, dataset: str, data_id: Optional[str] = None, start_date: Optional[str] = None,
-                          end_date: Optional[str] = None, ttl: int = 300) -> List[Dict[str, Any]]:
+                          end_date: Optional[str] = None, ttl: int = 300,
+                          timeout: float = 12.0) -> List[Dict[str, Any]]:
         key = (dataset, data_id, start_date, end_date)
         hit = self._cache.get(key)
         if hit and time.time() - hit[0] < ttl:
@@ -49,7 +50,7 @@ class FinMindService:
 
         for attempt in range(2):
             try:
-                async with httpx.AsyncClient(timeout=12.0) as client:
+                async with httpx.AsyncClient(timeout=timeout) as client:
                     response = await client.get(self.BASE_URL, params=params)
                 if response.status_code == 200:
                     data = response.json()
@@ -103,8 +104,26 @@ class FinMindService:
     async def get_dividends(self, symbol: str, years: int = 5) -> List[Dict[str, Any]]:
         return await self._fetch_data("TaiwanStockDividend", symbol, self._start(years * 366), ttl=12 * 3600)
 
-    async def get_news(self, symbol: str, days: int = 30) -> List[Dict[str, Any]]:
-        return await self._fetch_data("TaiwanStockNews", symbol, self._start(days), ttl=600)
+    async def get_news(self, symbol: str, days: int = 5) -> List[Dict[str, Any]]:
+        # TaiwanStockNews 只回傳 start_date「當天」的新聞（不支援區間，帶 end_date 會報錯），
+        # 所以逐日並行抓近 N 天再合併；週末/假日當天可能沒資料，多抓幾天補足
+        days = max(1, min(days, 10))
+        dates = [(datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days)]
+        results = await asyncio.gather(
+            *[self._fetch_data("TaiwanStockNews", symbol, d, ttl=600, timeout=15.0) for d in dates],
+            return_exceptions=True,
+        )
+        seen, merged = set(), []
+        for rows in results:
+            if not isinstance(rows, list):
+                continue
+            for r in rows:
+                k = r.get("link") or r.get("title")
+                if k in seen:
+                    continue
+                seen.add(k)
+                merged.append(r)
+        return sorted(merged, key=lambda r: r.get("date", ""), reverse=True)
 
     async def get_stock_info(self) -> List[Dict[str, Any]]:
         return await self._fetch_data("TaiwanStockInfo", ttl=86400)

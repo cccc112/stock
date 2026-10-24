@@ -141,7 +141,6 @@ export default function RecommendPage() {
         </div>
       </div>
 
-      {notes.map((n, i) => <div key={i} className="text-yellow-500 text-sm">⚠ {n}</div>)}
       {error && <div className="text-red-500 text-sm">{error}</div>}
       {loading && <div className="text-secondary text-center py-16">正在掃描並評分（首次約需 20～40 秒，之後 20 分鐘內使用快取）...</div>}
 

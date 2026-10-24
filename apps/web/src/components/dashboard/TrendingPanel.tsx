@@ -43,10 +43,9 @@ export default function TrendingPanel() {
   return (
     <Card 
       title="熱門排行" 
-      className="h-full"
       headerAction={<TrendingUp size={18} className="text-primary" />}
     >
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-auto max-h-[440px] pr-1">
         {loading ? (
           <div className="animate-pulse space-y-4 py-2">
             {[...Array(5)].map((_, i) => (
@@ -57,7 +56,7 @@ export default function TrendingPanel() {
           <div className="text-center py-6 text-secondary">暫無資料</div>
         ) : (
           <table className="data-table">
-            <thead>
+            <thead className="sticky top-0 bg-[var(--bg-secondary)] z-10">
               <tr>
                 <th>代號</th>
                 <th>名稱</th>

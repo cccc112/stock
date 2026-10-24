@@ -75,6 +75,12 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
         fixLeftEdge: true,
         fixRightEdge: true,
       },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
     });
 
     chartRef.current = chart;

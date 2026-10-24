@@ -83,7 +83,7 @@ class MultiAgentInvestmentCommittee:
         news_titles = []
         if is_tw:
             try:
-                news_data = await finmind_service.get_news(clean_sym, days=14)
+                news_data = await finmind_service.get_news(clean_sym, days=5)
                 news_titles = [n.get('title') for n in news_data[:6] if n.get('title')]
             except Exception:
                 pass

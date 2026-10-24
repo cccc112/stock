@@ -45,8 +45,8 @@ export default function BackendStatusBanner() {
   useEffect(() => {
     void checkConnection();
     // 頁面上的讀取請求也會回報：正在重試 → 顯示喚醒中；任何請求成功 → 隱藏橫幅
-    const onWaking = () => setStatus((s) => (s === "down" ? s : "waking"));
-    const onOk = () => setStatus("ok");
+    const onWaking = () => setStatus((s) => (s === "waking" ? s : s === "down" ? s : "waking"));
+    const onOk = () => setStatus((s) => (s === "ok" ? s : "ok"));
     window.addEventListener(BACKEND_WAKING_EVENT, onWaking);
     window.addEventListener(BACKEND_OK_EVENT, onOk);
     return () => {

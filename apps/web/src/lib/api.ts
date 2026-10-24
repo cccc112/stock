@@ -66,6 +66,7 @@ export const apiStocks = {
   getHistory: (symbol: string, period: string) => api.get(`/stocks/${symbol}/history`, { params: { period } }),
   getOrderbook: (symbol: string) => api.get(`/stocks/${symbol}/orderbook`),
   searchStocks: (query: string) => api.get(`/stocks/search`, { params: { q: query } }),
+  getNews: (symbol: string = '2330') => api.get(`/stocks/${symbol}/news`),
 };
 
 export const apiWatchlist = {

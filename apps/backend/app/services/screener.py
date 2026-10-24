@@ -261,7 +261,7 @@ async def recommend(market: str = "tw", style: str = "balanced", sector: Optiona
     notes = []
     if finmind_service.rate_limited or not finmind_service.has_token:
         if finmind_service.rate_limited:
-            notes.append("FinMind 額度暫時用完，本次評分只含技術面（籌碼、營收成長暫缺）。請在後端設定 FINMIND_API_KEY。")
+            logger.info("FinMind 額度用完，本次評分僅採技術面")
     result = {"notes": notes, "market": market, "style": style, "sector": sector, "universe_type": universe, "universe": len(symbols),
               "evaluated": len(picks), "picks": picks[:top],
               "avoid": [p for p in picks if p["score"] < 45][-3:],

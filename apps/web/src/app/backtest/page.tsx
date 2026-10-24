@@ -18,8 +18,14 @@ import {
   DollarSign,
   Info,
   Loader2,
-  ChevronRight
+  ChevronRight,
+  BookOpen,
+  CheckCircle2,
+  AlertTriangle,
+  Sparkles,
+  HelpCircle
 } from "lucide-react";
+import { STRATEGY_EXPLANATIONS, GLOBAL_PARAM_GUIDE } from "@/lib/quantStrategyGuides";
 import {
   ResponsiveContainer,
   LineChart,
@@ -177,6 +183,9 @@ export default function BacktestPage() {
   }, [strategies]);
 
   const currentStrategy = strategies.find(s => s.id === selectedStrategyId);
+  const currentStrategyExplanation = STRATEGY_EXPLANATIONS[selectedStrategyId];
+  const [showGuide, setShowGuide] = useState(false);
+  const [guideTab, setGuideTab] = useState<'current' | 'all' | 'risk'>('current');
 
   const filteredTrades = (result?.trades || []).filter(t => {
     if (tradeFilter === 'win') return t.pnl > 0;
@@ -199,7 +208,182 @@ export default function BacktestPage() {
             代入經典量化模型（海龜法則、SuperTrend、Dual Thrust、布林RSI均值回歸），透過真實歷史價量逐筆驗證策略報酬率與風控表現。
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => setShowGuide(!showGuide)}
+          className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg border border-accent/40 bg-accent/10 text-accent hover:bg-accent/20 transition-all self-start md:self-center cursor-pointer shadow-sm"
+        >
+          <BookOpen size={16} />
+          {showGuide ? "收合策略與參數指南" : "📖 策略原理與參數調校手冊"}
+        </button>
       </header>
+
+      {/* 策略與參數調校深度手冊 */}
+      {showGuide && (
+        <Card className="p-5 border border-accent/30 bg-gradient-to-br from-[var(--bg-secondary)] to-[var(--bg-tertiary)] animate-slide-up">
+          <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[var(--border)] pb-4 mb-4 gap-3">
+            <div className="flex items-center gap-2">
+              <Sparkles size={18} className="text-accent" />
+              <h3 className="font-bold text-base text-primary">策略核心原理與參數影響指南</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setGuideTab('current')}
+                className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer ${
+                  guideTab === 'current' ? 'bg-accent text-white' : 'bg-[var(--bg-tertiary)] text-secondary hover:text-primary'
+                }`}
+              >
+                當前策略 ({currentStrategyExplanation?.name.split(' ')[0] || '詳解'})
+              </button>
+              <button
+                type="button"
+                onClick={() => setGuideTab('all')}
+                className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer ${
+                  guideTab === 'all' ? 'bg-accent text-white' : 'bg-[var(--bg-tertiary)] text-secondary hover:text-primary'
+                }`}
+              >
+                全 6 大策略對照
+              </button>
+              <button
+                type="button"
+                onClick={() => setGuideTab('risk')}
+                className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer ${
+                  guideTab === 'risk' ? 'bg-accent text-white' : 'bg-[var(--bg-tertiary)] text-secondary hover:text-primary'
+                }`}
+              >
+                風控與通用參數
+              </button>
+            </div>
+          </div>
+
+          {/* Tab 1: 當前策略深入拆解 */}
+          {guideTab === 'current' && currentStrategyExplanation && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-3.5 rounded-lg bg-[var(--bg-primary)]/60 border border-[var(--border)]">
+                  <div className="text-xs font-semibold text-accent mb-1.5 flex items-center gap-1.5">
+                    <CheckCircle2 size={14} /> 策略核心運作原理
+                  </div>
+                  <p className="text-xs text-secondary leading-relaxed mb-2.5">
+                    {currentStrategyExplanation.concept}
+                  </p>
+                  <div className="space-y-1.5 text-xs">
+                    <div>
+                      <span className="text-emerald-400 font-medium">▸ 進場條件：</span>
+                      <span className="text-primary">{currentStrategyExplanation.entryRule}</span>
+                    </div>
+                    <div>
+                      <span className="text-rose-400 font-medium">▸ 出場條件：</span>
+                      <span className="text-primary">{currentStrategyExplanation.exitRule}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-lg bg-[var(--bg-primary)]/60 border border-[var(--border)] flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div>
+                      <div className="text-xs font-semibold text-emerald-400 mb-1 flex items-center gap-1.5">
+                        <TrendingUp size={14} /> 最佳適用市場環境
+                      </div>
+                      <p className="text-xs text-secondary leading-relaxed">
+                        {currentStrategyExplanation.suitableMarket}
+                      </p>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-amber-400 mb-1 flex items-center gap-1.5">
+                        <AlertTriangle size={14} /> 潛在死穴與洗盤風險
+                      </div>
+                      <p className="text-xs text-secondary leading-relaxed">
+                        {currentStrategyExplanation.drawback}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-[var(--border)]/60 text-xs text-secondary">
+                    <span className="text-primary font-medium">勝率風格：</span> {currentStrategyExplanation.winRateProfile}
+                  </div>
+                </div>
+              </div>
+
+              {/* 參數調整會造成什麼結果 */}
+              <div>
+                <h4 className="text-xs font-bold text-primary mb-2 flex items-center gap-1.5">
+                  <Sliders size={14} className="text-accent" />
+                  參數調整影響對照（調大 vs 調小）：
+                </h4>
+                <div className="grid grid-cols-1 gap-2.5">
+                  {currentStrategyExplanation.paramDetails.map((p) => (
+                    <div key={p.key} className="p-3 rounded-lg bg-[var(--bg-primary)]/80 border border-[var(--border)] text-xs">
+                      <div className="font-semibold text-primary mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-accent font-mono text-sm">{p.label} <span className="text-xs text-secondary">({p.key})</span></span>
+                        <span className="text-[11px] text-secondary bg-[var(--bg-tertiary)] px-2 py-0.5 rounded">建議：{p.tuningTip}</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                        <div className="p-2.5 rounded bg-emerald-500/5 border border-emerald-500/20 text-secondary">
+                          <span className="font-semibold text-emerald-400 block mb-1">⬆️ 調大會造成的結果：</span>
+                          {p.increaseEffect}
+                        </div>
+                        <div className="p-2.5 rounded bg-amber-500/5 border border-amber-500/20 text-secondary">
+                          <span className="font-semibold text-amber-400 block mb-1">⬇️ 調小會造成的結果：</span>
+                          {p.decreaseEffect}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 2: 全 6 大策略對照表 */}
+          {guideTab === 'all' && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-[var(--border)] text-secondary">
+                    <th className="py-2.5 px-3">策略名稱</th>
+                    <th className="py-2.5 px-3">類型</th>
+                    <th className="py-2.5 px-3">核心進出場邏輯</th>
+                    <th className="py-2.5 px-3">最佳行情</th>
+                    <th className="py-2.5 px-3">致命缺點</th>
+                    <th className="py-2.5 px-3">勝率/盈虧比</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)]/60">
+                  {Object.values(STRATEGY_EXPLANATIONS).map((st) => (
+                    <tr key={st.id} className="hover:bg-[var(--bg-tertiary)]/50 transition-colors">
+                      <td className="py-2.5 px-3 font-semibold text-primary whitespace-nowrap">{st.name.split(' (')[0]}</td>
+                      <td className="py-2.5 px-3 text-accent whitespace-nowrap">{st.category}</td>
+                      <td className="py-2.5 px-3 text-secondary min-w-[200px]">{st.entryRule} 出場：{st.exitRule}</td>
+                      <td className="py-2.5 px-3 text-emerald-400 min-w-[150px]">{st.suitableMarket}</td>
+                      <td className="py-2.5 px-3 text-amber-400 min-w-[150px]">{st.drawback}</td>
+                      <td className="py-2.5 px-3 text-secondary whitespace-nowrap">{st.winRateProfile.split('。')[0]}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Tab 3: 通用風控參數指南 */}
+          {guideTab === 'risk' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              {GLOBAL_PARAM_GUIDE.map((g, i) => (
+                <div key={i} className="p-3.5 rounded-lg bg-[var(--bg-primary)]/70 border border-[var(--border)] flex flex-col justify-between">
+                  <div>
+                    <h5 className="font-bold text-accent text-sm mb-1.5">{g.name}</h5>
+                    <p className="text-secondary leading-relaxed">{g.effect}</p>
+                  </div>
+                </div>
+              ))}
+              <div className="p-3.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-secondary md:col-span-3">
+                <span className="font-semibold text-emerald-400 block mb-1">💡 台股交易成本回測真實設定：</span>
+                本回測引擎嚴格納入台股券商手續費（0.1425% × 折讓）與賣出證交稅（0.3%），避免高頻交易在免手續費理想模型下產生過度樂觀的虛假績效。
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* 控制設定面板 */}
       <Card className="p-5">
@@ -238,9 +422,18 @@ export default function BacktestPage() {
 
           {/* 2. 策略選擇 */}
           <div>
-            <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
-              量化交易策略
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-semibold text-secondary uppercase tracking-wider">
+                量化交易策略
+              </label>
+              <button
+                type="button"
+                onClick={() => { setShowGuide(true); setGuideTab('current'); }}
+                className="text-[11px] text-accent hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <HelpCircle size={12} /> 原理與調校
+              </button>
+            </div>
             <select
               value={selectedStrategyId}
               onChange={(e) => handleStrategyChange(e.target.value)}

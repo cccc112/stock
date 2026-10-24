@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Menu } from "lucide-react";
+import { SIDEBAR_TOGGLE_EVENT } from "@/components/layout/Sidebar";
 
 export default function TopBar() {
   const [time, setTime] = useState("");
@@ -27,9 +29,15 @@ export default function TopBar() {
   return (
     <div className="top-bar">
       <div className="flex items-center gap-2">
-        {/* Mobile menu trigger could go here */}
+        <button
+          className="menu-btn"
+          aria-label="開啟選單"
+          onClick={() => window.dispatchEvent(new Event(SIDEBAR_TOGGLE_EVENT))}
+        >
+          <Menu size={22} />
+        </button>
       </div>
-      <div className="text-sm text-secondary font-mono">
+      <div className="text-xs sm:text-sm text-secondary font-mono">
         {time}
       </div>
     </div>

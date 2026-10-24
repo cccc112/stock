@@ -32,6 +32,12 @@ export default function RevenueChart({ symbol }: RevenueChartProps) {
         borderColor: '#2a2e3f',
         timeVisible: true,
       },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
     });
     
     chartRef.current = chart;

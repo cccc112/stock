@@ -36,6 +36,12 @@ export default function InstitutionalChart({ symbol, market = 'TW' }: Institutio
         borderColor: '#2a2e3f',
         timeVisible: true,
       },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
     });
     
     chartRef.current = chart;

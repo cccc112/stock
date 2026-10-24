@@ -4,3 +4,9 @@ __pycache__/
 .next/
 venv/
 *.pyc
+.claude/
+.vs/
+*.ssmssln
+news.json
+test.py
+test_fm.py

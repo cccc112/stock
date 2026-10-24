@@ -26,11 +26,13 @@ async def get_tw_institutions():
             # TWD is too large, convert to billions (億)
             net_billion = net / 100000000
             
-            if "外資" in name:
+            # FinMind name 是英文代碼：Foreign_Investor / Foreign_Dealer_Self / Investment_Trust / Dealer_self / Dealer_Hedging / total
+            key = name.lower()
+            if key.startswith("foreign") or "外資" in name:
                 daily_data[date]["foreign"] += net_billion
-            elif "投信" in name:
+            elif key.startswith("investment_trust") or "投信" in name:
                 daily_data[date]["trust"] += net_billion
-            elif "自營商" in name:
+            elif key.startswith("dealer") or "自營商" in name:
                 daily_data[date]["dealer"] += net_billion
                 
         result = list(daily_data.values())

@@ -211,24 +211,59 @@ export function DrawingLayer({ chart, series, bars, api }: LayerProps) {
     } catch { return null; }
   };
 
-  // 圖表被拖曳 / 縮放 / 改價格軸時重畫：每個 frame 比對視圖特徵，變了才更新
+  // 圖表被拖曳 / 縮放 / 改價格軸時重畫：事件驅動 + 互動時偵測，平時不佔用 CPU
   useEffect(() => {
-    let raf = 0;
     let last = '';
-    const loop = () => {
+    const update = () => {
       try {
         const r = chart.timeScale().getVisibleLogicalRange();
         const sig = [
-          r?.from.toFixed(3), r?.to.toFixed(3),
-          series.priceToCoordinate(0)?.toFixed(2), series.priceToCoordinate(1000)?.toFixed(2),
-          chart.priceScale('left').width(), chart.timeScale().width(), chart.paneSize().height,
+          r?.from?.toFixed(2), r?.to?.toFixed(2),
+          series.priceToCoordinate(0)?.toFixed(1), series.priceToCoordinate(1000)?.toFixed(1),
+          chart.paneSize().height,
         ].join('|');
         if (sig !== last) { last = sig; setTick(t => t + 1); }
       } catch { /* chart 已被銷毀 */ }
-      raf = requestAnimationFrame(loop);
     };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
+
+    const handler = () => update();
+    try {
+      chart.timeScale().subscribeVisibleLogicalRangeChange(handler);
+      chart.timeScale().subscribeVisibleTimeRangeChange(handler);
+    } catch { /* ignore */ }
+
+    // 僅在使用者滾動或拖曳圖表時維持短暫動畫更新，靜止時完全零 CPU 負擔
+    let activeRaf = 0;
+    let stopTime = 0;
+    const pollLoop = () => {
+      update();
+      if (Date.now() < stopTime) {
+        activeRaf = requestAnimationFrame(pollLoop);
+      } else {
+        activeRaf = 0;
+      }
+    };
+    const onUserInteraction = () => {
+      stopTime = Date.now() + 400;
+      if (!activeRaf) {
+        activeRaf = requestAnimationFrame(pollLoop);
+      }
+    };
+
+    window.addEventListener('resize', update);
+    window.addEventListener('wheel', onUserInteraction, { passive: true });
+    window.addEventListener('pointermove', onUserInteraction, { passive: true });
+
+    return () => {
+      try {
+        chart.timeScale().unsubscribeVisibleLogicalRangeChange(handler);
+        chart.timeScale().unsubscribeVisibleTimeRangeChange(handler);
+      } catch { /* ignore */ }
+      if (activeRaf) cancelAnimationFrame(activeRaf);
+      window.removeEventListener('resize', update);
+      window.removeEventListener('wheel', onUserInteraction);
+      window.removeEventListener('pointermove', onUserInteraction);
+    };
   }, [chart, series]);
 
   let left = 0, w = 0, h = 0;

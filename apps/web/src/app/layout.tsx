@@ -28,10 +28,10 @@ export default function RootLayout({
             <TopBar />
             <main className="page-content">
               {children}
+              <footer className="disclaimer">
+                免責聲明：本系統僅供模擬與學術討論，非投資建議。
+              </footer>
             </main>
-            <footer className="disclaimer">
-              免責聲明：本系統僅供模擬與學術討論，非投資建議。
-            </footer>
           </div>
         </div>
       </body>
