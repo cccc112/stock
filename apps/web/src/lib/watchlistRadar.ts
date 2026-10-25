@@ -27,13 +27,16 @@ function getStorageNamespaceKey(base: string): string {
 }
 
 export function getWatchlistSymbols(): string[] {
-  if (typeof window === "undefined") return ["2330.TW", "2454.TW", "AAPL", "NVDA"];
+  if (typeof window === "undefined") return [];
   try {
     const key = getStorageNamespaceKey(STORAGE_KEY_WATCHLIST);
-    const raw = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEY_WATCHLIST);
-    if (raw) return JSON.parse(raw);
+    const raw = localStorage.getItem(key);
+    if (raw !== null) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
   } catch {}
-  return ["2330.TW", "2454.TW", "AAPL", "NVDA"];
+  return [];
 }
 
 export function getTriggeredAlerts(): RadarAlertEvent[] {

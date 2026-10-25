@@ -20,6 +20,11 @@ import FinancialsSection from "@/components/stock/FinancialsSection";
 import ETFInfoSection from "@/components/stock/ETFInfoSection";
 import AICommitteeSection from "@/components/dashboard/AICommitteeSection";
 import { Term, InfoTip } from "@/components/ui/TermTooltip";
+import {
+  isSymbolInWatchlist,
+  addSymbolToWatchlist,
+  removeSymbolFromWatchlist,
+} from "@/hooks/useWatchlist";
 
 const CandlestickChart = dynamic(() => import('@/components/charts/CandlestickChart'), { ssr: false });
 
@@ -37,26 +42,6 @@ function detectAssetType(sym: string): "ETF" | "ASSET" | "STOCK" {
     return "ASSET";
   }
   return "STOCK";
-}
-
-const STORAGE_KEY = 'watchlist_symbols';
-
-function getStoredSymbols(): string[] {
-  if (typeof window === 'undefined') return [];
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
-}
-
-function addToWatchlist(symbol: string) {
-  const list = getStoredSymbols();
-  if (!list.includes(symbol)) {
-    list.push(symbol);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-  }
-}
-
-function removeFromWatchlist(symbol: string) {
-  const list = getStoredSymbols().filter(s => s !== symbol);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
 }
 
 interface StockData {
@@ -88,8 +73,15 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   const [deepSummary, setDeepSummary] = useState<any | null>(null);
 
   useEffect(() => {
-    setInWatchlist(getStoredSymbols().includes(symbol));
+    setInWatchlist(isSymbolInWatchlist(symbol));
     setDeepSummary(null);
+
+    const handleSync = () => {
+      setInWatchlist(isSymbolInWatchlist(symbol));
+    };
+
+    window.addEventListener("watchlist_changed", handleSync);
+    window.addEventListener("stock_auth_changed", handleSync);
 
     const fetchQuote = async () => {
       try {
@@ -106,15 +98,19 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       .then((resData) => setDeepSummary(resData))
       .catch(() => {});
     const timer = setInterval(fetchQuote, 30000);
-    return () => clearInterval(timer);
+    return () => {
+      window.removeEventListener("watchlist_changed", handleSync);
+      window.removeEventListener("stock_auth_changed", handleSync);
+      clearInterval(timer);
+    };
   }, [symbol]);
 
   const toggleWatchlist = () => {
     if (inWatchlist) {
-      removeFromWatchlist(symbol);
+      removeSymbolFromWatchlist(symbol);
       setInWatchlist(false);
     } else {
-      addToWatchlist(symbol);
+      addSymbolToWatchlist(symbol);
       setInWatchlist(true);
     }
   };

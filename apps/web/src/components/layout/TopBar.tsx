@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Menu, Search, Sun, Moon } from "lucide-react";
 import { SIDEBAR_TOGGLE_EVENT } from "@/components/layout/Sidebar";
 import { apiStocks } from "@/lib/api";
-import { useBeginnerMode } from "@/components/ui/TermTooltip";
 import UserMenu from "@/components/auth/UserMenu";
 
 export default function TopBar() {
@@ -14,7 +13,6 @@ export default function TopBar() {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
-  const { beginnerMode, toggleBeginnerMode } = useBeginnerMode();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -202,32 +200,6 @@ export default function TopBar() {
               <span className="hidden sm:inline">深色科技</span>
             </>
           )}
-        </button>
-
-        <button
-          type="button"
-          onClick={toggleBeginnerMode}
-          title={
-            beginnerMode
-              ? "目前開啟新手註解：專有名詞旁會顯示「!」小圖示，滑鼠移過或手機點擊可看白話解釋"
-              : "點擊開啟新手模式：顯示專有名詞「!」白話解釋"
-          }
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
-            beginnerMode
-              ? "bg-amber-500/15 border-amber-500/40 text-amber-500"
-              : "bg-[var(--bg-tertiary)] border-[var(--border)] text-secondary hover:text-primary"
-          }`}
-        >
-          <span
-            className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-mono font-bold ${
-              beginnerMode
-                ? "bg-amber-500 text-slate-950"
-                : "bg-[var(--bg-secondary)] text-secondary border border-[var(--border)]"
-            }`}
-          >
-            !
-          </span>
-          <span>新手模式：{beginnerMode ? "開" : "關"}</span>
         </button>
 
         <UserMenu />

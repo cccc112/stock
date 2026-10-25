@@ -1,13 +1,19 @@
 import axios from 'axios';
 
+const RENDER_PROD_URL = "https://stock-backend-lz9p.onrender.com";
+
 export function getApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
     const custom = localStorage.getItem('backend_api_url');
     if (custom && custom.trim()) {
       return custom.trim().replace(/\/+$/, '').replace(/\/api\/v1$/, '') + '/api/v1';
     }
+    // 線上環境一律預設直連站長官方 Render 雲端後端，免除使用者任何填寫負擔
+    if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+      return RENDER_PROD_URL + "/api/v1";
+    }
   }
-  const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const BASE = process.env.NEXT_PUBLIC_API_URL || RENDER_PROD_URL;
   return BASE.replace(/\/+$/, '').replace(/\/api\/v1$/, '') + '/api/v1';
 }
 

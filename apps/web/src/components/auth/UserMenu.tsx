@@ -18,6 +18,7 @@ import {
   Check,
   ExternalLink,
   Loader2,
+  Bell,
 } from "lucide-react";
 import { useBeginnerMode } from "@/components/ui/TermTooltip";
 
@@ -270,17 +271,22 @@ export default function UserMenu() {
                 </span>
               </button>
 
-              {/* 新手白話註解快速切換 */}
+              {/* 新手模式快速切換 (整合取代原本按鈕) */}
               <button
                 type="button"
                 onClick={toggleBeginnerMode}
                 className="w-full px-2.5 py-2 rounded-xl hover:bg-[var(--bg-tertiary)] flex items-center justify-between text-secondary hover:text-primary transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-[var(--bg-tertiary)] flex items-center justify-center flex-shrink-0">
-                    <HelpCircle size={14} className={beginnerMode ? "text-amber-500" : "text-muted"} />
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-mono font-bold ${
+                    beginnerMode ? "bg-amber-500/20 text-amber-500" : "bg-[var(--bg-tertiary)] text-muted"
+                  }`}>
+                    !
                   </div>
-                  <span className="text-xs font-medium">名詞白話註解提示</span>
+                  <div className="text-left">
+                    <span className="text-xs font-medium block text-primary">新手模式</span>
+                    <span className="text-[10px] text-muted block">專有名詞顯示白話解說</span>
+                  </div>
                 </div>
                 <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${
                   beginnerMode
@@ -288,6 +294,37 @@ export default function UserMenu() {
                     : "bg-[var(--bg-tertiary)] border-[var(--border)] text-muted"
                 }`}>
                   {beginnerMode ? "已開啟" : "已關閉"}
+                </span>
+              </button>
+
+              {/* 即時量化雷達推播通知開關 */}
+              <button
+                type="button"
+                onClick={() => {
+                  const curr = localStorage.getItem("watchlist_radar_enabled") !== "false";
+                  const next = !curr;
+                  localStorage.setItem("watchlist_radar_enabled", next ? "true" : "false");
+                  window.dispatchEvent(new CustomEvent("watchlist_radar_toggle", { detail: next }));
+                  // 強制觸發重渲染
+                  setTheme((t) => (t === "dark" ? "dark" : "light"));
+                }}
+                className="w-full px-2.5 py-2 rounded-xl hover:bg-[var(--bg-tertiary)] flex items-center justify-between text-secondary hover:text-primary transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-[var(--bg-tertiary)] flex items-center justify-center flex-shrink-0">
+                    <Bell size={14} className={typeof window !== 'undefined' && localStorage.getItem("watchlist_radar_enabled") === "false" ? "text-muted" : "text-accent"} />
+                  </div>
+                  <div className="text-left">
+                    <span className="text-xs font-medium block text-primary">即時雷達推播</span>
+                    <span className="text-[10px] text-muted block">自選股突破與訊號提示</span>
+                  </div>
+                </div>
+                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${
+                  typeof window !== 'undefined' && localStorage.getItem("watchlist_radar_enabled") === "false"
+                    ? "bg-[var(--bg-tertiary)] border-[var(--border)] text-muted"
+                    : "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
+                }`}>
+                  {typeof window !== 'undefined' && localStorage.getItem("watchlist_radar_enabled") === "false" ? "已關閉" : "已開啟"}
                 </span>
               </button>
             </div>

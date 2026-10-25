@@ -16,8 +16,16 @@ export default function WatchlistRadarListener() {
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [activeToasts, setActiveToasts] = useState<RadarAlertEvent[]>([]);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   useEffect(() => {
+    // 檢查使用者是否手動關閉推播通知
+    const storedEnabled = localStorage.getItem("watchlist_radar_enabled");
+    const isEnabled = storedEnabled !== "false";
+    setNotificationsEnabled(isEnabled);
+
+    if (!isEnabled) return;
+
     if (isNotificationSupported()) {
       const p = getNotificationPermission();
       setPermission(p);
@@ -39,15 +47,26 @@ export default function WatchlistRadarListener() {
       }
     };
 
+    const handleToggleEvent = (e: any) => {
+      const state = e?.detail ?? (localStorage.getItem("watchlist_radar_enabled") !== "false");
+      setNotificationsEnabled(state);
+      if (!state) {
+        setActiveToasts([]);
+        setShowPrompt(false);
+      }
+    };
+
     window.addEventListener("watchlist_radar_alert", handleRadarEvent);
+    window.addEventListener("watchlist_radar_toggle", handleToggleEvent);
 
     // 啟動定時輪詢掃描
     const runScan = () => {
+      if (localStorage.getItem("watchlist_radar_enabled") === "false") return;
       runWatchlistRadarScan();
     };
 
-    // 初次載入 3 秒後先掃描一次
-    const initialTimer = setTimeout(runScan, 3000);
+    // 初次載入 4 秒後先掃描一次
+    const initialTimer = setTimeout(runScan, 4000);
 
     // 盤中 60 秒掃描一次，盤後 180 秒掃描一次
     const isTrading = isMarketTradingHours();
@@ -56,6 +75,7 @@ export default function WatchlistRadarListener() {
 
     return () => {
       window.removeEventListener("watchlist_radar_alert", handleRadarEvent);
+      window.removeEventListener("watchlist_radar_toggle", handleToggleEvent);
       clearTimeout(initialTimer);
       clearInterval(intervalTimer);
     };
@@ -67,13 +87,24 @@ export default function WatchlistRadarListener() {
     setShowPrompt(false);
   };
 
+  const handleDisableForever = () => {
+    localStorage.setItem("watchlist_radar_enabled", "false");
+    setNotificationsEnabled(false);
+    setShowPrompt(false);
+    setActiveToasts([]);
+    window.dispatchEvent(new CustomEvent("watchlist_radar_toggle", { detail: false }));
+  };
+
   const removeToast = (id: string) => {
     setActiveToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
+  // 若使用者已關閉即時通知，則完全不渲染任何 DOM
+  if (!notificationsEnabled) return null;
+
   return (
     <>
-      {/* 1. 桌面權限提示條（僅在尚未決定時於頁面頂部以精緻膠囊呈現） */}
+      {/* 1. 桌面權限提示條（附帶關閉/不再提醒開關） */}
       {showPrompt && (
         <aside aria-label="全自選股自動量化雷達推播" className="fixed bottom-4 left-4 z-50 flex items-center gap-3 p-3.5 pr-4 rounded-xl bg-[var(--bg-secondary)] border border-accent/40 shadow-2xl backdrop-blur-md animate-slide-up max-w-md">
           <div className="w-8 h-8 rounded-full bg-accent/20 text-accent flex items-center justify-center flex-shrink-0">
@@ -82,7 +113,7 @@ export default function WatchlistRadarListener() {
           <div className="flex-1 text-xs">
             <strong className="text-primary block font-bold">全自選股量化雷達已就緒</strong>
             <span className="text-secondary text-[11px] leading-tight block mt-0.5">
-              開啟瀏覽器靜音通知，盤中當自選股 VCP 突破、踩機構訂單塊或達階梯進場價時即時提醒。
+              開啟瀏覽器靜音通知，盤中當自選股突破或踩機構訂單塊時即時提醒。
             </span>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -91,20 +122,21 @@ export default function WatchlistRadarListener() {
               onClick={handleEnableNotification}
               className="px-2.5 py-1 text-xs font-bold bg-accent text-black rounded-lg hover:opacity-90 transition-opacity cursor-pointer"
             >
-              啟用推播
+              開啟推播
             </button>
             <button
               type="button"
-              onClick={() => setShowPrompt(false)}
-              className="p-1 text-secondary hover:text-primary transition-colors cursor-pointer"
+              onClick={handleDisableForever}
+              className="px-2 py-1 text-[11px] text-muted hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+              title="關閉即時通知，不再彈出提示"
             >
-              <X size={15} />
+              關閉通知
             </button>
           </div>
         </aside>
       )}
 
-      {/* 2. 右上角純靜音浮動 Toast 警報清單 */}
+      {/* 2. 右上角浮動 Toast 警報清單（提供一鍵關閉通知功能） */}
       {activeToasts.length > 0 && (
         <aside aria-label="即時異動警報" className="fixed top-16 right-4 z-50 space-y-2.5 max-w-sm w-full pointer-events-none">
           {activeToasts.map((toast) => (
@@ -125,30 +157,38 @@ export default function WatchlistRadarListener() {
                     {toast.title}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removeToast(toast.id)}
-                  className="text-secondary hover:text-primary p-0.5 cursor-pointer"
-                >
-                  <X size={14} />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleDisableForever}
+                    className="p-1 text-muted hover:text-rose-400 hover:bg-rose-500/10 rounded transition-colors cursor-pointer"
+                    title="完全關閉所有即時推播通知"
+                  >
+                    <BellOff size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeToast(toast.id)}
+                    className="p-1 text-secondary hover:text-primary transition-colors cursor-pointer"
+                    title="關閉此訊息"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
               </div>
 
-              <p className="text-xs text-secondary leading-relaxed mb-2.5">
+              <div className="text-xs text-primary font-medium mb-1.5 leading-relaxed">
                 {toast.message}
-              </p>
+              </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-[var(--border)] text-[11px]">
-                <span className="font-mono text-primary font-bold">
-                  {toast.symbol} · ${toast.price} ({toast.changePct >= 0 ? "+" : ""}{toast.changePct}%)
-                </span>
+              <div className="flex items-center justify-between text-[11px] pt-1 border-t border-[var(--border)] text-muted">
+                <span>{new Date(toast.timestamp).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
                 <Link
                   href={`/stock/${encodeURIComponent(toast.symbol)}`}
-                  onClick={() => removeToast(toast.id)}
-                  className="flex items-center gap-1 text-accent font-bold hover:underline"
+                  className="text-accent hover:underline flex items-center gap-1 font-medium"
                 >
-                  <span>查看戰情室</span>
-                  <ExternalLink size={12} />
+                  <span>查看即時圖表</span>
+                  <ExternalLink size={10} />
                 </Link>
               </div>
             </div>

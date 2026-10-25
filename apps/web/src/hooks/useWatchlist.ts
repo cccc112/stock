@@ -1,41 +1,89 @@
-import { useState, useEffect, useCallback } from 'react';
-import { apiStocks } from '@/lib/api';
-import { getCurrentUserNamespace } from '@/hooks/useAuth';
+import { useState, useEffect, useCallback } from "react";
+import { apiStocks } from "@/lib/api";
+import { getCurrentUserNamespace } from "@/hooks/useAuth";
 
-interface WatchlistStock {
+export interface WatchlistStock {
   symbol: string;
   name: string;
   price: number;
   change: number;
   change_pct: number;
   volume: number;
-  market: 'TW' | 'US';
+  market: "TW" | "US";
 }
 
-// 每個 Google 帳號擁有獨立的自選股空間
-const DEFAULT_SYMBOLS = ['2330.TW', '2454.TW', 'AAPL', 'NVDA'];
-
-function getStorageKey(): string {
+export function getWatchlistStorageKey(): string {
+  if (typeof window === "undefined") return "watchlist_symbols";
   const ns = getCurrentUserNamespace();
-  return ns === 'default' ? 'watchlist_symbols' : `watchlist_symbols_${ns}`;
+  return ns === "default" ? "watchlist_symbols" : `watchlist_symbols_${ns}`;
 }
 
-function getStoredSymbols(): string[] {
-  if (typeof window === 'undefined') return DEFAULT_SYMBOLS;
-  const key = getStorageKey();
-  const stored = localStorage.getItem(key);
-  if (stored) {
-    try { return JSON.parse(stored); } catch { return DEFAULT_SYMBOLS; }
+/**
+ * 取得當前使用者的自選股代碼清單
+ */
+export function getStoredWatchlistSymbols(): string[] {
+  if (typeof window === "undefined") return [];
+  const key = getWatchlistStorageKey();
+  const raw = localStorage.getItem(key);
+  if (raw !== null) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      return [];
+    }
   }
-  // 若新使用者初次登入，帶入預設清單
-  return DEFAULT_SYMBOLS;
+  return [];
 }
 
-function setStoredSymbols(symbols: string[]) {
-  if (typeof window !== 'undefined') {
-    const key = getStorageKey();
-    localStorage.setItem(key, JSON.stringify(symbols));
+/**
+ * 儲存當前使用者的自選股清單並廣播變更
+ */
+export function saveWatchlistSymbols(symbols: string[]) {
+  if (typeof window === "undefined") return;
+  const key = getWatchlistStorageKey();
+  localStorage.setItem(key, JSON.stringify(symbols));
+  window.dispatchEvent(new CustomEvent("watchlist_changed", { detail: symbols }));
+}
+
+/**
+ * 新增代碼至自選股
+ */
+export function addSymbolToWatchlist(symbol: string): boolean {
+  if (typeof window === "undefined" || !symbol) return false;
+  const clean = symbol.trim().toUpperCase();
+  const list = getStoredWatchlistSymbols();
+  if (!list.includes(clean)) {
+    const updated = [...list, clean];
+    saveWatchlistSymbols(updated);
+    return true;
   }
+  return false;
+}
+
+/**
+ * 從自選股移除代碼
+ */
+export function removeSymbolFromWatchlist(symbol: string): boolean {
+  if (typeof window === "undefined" || !symbol) return false;
+  const clean = symbol.trim().toUpperCase();
+  const list = getStoredWatchlistSymbols();
+  if (list.includes(clean)) {
+    const updated = list.filter((s) => s !== clean);
+    saveWatchlistSymbols(updated);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * 檢查代碼是否已在自選股中
+ */
+export function isSymbolInWatchlist(symbol: string): boolean {
+  if (typeof window === "undefined" || !symbol) return false;
+  const clean = symbol.trim().toUpperCase();
+  const list = getStoredWatchlistSymbols();
+  return list.includes(clean);
 }
 
 export function useWatchlist() {
@@ -45,16 +93,21 @@ export function useWatchlist() {
   const fetchWatchlist = useCallback(async () => {
     try {
       setIsLoading(true);
-      const symbols = getStoredSymbols();
-      
+      const symbols = getStoredWatchlistSymbols();
+
+      if (symbols.length === 0) {
+        setItems([]);
+        return;
+      }
+
       // Fetch real quotes for each symbol
       const results = await Promise.allSettled(
-        symbols.map(sym => apiStocks.getQuote(sym).then(r => r.data))
+        symbols.map((sym) => apiStocks.getQuote(sym).then((r) => r.data))
       );
 
       const stocks: WatchlistStock[] = [];
-      results.forEach((res) => {
-        if (res.status === 'fulfilled' && res.value) {
+      results.forEach((res, idx) => {
+        if (res.status === "fulfilled" && res.value) {
           const d = res.value;
           stocks.push({
             symbol: d.symbol,
@@ -63,7 +116,19 @@ export function useWatchlist() {
             change: d.change ?? 0,
             change_pct: d.change_pct ?? 0,
             volume: d.volume ?? 0,
-            market: d.market ?? 'US',
+            market: d.market ?? "US",
+          });
+        } else {
+          // 若後端暫時無回傳，保留代碼骨架以供展示
+          const sym = symbols[idx];
+          stocks.push({
+            symbol: sym,
+            name: sym,
+            price: 0,
+            change: 0,
+            change_pct: 0,
+            volume: 0,
+            market: sym.endsWith(".TW") ? "TW" : "US",
           });
         }
       });
@@ -78,31 +143,37 @@ export function useWatchlist() {
 
   useEffect(() => {
     fetchWatchlist();
-    // 切換 Google 帳號時立即載入該帳號之獨立自選股
-    const handleAuthChange = () => fetchWatchlist();
-    window.addEventListener("stock_auth_changed", handleAuthChange);
-    // Auto-refresh every 30 seconds
-    const timer = setInterval(fetchWatchlist, 30000);
+
+    const handleUpdate = () => {
+      fetchWatchlist();
+    };
+
+    window.addEventListener("watchlist_changed", handleUpdate);
+    window.addEventListener("stock_auth_changed", handleUpdate);
+
     return () => {
-      window.removeEventListener("stock_auth_changed", handleAuthChange);
-      clearInterval(timer);
+      window.removeEventListener("watchlist_changed", handleUpdate);
+      window.removeEventListener("stock_auth_changed", handleUpdate);
     };
   }, [fetchWatchlist]);
 
-  const addItem = async (symbol: string) => {
-    const symbols = getStoredSymbols();
-    if (!symbols.includes(symbol)) {
-      symbols.push(symbol);
-      setStoredSymbols(symbols);
-      await fetchWatchlist();
-    }
+  const addStock = async (symbol: string) => {
+    addSymbolToWatchlist(symbol);
+    await fetchWatchlist();
   };
 
-  const removeItem = async (symbol: string) => {
-    const symbols = getStoredSymbols().filter(s => s !== symbol);
-    setStoredSymbols(symbols);
-    setItems(prev => prev.filter(i => i.symbol !== symbol));
+  const removeStock = async (symbol: string) => {
+    removeSymbolFromWatchlist(symbol);
+    await fetchWatchlist();
   };
 
-  return { items, addItem, removeItem, isLoading, refreshQuotes: fetchWatchlist };
+  return {
+    items,
+    isLoading,
+    addStock,
+    removeStock,
+    addItem: addStock,
+    removeItem: removeStock,
+    refetch: fetchWatchlist,
+  };
 }
