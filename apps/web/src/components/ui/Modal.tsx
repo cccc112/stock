@@ -27,13 +27,13 @@ export default function Modal({ isOpen, onClose, title, children, className }: M
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 [data-theme=light]:bg-slate-800/25 backdrop-blur-sm animate-fade-in">
       <div 
         className="absolute inset-0" 
         onClick={onClose}
       />
       <div className={cn(
-        "relative z-10 glass-card w-full max-w-md mx-4 animate-slide-up bg-[var(--bg-secondary)] shadow-2xl",
+        "relative z-10 glass-card w-full max-w-md mx-4 animate-slide-up bg-[var(--bg-secondary)] shadow-xl [data-theme=light]:shadow-lg [data-theme=light]:border-slate-200",
         className
       )}>
         <div className="flex justify-between items-center mb-4 border-b border-[var(--border)] pb-4 p-4">

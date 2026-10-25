@@ -19,7 +19,6 @@ import AIChartAnalyzer from "@/components/charts/AIChartAnalyzer";
 import FinancialsSection from "@/components/stock/FinancialsSection";
 import ETFInfoSection from "@/components/stock/ETFInfoSection";
 import AICommitteeSection from "@/components/dashboard/AICommitteeSection";
-import SnowflakeRadar from "@/components/stock/SnowflakeRadar";
 import { Term, InfoTip } from "@/components/ui/TermTooltip";
 
 const CandlestickChart = dynamic(() => import('@/components/charts/CandlestickChart'), { ssr: false });
@@ -272,11 +271,11 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
         <div className="lg:col-span-1 space-y-6">
           {deepSummary?.verdict && activeTab !== 'financials' && (
             <Card
-              title={<Term k="snowflake_radar" label="最終多空裁決與五維雷達" />}
+              title={<Term k="snowflake_radar" label="多空裁決與策略價位" />}
               subtitle={
                 deepSummary.is_etf
-                  ? "整合追蹤指數、內扣費用、波動率與趨勢結構"
-                  : "整合財報、杜邦與四大經典策略模型"
+                  ? "整合追蹤指數、內扣費用與趨勢位階"
+                  : "整合財報體質、估值與四大策略模型"
               }
               variant="accent-border"
             >
@@ -288,15 +287,10 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                   </span>
                 </div>
 
-                {deepSummary.radar && (
-                  <div className="flex justify-center py-1 bg-[var(--bg-primary)]/60 rounded-lg border border-[var(--border)]">
-                    <SnowflakeRadar
-                      items={deepSummary.radar}
-                      totalScore={deepSummary.verdict.total_score}
-                      size={205}
-                    />
-                  </div>
-                )}
+                <div className="p-3 rounded-lg bg-[var(--bg-primary)]/70 border border-[var(--border)] text-xs text-primary leading-relaxed">
+                  <span className="font-semibold text-accent mr-1">結論:</span>
+                  <span>{deepSummary.verdict.conclusion}</span>
+                </div>
 
                 {deepSummary.models && (
                   <div className="space-y-1.5 text-xs border-t border-[var(--border)] pt-3">
