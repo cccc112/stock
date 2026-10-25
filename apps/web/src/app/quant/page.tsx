@@ -32,11 +32,13 @@ export default function QuantScreenerPage() {
     ma_short: 5, ma_mid: 20, ma_long: 60,
     macd_fast: 12, macd_slow: 26, macd_signal: 9,
     boll_period: 20, boll_std: 2,
-    kdj_n: 9, vol_ma: 50
+    kdj_n: 9, vol_ma: 50,
+    bottom_vol_mult: 2.2, bottom_min_gain: 2.5
   });
 
   const TABS: { label: string; value: string; term?: string }[] = [
     { label: '全部', value: 'all' },
+    { label: '底部爆量', value: '底部爆量起漲', term: 'volume_breakout' },
     { label: '量價異動', value: 'volume_anomaly', term: 'volume_anomaly' },
     { label: '均線交叉', value: 'golden_death_cross', term: 'golden_death_cross' },
     { label: 'MACD背離', value: 'macd_divergence', term: 'macd_divergence' },
@@ -250,19 +252,19 @@ export default function QuantScreenerPage() {
               <span className="text-sm font-medium text-secondary">快捷參數:</span>
               <div className="flex flex-wrap gap-2">
                 <button 
-                  onClick={() => setParams({ ma_short: 5, ma_mid: 20, ma_long: 60, macd_fast: 12, macd_slow: 26, macd_signal: 9, boll_period: 20, boll_std: 2, kdj_n: 9, vol_ma: 50 })}
+                  onClick={() => setParams({ ma_short: 5, ma_mid: 20, ma_long: 60, macd_fast: 12, macd_slow: 26, macd_signal: 9, boll_period: 20, boll_std: 2, kdj_n: 9, vol_ma: 50, bottom_vol_mult: 2.2, bottom_min_gain: 2.5 })}
                   className="text-xs px-3 py-1 rounded bg-[var(--bg-tertiary)] hover:bg-accent hover:text-white transition-colors border border-[var(--border)]"
                 >
                   預設 (波段)
                 </button>
                 <button 
-                  onClick={() => setParams({ ma_short: 3, ma_mid: 5, ma_long: 10, macd_fast: 5, macd_slow: 10, macd_signal: 5, boll_period: 10, boll_std: 2, kdj_n: 5, vol_ma: 20 })}
+                  onClick={() => setParams({ ma_short: 3, ma_mid: 5, ma_long: 10, macd_fast: 5, macd_slow: 10, macd_signal: 5, boll_period: 10, boll_std: 2, kdj_n: 5, vol_ma: 20, bottom_vol_mult: 2.5, bottom_min_gain: 3.0 })}
                   className="text-xs px-3 py-1 rounded bg-[var(--bg-tertiary)] hover:bg-accent hover:text-white transition-colors border border-[var(--border)]"
                 >
                   極短線 (當沖/隔日沖)
                 </button>
                 <button 
-                  onClick={() => setParams({ ma_short: 20, ma_mid: 60, ma_long: 120, macd_fast: 26, macd_slow: 52, macd_signal: 18, boll_period: 60, boll_std: 2, kdj_n: 18, vol_ma: 120 })}
+                  onClick={() => setParams({ ma_short: 20, ma_mid: 60, ma_long: 120, macd_fast: 26, macd_slow: 52, macd_signal: 18, boll_period: 60, boll_std: 2, kdj_n: 18, vol_ma: 120, bottom_vol_mult: 2.0, bottom_min_gain: 2.0 })}
                   className="text-xs px-3 py-1 rounded bg-[var(--bg-tertiary)] hover:bg-accent hover:text-white transition-colors border border-[var(--border)]"
                 >
                   長線 (存股/趨勢)
@@ -281,7 +283,9 @@ export default function QuantScreenerPage() {
                 { key: 'macd_fast', label: 'MACD 快線', term: 'macd' },
                 { key: 'macd_slow', label: 'MACD 慢線', term: 'macd' },
                 { key: 'macd_signal', label: 'MACD 訊號', term: 'macd' },
-                { key: 'kdj_n', label: 'KDJ 週期', term: 'kd' }
+                { key: 'kdj_n', label: 'KDJ 週期', term: 'kd' },
+                { key: 'bottom_vol_mult', label: '底部爆量倍數', term: 'volume_breakout' },
+                { key: 'bottom_min_gain', label: '底部長紅門檻(%)', term: 'volume_breakout' }
               ].map(({ key, label, term }) => (
                 <div key={key} className="flex flex-col gap-1">
                   <label className="text-xs text-secondary">

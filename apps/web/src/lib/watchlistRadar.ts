@@ -161,6 +161,30 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
         }
       }
 
+      // 2.5 底部爆量主力起漲訊號 (Bottom Volume Breakout)
+      if (changePct >= 2.5 && price > 0) {
+        const ruleId = "bottom_volume_surge";
+        const cooldownKey = `${symbol}_${ruleId}`;
+        const lastTriggered = cooldownMap[cooldownKey] || 0;
+
+        if (now - lastTriggered > COOLDOWN_MS) {
+          const event: RadarAlertEvent = {
+            id: `${symbol}_${ruleId}_${now}`,
+            symbol,
+            name,
+            ruleId,
+            title: `🔥 底部爆量主力吸籌起漲`,
+            message: `${name} 於相對低檔打底後爆量收長紅 (+${changePct}%)，主力大單換手積極，帶量脫離底部成本區！`,
+            price,
+            changePct,
+            type: "up",
+            timestamp: now,
+          };
+          triggeredEvents.push(event);
+          cooldownMap[cooldownKey] = now;
+        }
+      }
+
       // 3. AI 投資委員會階梯進場價觸及
       const entryZone = verdict.entry_zone;
       if (Array.isArray(entryZone) && entryZone.length === 2) {

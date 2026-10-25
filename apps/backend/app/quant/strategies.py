@@ -164,9 +164,85 @@ def detect_volume_breakout(df: pd.DataFrame, params: dict = None) -> Optional[St
         return StrategySignal("爆量突破", SignalDirection.BUY, 0.8, "成交量大於 50 日均量 2 倍，且收紅 K 突破波段高點")
     return None
 
+def detect_bottom_volume_breakout(df: pd.DataFrame, params: dict = None) -> Optional[StrategySignal]:
+    """
+    底部爆量起漲選股模型 (Bottom Volume Breakout):
+    1. 過去 30~60 天處於相對低檔或收斂打底整理區（位處 60 日低分位區間，非高檔過熱追高）
+    2. 當日成交量顯著放大為 20 日均量的 2.2 倍以上（或 5 日均量的 2.5 倍以上），代表大戶主力進場換手
+    3. 當日收「實體長紅棒」(收盤價 > 開盤價 且 漲幅 >= 2.5%)
+    4. 收盤價突破過去 15~20 日整理區之最高收盤價，脫離主力吸籌成本區
+    """
+    params = params or {}
+    vol_multiple = float(params.get('bottom_vol_mult', 2.2))
+    min_gain_pct = float(params.get('bottom_min_gain', 2.5))
+
+    if len(df) < 35:
+        return None
+
+    volumes = df['volume']
+    closes = df['close']
+    opens = df['open']
+    highs = df['high']
+    lows = df['low']
+
+    curr_vol = float(volumes.iloc[-1])
+    curr_close = float(closes.iloc[-1])
+    curr_open = float(opens.iloc[-1])
+    prev_close = float(closes.iloc[-2])
+
+    if prev_close <= 0:
+        return None
+
+    # 當日漲幅與實體紅 K 檢驗
+    gain_pct = ((curr_close - prev_close) / prev_close) * 100
+    is_solid_bull = curr_close > curr_open and gain_pct >= min_gain_pct
+
+    if not is_solid_bull:
+        return None
+
+    # 成交量放大倍數檢驗（相較 20 日均量與 5 日均量）
+    vol_ma20 = float(volumes.iloc[-21:-1].mean()) if len(volumes) >= 21 else float(volumes.mean())
+    vol_ratio = curr_vol / max(1.0, vol_ma20)
+
+    if vol_ratio < vol_multiple:
+        return None
+
+    # 低檔打底與整理平台突破檢驗
+    lookback = min(60, len(df) - 1)
+    period_high = float(highs.iloc[-lookback:-1].max())
+    period_low = float(lows.iloc[-lookback:-1].min())
+    price_range = max(0.01, period_high - period_low)
+    price_position = (curr_close - period_low) / price_range
+
+    # 必須處於低檔或中低檔位階（前波回檔整理後，位階在 0% ~ 55% 內，非高檔過熱出貨）
+    if price_position > 0.58:
+        return None
+
+    # 突破前 15 日整理區之最高收盤價（頸線突破）
+    plat_high = float(closes.iloc[-16:-1].max()) if len(closes) >= 16 else float(closes.iloc[:-1].max())
+    is_neckline_breakout = curr_close >= plat_high * 0.995
+
+    if is_neckline_breakout:
+        return StrategySignal(
+            "底部爆量起漲",
+            SignalDirection.BUY,
+            0.9,
+            f"低檔整理後爆量起漲！成交量暴增至 20 日均量 {vol_ratio:.1f} 倍，收實體長紅 (+{gain_pct:.1f}%) 帶量突破前波整理平台頸線。"
+        )
+
+    return None
+
 def run_all_strategies(df: pd.DataFrame, params: dict = None) -> List[Dict[str, Any]]:
     signals = []
-    for detect_fn in [detect_golden_death_cross, detect_ma_alignment, detect_macd_divergence, detect_bollinger_squeeze, detect_kdj_cross, detect_volume_breakout]:
+    for detect_fn in [
+        detect_bottom_volume_breakout,
+        detect_golden_death_cross,
+        detect_ma_alignment,
+        detect_macd_divergence,
+        detect_bollinger_squeeze,
+        detect_kdj_cross,
+        detect_volume_breakout,
+    ]:
         try:
             result = detect_fn(df, params)
             if result:
