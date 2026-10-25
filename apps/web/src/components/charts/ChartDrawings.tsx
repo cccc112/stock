@@ -32,15 +32,15 @@ const TWO_POINT: Tool[] = ['trend', 'ray', 'channel', 'fib', 'rect'];
 const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
 const COLORS = ['#f59e0b', '#6366f1', '#ef4444', '#22c55e', '#e5e7eb'];
 
-const TOOLS: { id: Tool; label: string; hint: string }[] = [
-  { id: 'cursor', label: '選取', hint: '選取 / 拖曳已畫的線' },
-  { id: 'trend', label: '趨勢線', hint: '點兩下：起點、終點' },
-  { id: 'ray', label: '射線', hint: '點兩下，向右無限延伸（常用於壓力/支撐趨勢線）' },
-  { id: 'channel', label: '上下通道', hint: '點兩下：同時畫出平行上下趨勢線通道' },
-  { id: 'hline', label: '水平線', hint: '點一下，標記支撐或壓力價位' },
-  { id: 'vline', label: '垂直線', hint: '點一下，標記重要日期' },
-  { id: 'fib', label: '斐波那契', hint: '點兩下：波段起點與終點' },
-  { id: 'rect', label: '矩形', hint: '點兩下：標記區間（盤整區、缺口）' },
+const TOOLS: { id: Tool; label: string; hint: string; term?: string }[] = [
+  { id: 'cursor', label: '選取', hint: '選取 / 拖曳已畫的線（雙擊線條可直接刪除）' },
+  { id: 'trend', label: '趨勢線', hint: '點兩下：起點、終點（有限長度線段）', term: 'trend_tool' },
+  { id: 'ray', label: '射線', hint: '點兩下：起點、方向點，自動向右無限延伸', term: 'ray_tool' },
+  { id: 'channel', label: '上下通道', hint: '點兩下：同時畫出平行上下趨勢線通道', term: 'channel_tool' },
+  { id: 'hline', label: '水平線', hint: '點一下，標記支撐或壓力價位', term: 'hline_tool' },
+  { id: 'vline', label: '垂直線', hint: '點一下，標記重要日期', term: 'vline_tool' },
+  { id: 'fib', label: '斐波那契', hint: '點兩下：波段起點與終點', term: 'fib_tool' },
+  { id: 'rect', label: '矩形', hint: '點兩下：標記區間（盤整區、缺口）', term: 'rect_tool' },
 ];
 
 /**
@@ -241,16 +241,24 @@ function saveStore(symbol: string, store: Store) {
 
 const newId = () => Math.random().toString(36).slice(2, 10);
 
+export interface Draft { type: Exclude<Tool, 'cursor'>; p1: Anchor; cursor: Anchor | null }
+
 // ---------------------------------------------------------------- state hook
 export function useDrawings(symbol: string, intraday: boolean) {
   const cls: keyof Store = intraday ? 'i' : 'd';
   const [store, setStore] = useState<Store>(() => loadStore(symbol));
   const storeRef = useRef(store);
   const histRef = useRef<{ cls: keyof Store; list: Drawing[] }[]>([]);
-  const [tool, setTool] = useState<Tool>('cursor');
+  const [tool, setToolState] = useState<Tool>('cursor');
+  const [draft, setDraft] = useState<Draft | null>(null);
   const [color, setColor] = useState(COLORS[0]);
   const [selected, setSelected] = useState<string | null>(null);
   const [magnet, setMagnet] = useState(true);
+
+  const setTool = useCallback((nextTool: Tool) => {
+    setDraft(null);
+    setToolState(nextTool);
+  }, []);
 
   const pushHistory = useCallback(() => {
     histRef.current.push({ cls, list: storeRef.current[cls] });
@@ -268,7 +276,31 @@ export function useDrawings(symbol: string, intraday: boolean) {
   const add = useCallback((d: Drawing) => update(l => [...l, d]), [update]);
   const patch = useCallback((id: string, p: Partial<Drawing>, record = false) =>
     update(l => l.map(d => (d.id === id ? { ...d, ...p } : d)), record), [update]);
-  const remove = useCallback((id: string) => { update(l => l.filter(d => d.id !== id)); setSelected(null); }, [update]);
+  const remove = useCallback((id: string) => {
+    update(l => l.filter(d => d.id !== id));
+    setSelected(null);
+    setDraft(null);
+  }, [update]);
+
+  // 刪除目前選取的線；若未選取但正在畫草稿則取消草稿；否則刪除最後一條畫的線
+  const removeSelectedOrLast = useCallback(() => {
+    if (draft) {
+      setDraft(null);
+      setToolState('cursor');
+      return;
+    }
+    if (selected) {
+      update(l => l.filter(d => d.id !== selected));
+      setSelected(null);
+      return;
+    }
+    const list = storeRef.current[cls];
+    if (list.length > 0) {
+      update(l => l.slice(0, -1));
+      setSelected(null);
+    }
+  }, [draft, selected, cls, update]);
+
   // 以 AI 計算的支撐/壓力水平線取代舊的 AI 線（id 以 ai- 開頭），不進復原堆疊
   const setAiLines = useCallback((lines: { price: number; color: string; title: string }[], ts: number) => {
     update(l => [
@@ -277,8 +309,19 @@ export function useDrawings(symbol: string, intraday: boolean) {
     ], false);
   }, [update]);
 
-  const clear = useCallback(() => { update(() => []); setSelected(null); }, [update]);
+  const clear = useCallback(() => {
+    setDraft(null);
+    setToolState('cursor');
+    update(() => []);
+    setSelected(null);
+  }, [update]);
+
   const undo = useCallback(() => {
+    if (draft) {
+      setDraft(null);
+      setToolState('cursor');
+      return;
+    }
     const last = histRef.current.pop();
     if (!last) return;
     const next = { ...storeRef.current, [last.cls]: last.list };
@@ -286,11 +329,11 @@ export function useDrawings(symbol: string, intraday: boolean) {
     setStore(next);
     saveStore(symbol, next);
     setSelected(null);
-  }, [symbol]);
+  }, [symbol, draft]);
 
   return {
-    drawings: store[cls], tool, setTool, color, setColor, selected, setSelected, magnet, setMagnet,
-    add, patch, remove, clear, undo, pushHistory, setAiLines,
+    drawings: store[cls], tool, setTool, draft, setDraft, color, setColor, selected, setSelected, magnet, setMagnet,
+    add, patch, remove, removeSelectedOrLast, clear, undo, pushHistory, setAiLines,
   };
 }
 
@@ -301,17 +344,22 @@ export function DrawingToolbar({
   api,
   showAutoTrends = true,
   onToggleAutoTrends,
+  onApplyThemeColor,
 }: {
   api: DrawingsApi;
   bars?: BarInfo[];
   showAutoTrends?: boolean;
   onToggleAutoTrends?: () => void;
+  onApplyThemeColor?: (color: string) => void;
 }) {
-  const { tool, setTool, color, setColor, selected, remove, clear, undo, magnet, setMagnet, drawings, setSelected } = api;
+  const { tool, setTool, draft, color, setColor, selected, removeSelectedOrLast, clear, undo, magnet, setMagnet, drawings, setSelected } = api;
   const btn = (active: boolean) =>
-    `px-2.5 py-1 text-xs rounded-md border transition-colors whitespace-nowrap ${
-      active ? 'border-[var(--accent)] text-accent bg-[var(--accent)]/10' : 'border-[var(--border)] text-secondary hover:text-primary'}`;
+    `px-2.5 py-1 text-xs rounded-md border transition-all whitespace-nowrap ${
+      active
+        ? 'border-[var(--accent)] text-accent bg-[var(--accent)]/15 shadow-sm'
+        : 'border-[var(--border)] text-secondary hover:text-primary hover:border-[var(--border-hover)]'}`;
   const current = TOOLS.find(t => t.id === tool);
+  const canDelete = Boolean(selected || draft || drawings.length > 0);
 
   return (
     <div className="mb-3">
@@ -332,30 +380,95 @@ export function DrawingToolbar({
         )}
         {TOOLS.map(t => (
           <div key={t.id} className="inline-flex items-center">
-            <button title={t.hint} className={btn(tool === t.id)}
-              onClick={() => { setTool(t.id); setSelected(null); }}>{t.label}</button>
-            {t.id === 'fib' && <InfoTip term="fib_tool" />}
-            {t.id === 'channel' && <InfoTip term="channel_tool" />}
+            <button
+              type="button"
+              title={t.hint}
+              className={btn(tool === t.id)}
+              onClick={() => {
+                // 再點一次同一個畫線工具即可直接取消並回到「選取」模式
+                if (tool === t.id && t.id !== 'cursor') {
+                  setTool('cursor');
+                } else {
+                  setTool(t.id);
+                }
+                setSelected(null);
+              }}
+            >
+              {t.label}
+            </button>
+            {t.term && <InfoTip term={t.term} />}
           </div>
         ))}
         <span className="w-px h-5 bg-[var(--border)] mx-1" />
-        {COLORS.map(c => (
-          <button key={c} aria-label={`顏色 ${c}`} onClick={() => {
-            setColor(c);
-            if (selected) api.patch(selected, { color: c }, true);
-          }}
-            className={`w-5 h-5 rounded-full border-2 ${color === c ? 'border-white' : 'border-transparent'}`}
-            style={{ background: c }} />
-        ))}
+        <div className="inline-flex items-center gap-1.5">
+          {COLORS.map(c => (
+            <button
+              key={c}
+              type="button"
+              title="點擊切換畫筆顏色（若已畫線會立即變色；若尚未手動畫線則會改變趨勢線配色）"
+              aria-label={`顏色 ${c}`}
+              onClick={() => {
+                setColor(c);
+                if (selected) {
+                  api.patch(selected, { color: c }, true);
+                } else if (drawings.length > 0) {
+                  const lastId = drawings[drawings.length - 1].id;
+                  api.patch(lastId, { color: c }, true);
+                  setSelected(lastId);
+                } else if (onApplyThemeColor) {
+                  onApplyThemeColor(c);
+                }
+              }}
+              className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 ${
+                color === c ? 'border-[var(--text-primary)] scale-110 shadow-md' : 'border-transparent opacity-80 hover:opacity-100'
+              }`}
+              style={{ background: c }}
+            />
+          ))}
+          <InfoTip term="color_tool" />
+        </div>
         <span className="w-px h-5 bg-[var(--border)] mx-1" />
-        <button className={btn(magnet)} title="自動吸附到最近 K 棒的開高低收" onClick={() => setMagnet(!magnet)}>磁吸</button>
-        <button className={btn(false)} onClick={undo} title="復原 (Ctrl+Z)">復原</button>
-        <button className={btn(false)} disabled={!selected} onClick={() => selected && remove(selected)} title="刪除選取 (Delete)">刪除</button>
-        <button className={btn(false)} disabled={!drawings.length}
-          onClick={() => { if (window.confirm('清除這檔股票在此圖上的所有畫線？')) clear(); }}>全部清除</button>
+        <div className="inline-flex items-center">
+          <button type="button" className={btn(magnet)} title="自動吸附到最近 K 棒的開高低收" onClick={() => setMagnet(!magnet)}>
+            磁吸
+          </button>
+          <InfoTip term="magnet_tool" />
+        </div>
+        {(tool !== 'cursor' || draft) && (
+          <button
+            type="button"
+            className="px-2.5 py-1 text-xs rounded-md border border-amber-500/40 bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 transition-colors whitespace-nowrap"
+            onClick={() => setTool('cursor')}
+          >
+            取消畫線
+          </button>
+        )}
+        <button type="button" className={btn(false)} onClick={undo} title="復原上一步 (Ctrl+Z)">
+          復原
+        </button>
+        <button
+          type="button"
+          className={`${btn(false)} ${!canDelete ? 'opacity-40 cursor-not-allowed' : 'hover:border-rose-500/50 hover:text-rose-400'}`}
+          disabled={!canDelete}
+          onClick={removeSelectedOrLast}
+          title="刪除選取的線或最後一條畫線 (Delete)"
+        >
+          刪除
+        </button>
+        <button
+          type="button"
+          className={`${btn(false)} ${!canDelete ? 'opacity-40 cursor-not-allowed' : 'hover:border-rose-500/50 hover:text-rose-400'}`}
+          disabled={!canDelete}
+          onClick={clear}
+          title="一鍵清除圖上所有手動畫線"
+        >
+          全部清除
+        </button>
       </div>
       {tool !== 'cursor' && current && (
-        <div className="text-xs text-secondary mt-1.5">{current.hint}。按 Esc 取消。</div>
+        <div className="text-xs text-accent mt-1.5 flex items-center gap-2">
+          <span>{current.hint}（再點一次按鈕、按右鍵或點「取消畫線」即可退出；畫完可點「刪除」或「全部清除」消掉）。</span>
+        </div>
       )}
     </div>
   );
@@ -369,7 +482,6 @@ interface LayerProps {
   api: DrawingsApi;
 }
 
-interface Draft { type: Exclude<Tool, 'cursor'>; p1: Anchor; cursor: Anchor | null }
 interface Drag {
   id: string;
   mode: 'p1' | 'p2' | 'move';
@@ -380,10 +492,9 @@ interface Drag {
 type Pt = { x: number; y: number };
 
 export function DrawingLayer({ chart, series, bars, api }: LayerProps) {
-  const { drawings, tool, color, selected, setSelected, magnet, add, patch, remove, undo, pushHistory, setTool } = api;
+  const { drawings, tool, draft, setDraft, color, selected, setSelected, magnet, add, patch, remove, removeSelectedOrLast, undo, pushHistory, setTool } = api;
   const svgRef = useRef<SVGSVGElement>(null);
   const [, setTick] = useState(0);
-  const [draft, setDraft] = useState<Draft | null>(null);
   const dragRef = useRef<Drag | null>(null);
   const drawingsRef = useRef(drawings);
   useEffect(() => { drawingsRef.current = drawings; }, [drawings]);
@@ -597,12 +708,12 @@ export function DrawingLayer({ chart, series, bars, api }: LayerProps) {
       const el = e.target as HTMLElement | null;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
       if (e.key === 'Escape') { setDraft(null); setTool('cursor'); setSelected(null); }
-      else if ((e.key === 'Delete' || e.key === 'Backspace') && selected) { e.preventDefault(); remove(selected); }
+      else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); removeSelectedOrLast(); }
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selected, remove, undo, setTool, setSelected]);
+  }, [removeSelectedOrLast, undo, setTool, setSelected, setDraft]);
 
   // ---- 繪製
   const fmt = (v: number) => v.toFixed(2);
@@ -621,8 +732,18 @@ export function DrawingLayer({ chart, series, bars, api }: LayerProps) {
     const sw = isSel ? 2.5 : 1.8;
     const common = { stroke: d.color, strokeWidth: sw, fill: 'none', pointerEvents: 'none' as const };
     const hit = (x1: number, y1: number, x2: number, y2: number) => preview ? null : (
-      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={12} style={{ pointerEvents: 'stroke', cursor: 'move' }}
-        onPointerDown={e => startDrag(e, d, 'move')} />
+      <line
+        x1={x1}
+        y1={y1}
+        x2={x2}
+        y2={y2}
+        stroke="transparent"
+        strokeWidth={14}
+        style={{ pointerEvents: 'stroke', cursor: 'move' }}
+        onPointerDown={e => startDrag(e, d, 'move')}
+        onDoubleClick={e => { e.stopPropagation(); remove(d.id); }}
+        onContextMenu={e => { e.preventDefault(); e.stopPropagation(); remove(d.id); }}
+      />
     );
     let body: React.ReactNode = null;
 
@@ -727,8 +848,20 @@ export function DrawingLayer({ chart, series, bars, api }: LayerProps) {
       {drawings.map(d => renderShape(d))}
       {draft?.cursor && renderShape({ id: 'draft', type: draft.type, color, p1: draft.p1, p2: draft.cursor }, true)}
       {drawingMode && (
-        <rect x={0} y={0} width={w} height={h} fill="transparent" style={{ pointerEvents: 'all', cursor: 'crosshair' }}
-          onPointerDown={onCanvasDown} onPointerMove={onCanvasMove} />
+        <rect
+          x={0}
+          y={0}
+          width={w}
+          height={h}
+          fill="transparent"
+          style={{ pointerEvents: 'all', cursor: 'crosshair' }}
+          onPointerDown={onCanvasDown}
+          onPointerMove={onCanvasMove}
+          onContextMenu={e => {
+            e.preventDefault();
+            setTool('cursor');
+          }}
+        />
       )}
     </svg>
   );

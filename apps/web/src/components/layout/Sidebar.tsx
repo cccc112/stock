@@ -95,10 +95,11 @@ export default function Sidebar() {
 
       <aside className={cn("sidebar", isOpen ? "open" : "")}>
         <div className="sidebar-header">
-          <div className="w-7 h-7 rounded-lg bg-accent/15 text-accent flex items-center justify-center flex-shrink-0">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-sky-500/25 to-indigo-500/25 border border-sky-400/30 text-accent flex items-center justify-center flex-shrink-0 shadow-sm">
             <TrendingUp size={16} />
           </div>
           <span className="font-semibold tracking-tight">AI 投資戰情室</span>
+          <span className="tech-glow-dot ml-0.5" />
           <button
             className="sidebar-close"
             onClick={() => setIsOpen(false)}

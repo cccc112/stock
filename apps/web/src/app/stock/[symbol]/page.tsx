@@ -25,8 +25,9 @@ import { Term, InfoTip } from "@/components/ui/TermTooltip";
 const CandlestickChart = dynamic(() => import('@/components/charts/CandlestickChart'), { ssr: false });
 
 const US_ETF_SET = new Set([
-  "SPY", "VOO", "QQQ", "DIA", "VYM", "XLK", "SOXX", "TLT", "BND",
-  "IEF", "SHY", "LQD", "GLD", "SLV", "USO", "IBIT", "VNQ", "SMH", "IVV",
+  "SPY", "VOO", "QQQ", "DIA", "IWM", "VYM", "SCHD", "JEPI", "JEPQ", "XLK", "XLF", "XLE", "XLV",
+  "SOXX", "SMH", "ARKK", "TLT", "BND", "IEF", "SHY", "LQD", "HYG", "GLD", "SLV", "USO", "DBA",
+  "IBIT", "FBTC", "ETHA", "VNQ", "IVV", "VTI", "VXUS", "EEM", "FXI", "EWJ",
 ]);
 
 function detectAssetType(sym: string): "ETF" | "ASSET" | "STOCK" {

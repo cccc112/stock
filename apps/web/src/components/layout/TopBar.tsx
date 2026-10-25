@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Menu, Search } from "lucide-react";
+import { Menu, Search, Sun, Moon } from "lucide-react";
 import { SIDEBAR_TOGGLE_EVENT } from "@/components/layout/Sidebar";
 import { apiStocks } from "@/lib/api";
 import { useBeginnerMode } from "@/components/ui/TermTooltip";
@@ -12,10 +12,24 @@ export default function TopBar() {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
   const { beginnerMode, toggleBeginnerMode } = useBeginnerMode();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const saved = (localStorage.getItem("theme_mode") as "dark" | "light") || "dark";
+    setTheme(saved);
+    document.documentElement.setAttribute("data-theme", saved);
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    localStorage.setItem("theme_mode", next);
+    document.documentElement.setAttribute("data-theme", next);
+  };
 
   useEffect(() => {
     const updateTime = () => {
@@ -169,7 +183,26 @@ export default function TopBar() {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 flex-shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          title={theme === "dark" ? "切換為淺色明亮模式" : "切換為深色科技玻璃模式"}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] text-secondary hover:text-primary hover:border-accent/40 text-xs font-medium transition-all cursor-pointer"
+        >
+          {theme === "dark" ? (
+            <>
+              <Sun size={14} className="text-amber-400" />
+              <span className="hidden sm:inline">淺色模式</span>
+            </>
+          ) : (
+            <>
+              <Moon size={14} className="text-sky-600" />
+              <span className="hidden sm:inline">深色科技</span>
+            </>
+          )}
+        </button>
+
         <button
           type="button"
           onClick={toggleBeginnerMode}
@@ -178,9 +211,9 @@ export default function TopBar() {
               ? "目前開啟新手註解：專有名詞旁會顯示「!」小圖示，滑鼠移過或手機點擊可看白話解釋"
               : "點擊開啟新手模式：顯示專有名詞「!」白話解釋"
           }
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
             beginnerMode
-              ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
+              ? "bg-amber-500/15 border-amber-500/40 text-amber-500"
               : "bg-[var(--bg-tertiary)] border-[var(--border)] text-secondary hover:text-primary"
           }`}
         >
@@ -196,8 +229,9 @@ export default function TopBar() {
           <span>新手模式：{beginnerMode ? "開" : "關"}</span>
         </button>
 
-        <div className="text-xs text-secondary font-mono tabular-nums hidden md:block">
-          {time}
+        <div className="text-xs text-secondary font-mono tabular-nums hidden md:flex items-center gap-2">
+          <span className="tech-glow-dot" title="即時報價連線中" />
+          <span>{time}</span>
         </div>
       </div>
     </div>

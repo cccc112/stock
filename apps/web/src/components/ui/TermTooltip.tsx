@@ -304,6 +304,41 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
     plain: "系統自動去趨勢化找出波段高點連成的「上壓力線（紅虛線）」與波段低點連成的「下支撐線（綠虛線）」。",
     guide: "股價靠近下趨勢支撐線不破是買點參考；帶量突破上趨勢壓力線代表整理結束、新一波漲勢啟動。",
   },
+  trend_tool: {
+    title: "趨勢線段 (Trendline Segment)",
+    plain: "在圖上點兩下（起點 A 與終點 B），畫出一條有限長度的斜線段，不會無限延伸。",
+    guide: "適合用來標記過去某一段特定的波段高點連線或波段低點連線。",
+  },
+  ray_tool: {
+    title: "射線 (Ray Trendline)",
+    plain: "點第一下決定「起點」，點第二下決定「斜率方向」後，線條會自動往右邊未來方向無限延伸到底。",
+    guide: "實戰中最常用來畫「下降壓力線」或「上升支撐線」，用來觀察這條斜線延伸到今天與未來幾天會落在哪個價位。若想消掉，直接點工具列的「刪除」或「全部清除」即可！",
+  },
+  hline_tool: {
+    title: "水平支撐壓力線 (Horizontal Line)",
+    plain: "在圖上點一下，直接畫出一條橫跨整個畫面的水平價格線。",
+    guide: "最常用來標記前波最高點、頸線位置、整數關卡或自己的買進成本與停損價。",
+  },
+  vline_tool: {
+    title: "垂直時間標記線 (Vertical Line)",
+    plain: "在圖上點一下，畫出一條垂直線標記特定日期。",
+    guide: "常用來標記法說會、財報公布日、除權息日或關鍵爆量轉折日。",
+  },
+  rect_tool: {
+    title: "矩形區間框 (Rectangle Box)",
+    plain: "點兩下框出一個長方形色塊，用來標記一段時間與價格的範圍。",
+    guide: "適合用來框出「箱型盤整區」、「跳空缺口（Gap）」或「主力底部吃貨區」。",
+  },
+  color_tool: {
+    title: "畫線與趨勢通道配色 (Color Palette)",
+    plain: "點擊圓圈可立即切換畫筆顏色；若目前已畫線，會直接改變選取線（或最後一條畫線）的顏色；若尚未手動畫線，則會直接切換圖上趨勢線的主題配色。",
+    guide: "可用紅色標記壓力線、綠色標記支撐線、金色標記關鍵成本線。",
+  },
+  magnet_tool: {
+    title: "K 棒磁吸模式 (OHLC Magnet)",
+    plain: "開啟後，滑鼠畫線靠近 K 棒時，會自動精準吸附在該根 K 棒的「最高價、最低價、開盤價或收盤價」。",
+    guide: "畫趨勢線與斐波那契時建議保持開啟，線條才能精準貼合影線尖端不歪斜。",
+  },
   fib_tool: {
     title: "斐波那契回撤 / 黃金分割率 (Fibonacci Retracement)",
     plain: "測量一波上漲後，拉回整理最容易止跌反彈的黃金比例位置（最關鍵是 0.382、0.5、0.618）。",
@@ -592,7 +627,7 @@ export function InfoTip({
           updatePosition();
           setOpen((prev) => !prev);
         }}
-        className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-mono font-bold leading-none ml-1 align-middle cursor-help hover:bg-amber-500 hover:text-slate-950 transition-colors flex-shrink-0"
+        className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/40 text-[10px] font-mono font-bold leading-none ml-1 align-middle cursor-help hover:bg-amber-500 hover:text-slate-950 transition-colors flex-shrink-0"
       >
         !
       </button>
@@ -605,22 +640,22 @@ export function InfoTip({
               top: coords.top,
               left: coords.left,
               transform: coords.placeAbove ? "translateY(-100%)" : "none",
-              width: 288,
+              width: 296,
               zIndex: 9999,
             }}
             onClick={(e) => e.stopPropagation()}
-            className="rounded-xl bg-[#0f172a] border border-amber-500/40 shadow-2xl p-3.5 text-left pointer-events-auto animate-fade-in"
+            className="rounded-xl bg-[var(--bg-secondary)] border border-amber-500/50 shadow-2xl p-3.5 text-left pointer-events-auto animate-fade-in backdrop-blur-xl"
           >
             <div className="flex items-center gap-1.5 mb-1.5">
               <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-slate-950 text-[10px] font-bold">
                 !
               </span>
-              <span className="text-xs font-bold text-amber-400 leading-snug">{title}</span>
+              <span className="text-xs font-bold text-amber-500 leading-snug">{title}</span>
             </div>
-            <p className="text-xs text-slate-100 leading-relaxed mb-2">{plain}</p>
+            <p className="text-xs text-primary leading-relaxed mb-2">{plain}</p>
             {guide && (
-              <div className="pt-2 border-t border-slate-800 text-[11px] text-slate-300 leading-relaxed">
-                <span className="text-emerald-400 font-semibold mr-1">[實戰判讀]</span>
+              <div className="pt-2 border-t border-[var(--border)] text-[11px] text-secondary leading-relaxed">
+                <span className="text-emerald-500 font-semibold mr-1">[實戰判讀]</span>
                 {guide}
               </div>
             )}

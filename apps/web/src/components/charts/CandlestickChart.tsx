@@ -178,6 +178,7 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
   const [error, setError] = useState<string | null>(null);
   const [activePeriod, setActivePeriod] = useState(period);
   const [showAutoTrends, setShowAutoTrends] = useState(true);
+  const [upperTrendColor, setUpperTrendColor] = useState('#ef4444');
   const [tooltipData, setTooltipData] = useState<any>(null);
   const [overlay, setOverlay] = useState<{ chart: IChartApi; series: ISeriesApi<SeriesType>; bars: BarInfo[] } | null>(null);
   const drawingsApi = useDrawings(symbol, activePeriod === '1d' || activePeriod === '5d');
@@ -193,26 +194,31 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
       chartRef.current = null;
     }
 
+    const isLight = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light';
+    const gridColor = isLight ? 'rgba(148, 163, 184, 0.22)' : 'rgba(59, 130, 246, 0.1)';
+    const borderColor = isLight ? 'rgba(148, 163, 184, 0.4)' : 'rgba(59, 130, 246, 0.2)';
+    const textColor = isLight ? '#475569' : '#94a3b8';
+
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth || 800,
       height: chartContainerRef.current.clientHeight || 398,
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#8b8f9a',
+        textColor,
         attributionLogo: false,
       },
       grid: {
-        vertLines: { color: 'rgba(42, 46, 63, 0.5)' },
-        horzLines: { color: 'rgba(42, 46, 63, 0.5)' },
+        vertLines: { color: gridColor },
+        horzLines: { color: gridColor },
       },
       crosshair: { mode: 1 },
-      rightPriceScale: { borderColor: 'rgba(42, 46, 63, 0.8)' },
+      rightPriceScale: { borderColor },
       leftPriceScale: {
         visible: true,
-        borderColor: 'rgba(42, 46, 63, 0.8)',
+        borderColor,
       },
       timeScale: { 
-        borderColor: 'rgba(42, 46, 63, 0.8)', 
+        borderColor, 
         timeVisible: activePeriod === '1d' || activePeriod === '5d',
         fixLeftEdge: true,
         fixRightEdge: true,
@@ -423,15 +429,39 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
     };
   }, [symbol, market, activePeriod, upColor, downColor]);
 
-  // 切換原生自動上下趨勢線顯示狀態
+  // 切換原生自動上下趨勢線顯示狀態與主題顏色
   useEffect(() => {
     try {
-      upperTrendRef.current?.applyOptions({ visible: showAutoTrends });
+      upperTrendRef.current?.applyOptions({ visible: showAutoTrends, color: upperTrendColor });
       lowerTrendRef.current?.applyOptions({ visible: showAutoTrends });
     } catch {
       /* ignore if disposed */
     }
-  }, [showAutoTrends]);
+  }, [showAutoTrends, upperTrendColor]);
+
+  // 監聽深淺色模式切換，即時更新 K 線圖座標軸與網格配色
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const applyThemeToChart = () => {
+      if (!chartRef.current) return;
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      const gridColor = isLight ? 'rgba(148, 163, 184, 0.22)' : 'rgba(59, 130, 246, 0.1)';
+      const borderColor = isLight ? 'rgba(148, 163, 184, 0.4)' : 'rgba(59, 130, 246, 0.2)';
+      const textColor = isLight ? '#475569' : '#94a3b8';
+      try {
+        chartRef.current.applyOptions({
+          layout: { textColor },
+          grid: { vertLines: { color: gridColor }, horzLines: { color: gridColor } },
+          rightPriceScale: { borderColor },
+          leftPriceScale: { borderColor },
+          timeScale: { borderColor },
+        });
+      } catch { /* ignore */ }
+    };
+    const observer = new MutationObserver(applyThemeToChart);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
 
   // 若 AI 有算出水平支撐/壓力線則一併標記在圖上
   const aiKey = JSON.stringify(priceLines);
@@ -462,7 +492,7 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
             onClick={() => setActivePeriod(p.value)}
             className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${
               activePeriod === p.value
-                ? 'bg-accent text-white shadow-[0_0_10px_rgba(99,102,241,0.5)]'
+                ? 'bg-accent text-white shadow-[0_0_12px_rgba(59,130,246,0.5)]'
                 : 'bg-[var(--bg-tertiary)] hover:bg-[var(--border)] text-secondary'
             }`}
           >
@@ -476,9 +506,13 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
         bars={overlay?.bars}
         showAutoTrends={showAutoTrends}
         onToggleAutoTrends={() => setShowAutoTrends(prev => !prev)}
+        onApplyThemeColor={(c) => {
+          setUpperTrendColor(c);
+          setShowAutoTrends(true);
+        }}
       />
 
-      <div className="relative h-[400px] border border-[var(--border)] rounded-xl bg-[var(--bg-secondary)]/50 overflow-hidden shadow-inner">
+      <div className="relative h-[400px] border border-[var(--border)] rounded-xl bg-[var(--bg-secondary)]/60 overflow-hidden shadow-inner">
         {/* Legends */}
         <div className="absolute top-3 left-4 z-10 flex flex-wrap items-center gap-3 text-xs font-mono">
           <div className="flex gap-1.5 items-center">
@@ -492,8 +526,8 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
           </div>
           {showAutoTrends && (
             <>
-              <div className="flex gap-1.5 items-center text-[#ef4444]">
-                <span className="w-3 border-t-2 border-dashed border-[#ef4444]"></span> 上趨勢壓力
+              <div className="flex gap-1.5 items-center" style={{ color: upperTrendColor }}>
+                <span className="w-3 border-t-2 border-dashed" style={{ borderColor: upperTrendColor }}></span> 上趨勢壓力
               </div>
               <div className="flex gap-1.5 items-center text-[#22c55e]">
                 <span className="w-3 border-t-2 border-dashed border-[#22c55e]"></span> 下趨勢支撐
