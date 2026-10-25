@@ -32,61 +32,48 @@ class MultiAgentInvestmentCommittee:
         return client
 
     async def _collect_market_context(self, symbol: str) -> Dict[str, Any]:
-        """蒐集行情、K線指標、基本面營收、籌碼與即時新聞"""
+        """平行蒐集行情、K線指標、基本面營收、籌碼與即時新聞（單項 5 秒逾時保護）"""
         clean_sym, kind, _ = market_data.split_symbol(symbol)
         is_tw = kind == "TW"
 
-        # 1. 即時報價
-        quote = await fetch_single_quote(symbol)
+        async def _safe(coro, timeout_s: float = 5.0):
+            try:
+                return await asyncio.wait_for(coro, timeout=timeout_s)
+            except Exception:
+                return None
 
-        # 2. 歷史價格（統一資料層，含備援）
+        tasks = [
+            _safe(fetch_single_quote(symbol), 4.0),
+            _safe(market_data.get_history(symbol, "3mo", "1d"), 4.5),
+            _safe(build_financial_report(symbol), 5.0),
+            _safe(finmind_service.get_monthly_revenue(clean_sym, months=6), 4.0) if is_tw else _safe(asyncio.sleep(0), 0.1),
+            _safe(finmind_service.get_institutional_investors(clean_sym, days=10), 4.0) if is_tw else _safe(asyncio.sleep(0), 0.1),
+            _safe(finmind_service.get_news(clean_sym, days=5), 4.0) if is_tw else _safe(asyncio.sleep(0), 0.1),
+        ]
+        quote, bars, rep, rev_data, inst_data, news_data = await asyncio.gather(*tasks)
+
         bars_summary = []
-        try:
-            bars = await market_data.get_history(symbol, "3mo", "1d")
-            bars_summary = [{"date": str(b.time)[:10], "open": b.open, "high": b.high, "low": b.low,
-                             "close": b.close, "volume": b.volume} for b in bars[-15:]]
-        except Exception as e:
-            logger.warning(f"Failed to fetch bars for {symbol}: {e}")
+        if bars:
+            bars_summary = [
+                {"date": str(b.time)[:10], "open": b.open, "high": b.high, "low": b.low, "close": b.close, "volume": b.volume}
+                for b in bars[-15:]
+            ]
 
-        # 財報重點（毛利率/EPS/估值…）
         financial_highlights = None
-        try:
-            rep = await build_financial_report(symbol)
+        if isinstance(rep, dict):
             financial_highlights = {k: rep.get(k) for k in ("quarters", "valuation", "dividend", "scores") if rep.get(k)}
-        except Exception as e:
-            logger.warning(f"Failed to build financial report for {symbol}: {e}")
 
-        # 3. 營收數據
-        revenue_summary = []
-        if is_tw:
-            try:
-                rev_data = await finmind_service.get_monthly_revenue(clean_sym, months=6)
-                revenue_summary = rev_data[-4:] if rev_data else []
-            except Exception:
-                pass
+        revenue_summary = rev_data[-4:] if isinstance(rev_data, list) and rev_data else []
 
-        # 4. 法人籌碼
         inst_summary = []
-        if is_tw:
-            try:
-                inst_data = await finmind_service.get_institutional_investors(clean_sym, days=10)
-                if inst_data:
-                    dates = sorted(list(set(r['date'] for r in inst_data)))[-5:]
-                    for d in dates:
-                        day_rows = [r for r in inst_data if r['date'] == d]
-                        net_buy = sum(r.get('buy', 0) - r.get('sell', 0) for r in day_rows)
-                        inst_summary.append({"date": d, "net_shares": net_buy})
-            except Exception:
-                pass
+        if isinstance(inst_data, list) and inst_data:
+            dates = sorted(list(set(r["date"] for r in inst_data)))[-5:]
+            for d in dates:
+                day_rows = [r for r in inst_data if r["date"] == d]
+                net_buy = sum(r.get("buy", 0) - r.get("sell", 0) for r in day_rows)
+                inst_summary.append({"date": d, "net_shares": net_buy})
 
-        # 5. 即時新聞
-        news_titles = []
-        if is_tw:
-            try:
-                news_data = await finmind_service.get_news(clean_sym, days=5)
-                news_titles = [n.get('title') for n in news_data[:6] if n.get('title')]
-            except Exception:
-                pass
+        news_titles = [n.get("title") for n in (news_data or [])[:6] if isinstance(n, dict) and n.get("title")]
 
         return {
             "symbol": symbol,

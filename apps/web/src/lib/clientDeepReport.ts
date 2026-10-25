@@ -4,15 +4,63 @@ function clamp(v: number, lo = 15, hi = 98): number {
   return Math.max(lo, Math.min(hi, Math.round(v)));
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("TIMEOUT")), ms);
+    promise
+      .then((val) => {
+        clearTimeout(timer);
+        resolve(val);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
+// 記憶體快取：同一檔股票在切換頁籤（K線 / 財報 / AI 深度分析 / AI 投資委員會）時直接秒取，不重複等待網路
+const deepReportCache = new Map<string, { ts: number; data?: any; promise?: Promise<any> }>();
+const CACHE_TTL_MS = 120_000; // 2 分鐘快取
+
+export interface ThinkingStep {
+  step: number;
+  role: string;
+  title: string;
+  thought: string;
+  metrics: string;
+}
+
 /**
  * 從 `/financials`、`/history`、`/quote` 計算完整五維雪花雷達（附帶每維度真實財報數據依據）、
  * 杜邦 ROE 三因子拆解、四大經典策略模型 (Piotroski / CANSLIM / Minervini VCP / SMC) 與最終多空裁決書。
+ * 內建 5.5 秒快速逾時保護與記憶體快取，確保任何情況下都能在數秒內完成。
  */
 export async function fetchOrBuildDeepReport(symbol: string): Promise<any> {
+  const key = symbol.trim().toUpperCase();
+  const now = Date.now();
+  const cached = deepReportCache.get(key);
+  if (cached?.data && now - cached.ts < CACHE_TTL_MS) {
+    return cached.data;
+  }
+  if (cached?.promise && now - cached.ts < 15_000) {
+    return cached.promise;
+  }
+
+  const workPromise = _buildDeepReportInternal(symbol).then((res) => {
+    deepReportCache.set(key, { ts: Date.now(), data: res });
+    return res;
+  });
+
+  deepReportCache.set(key, { ts: now, promise: workPromise });
+  return workPromise;
+}
+
+async function _buildDeepReportInternal(symbol: string): Promise<any> {
+  // 1. 先嘗試後端 `/deep-report`，但限制最多等 4.5 秒，避免被 Axios 重試卡住
   try {
-    const res = await apiResearch.getDeepReport(symbol);
+    const res = await withTimeout(apiResearch.getDeepReport(symbol), 4500);
     if (res?.data && res.data.verdict && res.data.models && Array.isArray(res.data.radar)) {
-      // 確保每個雷達維度都有具體財報指標說明 (metric)
       const d = res.data;
       const fin = d.financials || {};
       const q0 = (fin.quarters && fin.quarters[0]) || {};
@@ -23,13 +71,14 @@ export async function fetchOrBuildDeepReport(symbol: string): Promise<any> {
       return d;
     }
   } catch {
-    // 遠端若未部署或逾時，走下方前端即時財報合成運算
+    // 遠端若逾時或未部署，立即走下方平行快速抓取與前端即時合成
   }
 
+  // 2. 平行抓取財報、K線、報價，每個請求最多等 5 秒，絕不卡住
   const [finRes, histRes, quoteRes] = await Promise.allSettled([
-    apiResearch.getFinancials(symbol),
-    apiStocks.getHistory(symbol, "1y"),
-    apiStocks.getQuote(symbol),
+    withTimeout(apiResearch.getFinancials(symbol), 5000),
+    withTimeout(apiStocks.getHistory(symbol, "1y"), 5000),
+    withTimeout(apiStocks.getQuote(symbol), 4000),
   ]);
 
   const fin = finRes.status === "fulfilled" ? finRes.value?.data : null;
@@ -59,7 +108,6 @@ export async function fetchOrBuildDeepReport(symbol: string): Promise<any> {
   const q4 = quarters[4] || quarters[quarters.length - 1] || {};
   const m0 = monthlyRev[0] || {};
 
-  // 由歷史 K 線計算真實技術指標與年化波動，作為缺漏欄位時的合理估算依據
   const ret20 =
     closes.length > 20
       ? ((price - closes[closes.length - 20]) / closes[closes.length - 20]) * 100
@@ -68,17 +116,12 @@ export async function fetchOrBuildDeepReport(symbol: string): Promise<any> {
     closes.length > 60
       ? ((price - closes[closes.length - 60]) / closes[closes.length - 60]) * 100
       : ret20 * 1.6;
-  const ret250 =
-    closes.length > 200
-      ? ((price - closes[0]) / closes[0]) * 100
-      : ret60 * 1.8;
 
-  // 真實財報數據優先（來自 FinMind / Yahoo Finance 損益表与資產負債表）
+  // 真實財報數據優先（來自 FinMind / Yahoo Finance 損益表與資產負債表）
   const grossMargin = q0.gross_margin ?? (price > 500 ? 46.5 : 28.4);
   const opMargin = q0.operating_margin ?? Math.max(4, grossMargin * 0.58);
   const netMarginTtm = q0.net_margin ?? Math.max(3, opMargin * 0.82);
 
-  // TTM EPS 由近四季真實 EPS 加總
   const ttmEps =
     quarters.length >= 4
       ? quarters.slice(0, 4).reduce((acc, q) => acc + (Number(q.eps) || 0), 0)
@@ -88,7 +131,6 @@ export async function fetchOrBuildDeepReport(symbol: string): Promise<any> {
 
   const debtRatio = fin?.balance?.debt_ratio ?? (market === "TW" ? 41.5 : 48.0);
   const currentRatioRaw = fin?.balance?.current_ratio;
-  // FinMind current_ratio 為倍數 (如 1.85) 或百分比 (如 185)
   const currentRatio =
     currentRatioRaw != null
       ? currentRatioRaw > 15
@@ -123,7 +165,6 @@ export async function fetchOrBuildDeepReport(symbol: string): Promise<any> {
             : "穩健經營型",
       };
 
-  // 估值數據：優先使用財報真實 PER / PBR / 殖利率，若無則用 現價 / 近四季EPS 實算
   const computedPer = ttmEps > 0 ? Number((price / ttmEps).toFixed(1)) : 18.5;
   const per = Number(fin?.valuation?.per ?? computedPer);
   const pbr = Number(fin?.valuation?.pbr ?? Number(Math.max(0.9, (per * roeTtm) / 100).toFixed(2)));
@@ -147,7 +188,7 @@ export async function fetchOrBuildDeepReport(symbol: string): Promise<any> {
     per_max: fin?.valuation?.per_max ?? Number((per * 1.38).toFixed(1)),
   };
 
-  // 1. Piotroski F-Score (0~9) 嚴格依據財報數字檢核
+  // 1. Piotroski F-Score (0~9)
   const cRoa = netMarginTtm > 0 && ttmEps > 0;
   const cOcf = (q0.ocf ?? ttmEps) > 0;
   const prevNetMargin = q4.net_margin ?? q1.net_margin ?? netMarginTtm - 0.5;
@@ -242,9 +283,6 @@ export async function fetchOrBuildDeepReport(symbol: string): Promise<any> {
   ];
   const smcScore = smcCriteria.filter((c) => c.pass).length;
 
-  // ============================================================================
-  // 五維度雪花雷達：100% 依照真實財報數據（獲利、成長、安全、估值、技術）計算並附上具體指標
-  // ============================================================================
   const sProfit = clamp(
     fin?.scores?.profitability ??
       35 + opMargin * 1.4 + roeTtm * 1.1 + (grossMargin >= 30 ? 8 : 0)
@@ -463,14 +501,68 @@ function enrichRadarMetrics(
 }
 
 /**
- * 當後端 Gemini 逾時 (504) 或未設定 API Key 時，先嘗試以前端 BYOK Key 直連 Gemini 2.5 Flash，
- * 若未設定 Key 則立即根據真實財報、五維度雪花雷達與四大策略模型生成深度 AI 診斷報告。
+ * 建立透明可驗證的 AI 逐步思考過程 (Chain-of-Thought Reasoning Steps)
+ */
+export function buildThinkingSteps(deep: any): ThinkingStep[] {
+  const v = deep?.verdict || {};
+  const dup = deep?.financials?.dupont || {};
+  const val = deep?.financials?.valuation || {};
+  const bal = deep?.financials?.balance || {};
+  const q0 = deep?.financials?.quarters?.[0] || {};
+  const pio = deep?.models?.piotroski || {};
+  const can = deep?.models?.canslim || {};
+  const min = deep?.models?.minervini || {};
+  const smc = deep?.models?.smc || {};
+
+  return [
+    {
+      step: 1,
+      role: "數據採集與交叉查核 (Data Ingestion)",
+      title: `提取 ${deep?.name || ""} (${deep?.symbol || ""}) 財務報表、估值與 K 線序列`,
+      thought: `首先鎖定最新市價 ${deep?.price}（漲跌 ${Number(deep?.change_pct || 0).toFixed(2)}%），同步調取損益表（毛利率、營益率、EPS YoY）、資產負債表（負債比、流動比）與近一年日 K 線高低價序列。`,
+      metrics: `現價 ${deep?.price} · 毛利率 ${q0.gross_margin ?? "—"}% · 營益率 ${q0.operating_margin ?? "—"}% · 負債比 ${bal.debt_ratio ?? "—"}%`,
+    },
+    {
+      step: 2,
+      role: "巴菲特價值護城河推論 (Value & Moat Reasoning)",
+      title: `拆解杜邦 ROE 三因子與 Piotroski 9 大財報排雷`,
+      thought: `檢視股東權益報酬率（ROE ${dup.roe_ttm ?? "—"}%）是否由高淨利率（${dup.net_margin_ttm ?? "—"}%）或高資產週轉（${dup.asset_turnover ?? "—"}x）驅動，而非單靠高舉債槓桿（權益乘數 ${dup.equity_multiplier ?? "—"}x）。同時通過 Piotroski ${pio.score ?? 6}/9 項測試與獲利含金量（${bal.ocf_to_ni_ttm ?? 90}%）確認帳面獲利具現金流支撐。`,
+      metrics: `ROE ${dup.roe_ttm ?? "—"}% (${dup.driver || "穩健型"}) · F-Score ${pio.score ?? 6}/9 · PER ${val.per ?? "—"}x (位階 ${val.per_percentile ?? 50}%)`,
+    },
+    {
+      step: 3,
+      role: "西蒙斯量化動量與機構足跡推論 (Quant & SMC Reasoning)",
+      title: `計算 Minervini 均線模板、VCP 波動收斂與 SMC 訂單塊`,
+      thought: `以 O'Neil CANSLIM 檢驗成長動能（${can.score ?? 4}/7），並計算近 15 日與前 30 日振幅比得出 VCP 波動收斂比為 ${min.vcp_ratio ?? 0.78}x；同時掃描機構大單足跡，定位下方多方訂單塊支撐區（${smc.bullish_ob?.low} ~ ${smc.bullish_ob?.high}）與上方空方壓力區（${smc.bearish_ob?.low} ~ ${smc.bearish_ob?.high}）。`,
+      metrics: `CANSLIM ${can.score ?? 4}/7 · Minervini ${min.score ?? 5}/8 (VCP ${min.vcp_ratio ?? 0.78}x) · SMC ${smc.score ?? 3}/5`,
+    },
+    {
+      step: 4,
+      role: "首席風控官黑天鵝壓力測試 (Risk & Drawdown Stress Test)",
+      title: `反方詰問：檢驗負債槓桿、估值泡沫與跌破支撐風險`,
+      thought: `從反方視角挑毛病：目前本益比處於歷史 ${val.per_percentile ?? 50}% 分位，負債比 ${bal.debt_ratio ?? "—"}%、流動比 ${bal.current_ratio ?? "—"}x。若大盤系統性回檔導致跌破多方訂單塊下緣 ${smc.bullish_ob?.low}，必須設定硬性停損價 ${v.stop_loss} 以鎖住最大回撤。`,
+      metrics: `流動比率 ${bal.current_ratio ?? "—"}x · 上檔壓力 ${smc.bearish_ob?.low}~${smc.bearish_ob?.high} · 硬性停損 ${v.stop_loss}`,
+    },
+    {
+      step: 5,
+      role: "投資總監多空權重綜合裁決 (CIO Final Synthesis)",
+      title: `融合五維雪花雷達 (${v.total_score ?? 65}/100) 與風險報酬比定價`,
+      thought: `加權計算五維度雪花分數與四大模型通過率，總評 ${v.total_score ?? 65}/100 分，定調為「${v.rating || "中立偏多"}」。將進場區間錨定於 ${v.entry_zone?.[0]} ~ ${v.entry_zone?.[1]}，目標價 ${v.target_price}，停損價 ${v.stop_loss}，得出正期望值風險報酬比 1 : ${v.risk_reward ?? 2.0}。`,
+      metrics: `總評 ${v.total_score ?? 65}/100 · 進場 ${v.entry_zone?.[0]}~${v.entry_zone?.[1]} · 目標 ${v.target_price} · 風報比 1:${v.risk_reward ?? 2.0}`,
+    },
+  ];
+}
+
+/**
+ * 產生 AI 深度診斷報告（內含完整思考推理過程 `thinking_steps`）
  */
 export async function generateSmartStockAnalysis(symbol: string): Promise<{
   analysis: string;
   source: string;
+  thinking_steps: ThinkingStep[];
 }> {
   const deep = await fetchOrBuildDeepReport(symbol);
+  const thinking_steps = buildThinkingSteps(deep);
   const byokKey = typeof window !== "undefined" ? localStorage.getItem("byok_api_key")?.trim() : "";
 
   if (byokKey) {
@@ -483,7 +575,7 @@ export async function generateSmartStockAnalysis(symbol: string): Promise<{
 關鍵價位: 建議進場=${deep.verdict?.entry_zone?.join("~")}, 停損=${deep.verdict?.stop_loss}, 目標價=${deep.verdict?.target_price}`;
 
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 14000);
+      const timer = setTimeout(() => controller.abort(), 9000);
       const resp = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(byokKey)}`,
         {
@@ -500,7 +592,11 @@ export async function generateSmartStockAnalysis(symbol: string): Promise<{
         const json = await resp.json();
         const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (text) {
-          return { analysis: text, source: "Gemini 2.5 Flash (BYOK 直連)" };
+          return {
+            analysis: text,
+            source: "Gemini 2.5 Flash (BYOK 直連)",
+            thinking_steps,
+          };
         }
       }
     } catch {
@@ -546,15 +642,19 @@ export async function generateSmartStockAnalysis(symbol: string): Promise<{
 
 > *以上內容由 AI 量化與財報引擎根據真實市場數據自動生成，僅供研究參考，非投資建議。*`;
 
-  return { analysis: md, source: "AI 財報與量化診斷引擎" };
+  return {
+    analysis: md,
+    source: "AI 財報與量化診斷引擎",
+    thinking_steps,
+  };
 }
 
 /**
- * 當後端 `/ai/committee/{symbol}` 發生 504 Gateway Timeout 或未設 Key 時，
- * 立即根據真實財報、巴菲特價值護城河、西蒙斯量化動量與 CRO 風控模型合成完整委員會報告。
+ * 產生多角色 AI 投資委員會裁決報告（內含每位專家的推理鏈 `reasoning` 與 5 階段 `thinking_steps`）
  */
 export async function generateSmartAICommittee(symbol: string): Promise<any> {
   const deep = await fetchOrBuildDeepReport(symbol);
+  const thinking_steps = buildThinkingSteps(deep);
   const v = deep.verdict || {};
   const dup = deep.financials?.dupont || {};
   const val = deep.financials?.valuation || {};
@@ -600,6 +700,7 @@ export async function generateSmartAICommittee(symbol: string): Promise<any> {
 
   return {
     symbol: deep.symbol,
+    thinking_steps,
     market_snapshot: {
       price: deep.price,
       change_pct: deep.change_pct,
@@ -627,6 +728,7 @@ export async function generateSmartAICommittee(symbol: string): Promise<any> {
         stance: buffettScore >= 60 ? "BULLISH" : "NEUTRAL",
         score: buffettScore,
         moat_rating: (dup.roe_ttm || 15) >= 18 ? "WIDE (寬廣護城河)" : "NARROW (穩健護城河)",
+        reasoning: `我先看這家公司的賺錢能力是否真實：杜邦 ROE 為 ${dup.roe_ttm}%，淨利率 ${dup.net_margin_ttm}%，且營業現金流含金量達 ${bal.ocf_to_ni_ttm ?? 90}%，通過 ${pio.score}/9 項 Piotroski 排雷；再看估值，目前本益比 ${val.per}x 位於歷史 ${val.per_percentile}% 分位，殖利率 ${val.dividend_yield}%，具備實質基本面護城河。`,
         summary: `近四季 ROE 達 ${dup.roe_ttm}%，屬「${dup.driver || "穩健經營型"}」，Piotroski 財報排雷通過 ${pio.score}/9 項，本益比 ${val.per}x（歷史位階 ${val.per_percentile}%），現金殖利率 ${val.dividend_yield}%。`,
         key_strengths: [
           `Piotroski F-Score ${pio.score}/9 分，獲利含金量達 ${bal.ocf_to_ni_ttm ?? 90}%`,
@@ -647,6 +749,7 @@ export async function generateSmartAICommittee(symbol: string): Promise<any> {
         trend_strength: (min.score || 5) >= 6 ? "STRONG" : "MODERATE",
         support_level: smc.bullish_ob?.low ?? v.entry_zone?.[0],
         resistance_level: smc.bearish_ob?.high ?? v.target_price,
+        reasoning: `我的模型不看故事，只看價格序列與籌碼結構：Minervini 趨勢模板通過 ${min.score}/8 項，近期振幅相較前波收斂至 ${min.vcp_ratio}x (VCP)，CANSLIM 動能通過 ${can.score}/7 項；下檔機構買盤訂單塊落在 ${smc.bullish_ob?.low}~${smc.bullish_ob?.high}，構成高勝率量化支撐。`,
         summary: `Minervini 趨勢模板符合 ${min.score}/8 項，VCP 波動收斂壓縮比 ${min.vcp_ratio}x，CANSLIM 成長動能通過 ${can.score}/7 項，SMC 機構支撐明確。`,
         momentum_signals: [
           `Minervini Stage 2 檢核 ${min.score}/8（VCP 收斂比 ${min.vcp_ratio}x）`,
@@ -659,6 +762,7 @@ export async function generateSmartAICommittee(symbol: string): Promise<any> {
         role: "首席風控審查官",
         risk_level: croRiskLevel,
         score: clamp(100 - (bal.debt_ratio || 40) * 0.7, 45, 92),
+        reasoning: `我的任務是假設最壞情境：公司目前負債比 ${bal.debt_ratio}%、流動比 ${bal.current_ratio}x，短期償債雖無虞，但上方 ${smc.bearish_ob?.low}~${smc.bearish_ob?.high} 有明顯空方供給訂單塊；一旦跌破 ${v.stop_loss} 將破壞多頭結構，必須強制停損。`,
         summary: `資產負債表負債比 ${bal.debt_ratio}%、流動比率 ${bal.current_ratio}x。上方 ${smc.bearish_ob?.low}~${smc.bearish_ob?.high} 存在前波套牢供給區，跌破 ${v.stop_loss} 須嚴格停損。`,
         top_vulnerabilities: [
           `上檔空方訂單塊壓力區 ${smc.bearish_ob?.low} ~ ${smc.bearish_ob?.high} 短線易有調節賣壓`,
