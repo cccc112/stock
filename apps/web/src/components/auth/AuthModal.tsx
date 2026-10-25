@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Modal from "@/components/ui/Modal";
 import { UserProfile, useAuthManager } from "@/hooks/useAuth";
-import { ShieldCheck, CheckCircle2, User, Sparkles, ExternalLink, ArrowRight, Plus } from "lucide-react";
+import { ShieldCheck, CheckCircle2, User, ArrowRight, Plus, Sparkles } from "lucide-react";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -12,6 +12,7 @@ interface AuthModalProps {
 }
 
 const STORAGE_KEY_SAVED_ACCOUNTS = "stock_saved_google_accounts";
+const OWNER_EMAIL = "richhong0122@gmail.com";
 
 function parseJwt(token: string) {
   try {
@@ -34,7 +35,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [emailInput, setEmailInput] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [savedAccounts, setSavedAccounts] = useState<UserProfile[]>([]);
-  const [showNewInput, setShowNewInput] = useState(false);
+  const [showCustomForm, setShowCustomForm] = useState(false);
   const [error, setError] = useState("");
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
@@ -59,15 +60,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       if (response?.credential) {
         const payload = parseJwt(response.credential);
         if (payload?.email) {
-          loginWithGoogle(payload.email, payload.name, payload.picture);
-          saveAccountToList({
+          const profile: UserProfile = {
             id: `usr_${btoa(payload.email).replace(/[^a-zA-Z0-9]/g, "").slice(0, 16)}`,
             email: payload.email,
             name: payload.name || payload.email.split("@")[0],
             avatar: payload.picture,
             provider: "google",
             createdAt: Date.now(),
-          });
+          };
+          loginWithGoogle(payload.email, payload.name, payload.picture);
+          saveAccountToList(profile);
           onClose();
         }
       }
@@ -113,9 +115,18 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     } catch {}
   };
 
-  const handleSelectAccount = (account: UserProfile) => {
-    loginWithGoogle(account.email, account.name, account.avatar);
-    saveAccountToList(account);
+  const handleQuickLogin = (email: string, name: string) => {
+    const avatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name || email)}`;
+    const profile: UserProfile = {
+      id: `usr_${btoa(email).replace(/[^a-zA-Z0-9]/g, "").slice(0, 16)}`,
+      email,
+      name,
+      avatar,
+      provider: "google",
+      createdAt: Date.now(),
+    };
+    loginWithGoogle(email, name, avatar);
+    saveAccountToList(profile);
     onClose();
   };
 
@@ -127,18 +138,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       return;
     }
     const name = nameInput.trim() || clean.split("@")[0];
-    const avatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`;
-    const profile: UserProfile = {
-      id: `usr_${btoa(clean).replace(/[^a-zA-Z0-9]/g, "").slice(0, 16)}`,
-      email: clean,
-      name,
-      avatar,
-      provider: "google",
-      createdAt: Date.now(),
-    };
-    loginWithGoogle(clean, name, avatar);
-    saveAccountToList(profile);
-    onClose();
+    handleQuickLogin(clean, name);
   };
 
   return (
@@ -151,7 +151,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             <span>個人獨立空間與自選股隔離</span>
           </div>
           <p className="text-secondary leading-relaxed">
-            每個 Google 帳號享有獨立的<strong>自選股清單</strong>與<strong>價格雷達歷史</strong>：
+            以 Google 帳號授權後，系統將自動為您切換至專屬獨立空間：
           </p>
           <ul className="space-y-1.5 text-secondary pl-1">
             <li className="flex items-center gap-1.5">
@@ -173,79 +173,113 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </div>
         )}
 
-        {/* 已存帳號列表 (一鍵切換) */}
-        {savedAccounts.length > 0 && (
-          <div className="space-y-2">
-            <label className="block text-xs font-semibold text-secondary">
-              選擇您的 Google 帳號：
-            </label>
-            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-              {savedAccounts.map((acc) => {
-                const isCurrent = currentUser?.email === acc.email;
-                return (
-                  <button
-                    key={acc.email}
-                    type="button"
-                    onClick={() => handleSelectAccount(acc)}
-                    className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition-all cursor-pointer ${
-                      isCurrent
-                        ? "bg-accent/15 border-accent text-primary shadow-sm"
-                        : "bg-[var(--bg-secondary)] border-[var(--border)] hover:bg-[var(--bg-tertiary)] hover:border-accent text-primary"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {acc.avatar ? (
-                        <img
-                          src={acc.avatar}
-                          alt={acc.name}
-                          className="w-8 h-8 rounded-full object-cover border border-[var(--border)] flex-shrink-0"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-accent/20 text-accent flex items-center justify-center font-bold text-xs flex-shrink-0">
-                          {acc.name.slice(0, 1).toUpperCase()}
-                        </div>
-                      )}
-                      <div className="min-w-0">
-                        <div className="font-semibold text-xs text-primary truncate flex items-center gap-1.5">
-                          <span>{acc.name}</span>
-                          {isCurrent && (
-                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-accent text-black font-bold">
-                              目前使用中
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[11px] text-muted truncate">{acc.email}</div>
-                      </div>
-                    </div>
-                    <ArrowRight size={14} className="text-secondary flex-shrink-0" />
-                  </button>
-                );
-              })}
+        {/* 一鍵直接登入區塊 (免輸入任何文字) */}
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold text-secondary">
+            快速一鍵登入 (免手動輸入)：
+          </label>
+
+          {/* 站長主要 Google 帳號 1-Click 按鈕 */}
+          <button
+            type="button"
+            onClick={() => handleQuickLogin(OWNER_EMAIL, "站長 (richhong0122)")}
+            className={`w-full p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer shadow-sm ${
+              currentUser?.email === OWNER_EMAIL
+                ? "bg-accent/15 border-accent text-primary"
+                : "bg-accent text-slate-950 font-bold hover:opacity-95"
+            }`}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  />
+                </svg>
+              </div>
+              <div className="text-left min-w-0">
+                <div className="text-xs truncate flex items-center gap-1.5">
+                  <span>以 {OWNER_EMAIL} 一鍵登入</span>
+                  {currentUser?.email === OWNER_EMAIL && (
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500 text-white font-bold">
+                      使用中
+                    </span>
+                  )}
+                </div>
+                <div className="text-[10px] opacity-80 truncate">個人專屬獨立空間與自選股</div>
+              </div>
             </div>
+            <ArrowRight size={16} className="flex-shrink-0" />
+          </button>
+
+          {/* 訪客 Google 體驗帳號按鈕 */}
+          <button
+            type="button"
+            onClick={() => handleQuickLogin("trader.guest@gmail.com", "訪客交易者")}
+            className="w-full p-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] hover:bg-[var(--bg-tertiary)] hover:border-accent text-primary text-xs font-semibold flex items-center justify-between cursor-pointer transition-all"
+          >
+            <div className="flex items-center gap-2.5">
+              <User size={15} className="text-secondary" />
+              <span>訪客一鍵體驗登入 (免打信箱)</span>
+            </div>
+            <ArrowRight size={14} className="text-secondary" />
+          </button>
+        </div>
+
+        {/* 已存帳號列表 (其他登入過的帳號) */}
+        {savedAccounts.filter((a) => a.email !== OWNER_EMAIL).length > 0 && (
+          <div className="space-y-1.5 pt-1">
+            <span className="text-[11px] text-secondary font-medium">其他已記憶帳號：</span>
+            {savedAccounts
+              .filter((a) => a.email !== OWNER_EMAIL)
+              .map((acc) => (
+                <button
+                  key={acc.email}
+                  type="button"
+                  onClick={() => handleQuickLogin(acc.email, acc.name)}
+                  className="w-full p-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] hover:bg-[var(--bg-tertiary)] flex items-center justify-between text-xs text-primary transition-all cursor-pointer"
+                >
+                  <span className="truncate">{acc.email}</span>
+                  <ArrowRight size={12} className="text-muted" />
+                </button>
+              ))}
           </div>
         )}
 
-        {/* 手動輸入或新增其他 Google 帳號 */}
-        <div className="border-t border-[var(--border)] pt-3">
-          {!showNewInput && savedAccounts.length > 0 ? (
+        {/* 手動輸入其他 Gmail (次要展開功能) */}
+        <div className="border-t border-[var(--border)] pt-2.5">
+          {!showCustomForm ? (
             <button
               type="button"
-              onClick={() => setShowNewInput(true)}
-              className="w-full py-2 px-3 rounded-lg border border-dashed border-[var(--border)] hover:border-accent hover:bg-[var(--bg-tertiary)] text-xs text-secondary hover:text-primary transition-all flex items-center justify-center gap-2 cursor-pointer"
+              onClick={() => setShowCustomForm(true)}
+              className="text-xs text-secondary hover:text-accent flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <Plus size={14} />
-              <span>使用其他 Google (Gmail) 帳號登入</span>
+              <Plus size={13} />
+              <span>指定其他自訂 Google (Gmail) 信箱</span>
             </button>
           ) : (
-            <form onSubmit={handleCustomSubmit} className="space-y-3">
+            <form onSubmit={handleCustomSubmit} className="space-y-2.5 pt-1">
               <div>
                 <label className="block text-xs font-semibold text-secondary mb-1">
-                  您的 Google (Gmail) 信箱
+                  其他 Google (Gmail) 信箱
                 </label>
                 <input
                   type="email"
                   required
-                  placeholder="例如: richhong0122@gmail.com"
+                  placeholder="yourname@gmail.com"
                   value={emailInput}
                   onChange={(e) => {
                     setEmailInput(e.target.value);
@@ -261,7 +295,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 </label>
                 <input
                   type="text"
-                  placeholder="例如: 投資人 Alex"
+                  placeholder="自訂稱呼"
                   value={nameInput}
                   onChange={(e) => setNameInput(e.target.value)}
                   className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg px-3 py-2 text-xs text-primary outline-none focus:border-accent"
@@ -273,37 +307,17 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <div className="flex items-center gap-2 pt-1">
                 <button
                   type="submit"
-                  className="flex-1 py-2 px-3 rounded-lg bg-accent text-black font-bold text-xs hover:opacity-90 transition-opacity cursor-pointer flex items-center justify-center gap-2"
+                  className="flex-1 py-2 px-3 rounded-lg bg-accent text-black font-bold text-xs hover:opacity-90 transition-opacity cursor-pointer"
                 >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
-                    <path
-                      fill="currentColor"
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    />
-                    <path
-                      fill="currentColor"
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    />
-                    <path
-                      fill="currentColor"
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                    />
-                    <path
-                      fill="currentColor"
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                    />
-                  </svg>
-                  <span>立即連結並登入 Google 空間</span>
+                  確認登入
                 </button>
-                {savedAccounts.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowNewInput(false)}
-                    className="py-2 px-3 rounded-lg bg-[var(--bg-tertiary)] text-secondary text-xs hover:text-primary transition-colors cursor-pointer"
-                  >
-                    返回選擇
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setShowCustomForm(false)}
+                  className="py-2 px-3 rounded-lg bg-[var(--bg-tertiary)] text-secondary text-xs hover:text-primary transition-colors cursor-pointer"
+                >
+                  取消
+                </button>
               </div>
             </form>
           )}

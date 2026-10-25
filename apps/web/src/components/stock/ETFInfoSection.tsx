@@ -174,15 +174,11 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
             ? null
             : (remote.dividend_yield ?? fallbackSeed.dividend_yield_est ?? null),
           holdings:
-            isCuratedInCatalog && fallbackSeed.holdings.length
-              ? fallbackSeed.holdings
-              : remote.holdings?.length
+            remote.holdings && remote.holdings.length > 0
               ? remote.holdings
               : fallbackSeed.holdings,
           sector_weights:
-            isCuratedInCatalog && fallbackSeed.sector_weights.length
-              ? fallbackSeed.sector_weights
-              : remote.sector_weights?.length
+            remote.sector_weights && remote.sector_weights.length > 0
               ? remote.sector_weights
               : fallbackSeed.sector_weights,
           dividends: isNoDividend
