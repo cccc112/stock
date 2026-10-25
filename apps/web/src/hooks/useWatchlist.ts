@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiStocks } from '@/lib/api';
+import { getCurrentUserNamespace } from '@/hooks/useAuth';
 
 interface WatchlistStock {
   symbol: string;
@@ -11,22 +12,29 @@ interface WatchlistStock {
   market: 'TW' | 'US';
 }
 
-// Default watchlist symbols stored in localStorage
-const STORAGE_KEY = 'watchlist_symbols';
+// 每個 Google 帳號擁有獨立的自選股空間
 const DEFAULT_SYMBOLS = ['2330.TW', '2454.TW', 'AAPL', 'NVDA'];
+
+function getStorageKey(): string {
+  const ns = getCurrentUserNamespace();
+  return ns === 'default' ? 'watchlist_symbols' : `watchlist_symbols_${ns}`;
+}
 
 function getStoredSymbols(): string[] {
   if (typeof window === 'undefined') return DEFAULT_SYMBOLS;
-  const stored = localStorage.getItem(STORAGE_KEY);
+  const key = getStorageKey();
+  const stored = localStorage.getItem(key);
   if (stored) {
     try { return JSON.parse(stored); } catch { return DEFAULT_SYMBOLS; }
   }
+  // 若新使用者初次登入，帶入預設清單
   return DEFAULT_SYMBOLS;
 }
 
 function setStoredSymbols(symbols: string[]) {
   if (typeof window !== 'undefined') {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(symbols));
+    const key = getStorageKey();
+    localStorage.setItem(key, JSON.stringify(symbols));
   }
 }
 
@@ -70,9 +78,15 @@ export function useWatchlist() {
 
   useEffect(() => {
     fetchWatchlist();
+    // 切換 Google 帳號時立即載入該帳號之獨立自選股
+    const handleAuthChange = () => fetchWatchlist();
+    window.addEventListener("stock_auth_changed", handleAuthChange);
     // Auto-refresh every 30 seconds
     const timer = setInterval(fetchWatchlist, 30000);
-    return () => clearInterval(timer);
+    return () => {
+      window.removeEventListener("stock_auth_changed", handleAuthChange);
+      clearInterval(timer);
+    };
   }, [fetchWatchlist]);
 
   const addItem = async (symbol: string) => {

@@ -41,16 +41,21 @@ class GeminiService:
         # 單次呼叫逾時 12 秒，避免單一模型卡住
         return genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=12_000))
 
-    def _client(self, api_key: Optional[str]) -> genai.Client:
-        client = self._make_client(api_key) if api_key else self.client
-        if not client:
-            raise ValueError(NO_KEY_MSG)
-        return client
+    def _client(self, api_key: Optional[str], allow_server_fallback: bool = False) -> genai.Client:
+        clean_key = (api_key or "").strip()
+        if clean_key:
+            return self._make_client(clean_key)
+        settings = get_settings()
+        if (allow_server_fallback or settings.allow_public_shared_key) and self.client:
+            return self.client
+        raise ValueError(
+            "未提供個人 Gemini API Key。為避免外部訪客消耗站長配額，請於前端右上角【Google 帳號 / 金鑰】綁定個人專屬免費 Key (BYOK)。"
+        )
 
     async def generate(self, prompt: str, api_key: Optional[str] = None, as_json: bool = False,
-                       model: Optional[str] = None) -> str:
+                       model: Optional[str] = None, allow_server_fallback: bool = False) -> str:
         """非阻塞呼叫 Gemini：模型備援 + 暫時性錯誤(503/429/逾時)短暫重試 + 總時間上限"""
-        client = self._client(api_key)
+        client = self._client(api_key, allow_server_fallback=allow_server_fallback)
         config = {"response_mime_type": "application/json"} if as_json else None
         deadline = time.monotonic() + self.total_budget
         candidates = [m for m in ([model] if model else []) + self.models if m not in self._dead] or self.models
@@ -85,8 +90,8 @@ class GeminiService:
                 break
         raise RuntimeError(f"Gemini 呼叫失敗: {last_err}")
 
-    async def generate_json(self, prompt: str, api_key: Optional[str] = None) -> dict:
-        text = await self.generate(prompt, api_key, as_json=True)
+    async def generate_json(self, prompt: str, api_key: Optional[str] = None, allow_server_fallback: bool = False) -> dict:
+        text = await self.generate(prompt, api_key, as_json=True, allow_server_fallback=allow_server_fallback)
         try:
             return json.loads(text)
         except json.JSONDecodeError:

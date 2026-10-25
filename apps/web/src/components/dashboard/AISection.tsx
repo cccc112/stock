@@ -17,6 +17,8 @@ import {
   Calendar,
 } from "lucide-react";
 import { apiAi } from "@/lib/api";
+import { useAuthManager } from "@/hooks/useAuth";
+import ApiKeyGuideModal from "@/components/auth/ApiKeyGuideModal";
 import {
   generateSmartStockAnalysis,
   EquityResearchData,
@@ -30,6 +32,8 @@ export default function AISection({
   symbol: string;
   autoRun?: boolean;
 }) {
+  const { isApiKeyConfigured } = useAuthManager();
+  const [keyModalOpen, setKeyModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [researchData, setResearchData] = useState<EquityResearchData | null>(null);
   const [analysisText, setAnalysisText] = useState<string>("");
@@ -96,6 +100,16 @@ export default function AISection({
               <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/30 font-medium">
                 {sourceLabel}
               </span>
+            )}
+            {!isApiKeyConfigured && (
+              <button
+                type="button"
+                onClick={() => setKeyModalOpen(true)}
+                className="text-[11px] px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 transition-colors cursor-pointer flex items-center gap-1"
+                title="目前為訪客本地模式。點此 1 鍵綁定 Google 原廠免費 Key 啟用雲端大模型"
+              >
+                <span>訪客本地模式 · 點此免費綁定個人 Key</span>
+              </button>
             )}
           </div>
           <p className="text-xs text-secondary mt-1">
@@ -380,6 +394,8 @@ export default function AISection({
           </div>
         </div>
       )}
+
+      <ApiKeyGuideModal isOpen={keyModalOpen} onClose={() => setKeyModalOpen(false)} />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { Menu, Search, Sun, Moon } from "lucide-react";
 import { SIDEBAR_TOGGLE_EVENT } from "@/components/layout/Sidebar";
 import { apiStocks } from "@/lib/api";
 import { useBeginnerMode } from "@/components/ui/TermTooltip";
+import UserMenu from "@/components/auth/UserMenu";
 
 export default function TopBar() {
   const [time, setTime] = useState("");
@@ -228,6 +229,8 @@ export default function TopBar() {
           </span>
           <span>新手模式：{beginnerMode ? "開" : "關"}</span>
         </button>
+
+        <UserMenu />
 
         <div className="text-xs text-secondary font-mono tabular-nums hidden md:flex items-center gap-2">
           <span className="tech-glow-dot" title="即時報價連線中" />

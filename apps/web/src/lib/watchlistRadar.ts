@@ -1,6 +1,7 @@
 "use client";
 
 import { fetchOrBuildDeepReport } from "@/lib/clientDeepReport";
+import { getCurrentUserNamespace } from "@/hooks/useAuth";
 
 export interface RadarAlertEvent {
   id: string;
@@ -20,10 +21,16 @@ const STORAGE_KEY_TRIGGERED = "triggered_radar_alerts";
 const STORAGE_KEY_COOLDOWN = "radar_cooldown_map";
 const COOLDOWN_MS = 30 * 60 * 1000; // 30 分鐘去重防洗版
 
+function getStorageNamespaceKey(base: string): string {
+  const ns = getCurrentUserNamespace();
+  return ns === "default" ? base : `${base}_${ns}`;
+}
+
 export function getWatchlistSymbols(): string[] {
   if (typeof window === "undefined") return ["2330.TW", "2454.TW", "AAPL", "NVDA"];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_WATCHLIST);
+    const key = getStorageNamespaceKey(STORAGE_KEY_WATCHLIST);
+    const raw = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEY_WATCHLIST);
     if (raw) return JSON.parse(raw);
   } catch {}
   return ["2330.TW", "2454.TW", "AAPL", "NVDA"];
@@ -32,7 +39,8 @@ export function getWatchlistSymbols(): string[] {
 export function getTriggeredAlerts(): RadarAlertEvent[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_TRIGGERED);
+    const key = getStorageNamespaceKey(STORAGE_KEY_TRIGGERED);
+    const raw = localStorage.getItem(key);
     if (raw) return JSON.parse(raw);
   } catch {}
   return [];
@@ -41,9 +49,10 @@ export function getTriggeredAlerts(): RadarAlertEvent[] {
 export function saveTriggeredAlert(event: RadarAlertEvent) {
   if (typeof window === "undefined") return;
   try {
+    const key = getStorageNamespaceKey(STORAGE_KEY_TRIGGERED);
     const existing = getTriggeredAlerts();
     const updated = [event, ...existing.filter((e) => e.id !== event.id)].slice(0, 50);
-    localStorage.setItem(STORAGE_KEY_TRIGGERED, JSON.stringify(updated));
+    localStorage.setItem(key, JSON.stringify(updated));
   } catch {}
 }
 

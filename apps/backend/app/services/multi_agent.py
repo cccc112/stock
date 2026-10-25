@@ -26,10 +26,13 @@ class MultiAgentInvestmentCommittee:
         self.default_client = genai.Client(api_key=settings.gemini_api_key) if settings.gemini_api_key else None
 
     def _get_client(self, api_key: Optional[str] = None) -> genai.Client:
-        client = genai.Client(api_key=api_key) if api_key else self.default_client
-        if not client:
-            raise ValueError("未提供 Gemini API Key。請在系統設定中輸入您的 API Key (BYOK) 以啟用 AI 投資委員會。")
-        return client
+        clean_key = (api_key or "").strip()
+        if clean_key:
+            return genai.Client(api_key=clean_key)
+        settings = get_settings()
+        if settings.allow_public_shared_key and self.default_client:
+            return self.default_client
+        raise ValueError("未提供個人 Gemini API Key。為保障系統安全與主機額度，訪客請於右上角【Google 帳號 / 金鑰】綁定個人專屬免費 Key。")
 
     async def _collect_market_context(self, symbol: str) -> Dict[str, Any]:
         """平行蒐集行情、K線指標、基本面營收、籌碼與即時新聞（單項 5 秒逾時保護）"""
