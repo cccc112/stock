@@ -512,7 +512,7 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
         }}
       />
 
-      <div className="relative h-[400px] border border-[var(--border)] rounded-xl bg-[var(--bg-secondary)]/60 overflow-hidden shadow-inner">
+      <div className="relative h-[400px] border border-[var(--border)] rounded-xl bg-[var(--bg-secondary)]/60 overflow-hidden">
         {/* Legends */}
         <div className="absolute top-3 left-4 z-10 flex flex-wrap items-center gap-3 text-xs font-mono">
           <div className="flex gap-1.5 items-center">

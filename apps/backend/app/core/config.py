@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     # Gemini AI
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"  # 失敗時依序退回 gemini-2.0-flash / gemini-flash-latest
-    # 額度安全隔離開關：預設 False，禁止外部訪客消耗站長後端 .env 的私有 Gemini 配額 (強制 BYOK)
-    allow_public_shared_key: bool = False
+    # 預設允許全體使用後端設定之 Gemini 金鑰
+    allow_public_shared_key: bool = True
     admin_api_key: str = ""
 
     # FinMind

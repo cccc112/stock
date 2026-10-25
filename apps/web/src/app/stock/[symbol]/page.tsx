@@ -270,7 +270,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
 
         {/* Sidebar */}
         <div className="lg:col-span-1 space-y-6">
-          {deepSummary?.verdict && (
+          {deepSummary?.verdict && activeTab !== 'financials' && (
             <Card
               title={<Term k="snowflake_radar" label="最終多空裁決與五維雷達" />}
               subtitle={

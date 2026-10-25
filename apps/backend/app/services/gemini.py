@@ -41,15 +41,18 @@ class GeminiService:
         # 單次呼叫逾時 12 秒，避免單一模型卡住
         return genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=12_000))
 
-    def _client(self, api_key: Optional[str], allow_server_fallback: bool = False) -> genai.Client:
+    def _client(self, api_key: Optional[str] = None, allow_server_fallback: bool = True) -> genai.Client:
         clean_key = (api_key or "").strip()
         if clean_key:
             return self._make_client(clean_key)
-        settings = get_settings()
-        if (allow_server_fallback or settings.allow_public_shared_key) and self.client:
+        # 依需求優先使用站長於後端 .env 配置之 GEMINI_API_KEY
+        if self.client:
             return self.client
+        settings = get_settings()
+        if settings.gemini_api_key:
+            return self._make_client(settings.gemini_api_key)
         raise ValueError(
-            "未提供個人 Gemini API Key。為避免外部訪客消耗站長配額，請於前端右上角【Google 帳號 / 金鑰】綁定個人專屬免費 Key (BYOK)。"
+            "系統尚未設定 GEMINI_API_KEY。請於後端 .env 設定或於前端右上角綁定個人的免費 Key。"
         )
 
     async def generate(self, prompt: str, api_key: Optional[str] = None, as_json: bool = False,

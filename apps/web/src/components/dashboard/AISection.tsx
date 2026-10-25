@@ -49,11 +49,11 @@ export default function AISection({
       // 1. 立即啟動本地法人基本面與情境估值研報引擎（0.5~3 秒內必出結果）
       const smartPromise = generateSmartStockAnalysis(symbol);
 
-      // 2. 同步嘗試後端 Gemini（最多等 5 秒，絕不卡在 504）
+      // 2. 同步嘗試後端 Gemini（優先連線主機 AI）
       const backendPromise = Promise.race([
         apiAi.analyzeStock(symbol),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("AI_FAST_TIMEOUT")), 5000)
+          setTimeout(() => reject(new Error("AI_FAST_TIMEOUT")), 12000)
         ),
       ]).catch(() => null);
 
@@ -101,16 +101,15 @@ export default function AISection({
                 {sourceLabel}
               </span>
             )}
-            {!isApiKeyConfigured && (
-              <button
-                type="button"
-                onClick={() => setKeyModalOpen(true)}
-                className="text-[11px] px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 transition-colors cursor-pointer flex items-center gap-1"
-                title="目前為訪客本地模式。點此 1 鍵綁定 Google 原廠免費 Key 啟用雲端大模型"
-              >
-                <span>訪客本地模式 · 點此免費綁定個人 Key</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setKeyModalOpen(true)}
+              className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors cursor-pointer flex items-center gap-1"
+              title="已連線主機 Gemini AI 算力。點此亦可自訂綁定個人 Key"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span>主機 AI 算力在線</span>
+            </button>
           </div>
           <p className="text-xs text-secondary mt-1">
             券商法人規格：專注「商業模式與護城河」、「財報三表深度體檢」、「三種情境估值目標價」與「未來重大催化劑」

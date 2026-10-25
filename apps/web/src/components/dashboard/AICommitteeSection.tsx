@@ -49,11 +49,11 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
       // 1. 先立即從本地避險基金決策引擎合成四方委員會裁決、多空攻防辯論與階梯掛單（0.5~3 秒內必出結果）
       const smartPromise = generateSmartAICommittee(symbol);
 
-      // 2. 同步嘗試後端 Gemini（最多等 5 秒，絕不卡在 504）
+      // 2. 同步嘗試後端 Gemini（優先連線主機 AI）
       const backendPromise = Promise.race([
         apiAi.runCommittee(symbol),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("COMMITTEE_FAST_TIMEOUT")), 5000)
+          setTimeout(() => reject(new Error("COMMITTEE_FAST_TIMEOUT")), 15000)
         ),
       ]).catch(() => null);
 
@@ -121,16 +121,15 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 font-medium">
               Multi-Agent Live Debate & Execution
             </span>
-            {!isApiKeyConfigured && (
-              <button
-                type="button"
-                onClick={() => setKeyModalOpen(true)}
-                className="text-[11px] px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 transition-colors cursor-pointer flex items-center gap-1"
-                title="目前以量化決策引擎本地運算。點此綁定免費 Gemini API Key 啟用多智慧體雲端深度辯論"
-              >
-                <span>訪客本地模式 · 點此免費綁定個人 Key</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setKeyModalOpen(true)}
+              className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors cursor-pointer flex items-center gap-1"
+              title="已連線主機 Gemini AI 算力。點此亦可自訂綁定個人 Key"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span>主機 AI 算力在線</span>
+            </button>
           </div>
           <p className="text-secondary text-xs sm:text-sm">
             避險基金實戰規格：專注「專家現場多空互槓辯論」、「資產配置上限%」、「階梯式限價掛單手冊」與「突發 If-Then 應變守則」
