@@ -243,14 +243,16 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                         }]
                       : []),
                     {
-                      id: 'ai-hub',
-                      label: 'AI 委員會與診斷',
+                      id: 'ai-analysis',
+                      label: 'AI 深度分析',
+                      content: <AISection symbol={canonical} autoRun={true} />
+                    },
+                    {
+                      id: 'ai-committee',
+                      label: 'AI 投資委員會',
                       content: (
-                        <div className="space-y-8 pt-2">
+                        <div className="pt-2">
                           <AICommitteeSection symbol={canonical} />
-                          <div className="border-t border-[var(--border)] pt-6">
-                            <AISection symbol={canonical} />
-                          </div>
                         </div>
                       )
                     },

@@ -24,16 +24,22 @@ class GeminiService:
     def __init__(self):
         settings = get_settings()
         self.client = self._make_client(settings.gemini_api_key) if settings.gemini_api_key else None
-        # 設定的模型 -> Google 建議的新版 -> 會自動更新的別名；舊模型名稱會被下架(404)而自動跳過
-        self.models = [m for m in dict.fromkeys([settings.gemini_model, "gemini-3.8-flash", "gemini-flash-latest"]) if m]
+        # 設定的模型 -> Gemini 2.5 Flash -> Gemini 2.0 Flash -> gemini-flash-latest
+        self.models = [
+            m
+            for m in dict.fromkeys(
+                [settings.gemini_model, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"]
+            )
+            if m
+        ]
         self._dead: set = set()   # 已確認下架的模型，之後不再嘗試
-        self.retry_delay = 2.0    # 遇到暫時性錯誤(過載/限流)時的重試間隔(秒)
-        self.total_budget = 95.0  # 單一請求最多花多久；超過就放棄，避免卡過代理(Render)逾時
+        self.retry_delay = 1.0    # 遇到暫時性錯誤(過載/限流)時的重試間隔(秒)
+        self.total_budget = 22.0  # 單一請求總時間上限 22 秒，避免卡過反向代理(Render/Cloudflare)觸發 504
 
     @staticmethod
     def _make_client(api_key: str) -> genai.Client:
-        # 單次呼叫逾時 40 秒（SDK 預設可能等非常久）
-        return genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=40_000))
+        # 單次呼叫逾時 12 秒，避免單一模型卡住
+        return genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=12_000))
 
     def _client(self, api_key: Optional[str]) -> genai.Client:
         client = self._make_client(api_key) if api_key else self.client

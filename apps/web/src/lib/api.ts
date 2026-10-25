@@ -101,8 +101,8 @@ export const apiAlerts = {
   toggleAlert: (id: string, active: boolean) => api.patch(`/alerts/${id}`, { active }),
 };
 
-// AI 呼叫可能需要數十秒（多次呼叫 Gemini），逾時放寬到 3 分鐘
-const AI_TIMEOUT = { timeout: 180000 };
+// AI 呼叫逾時控制在 20 秒內，避免卡在反向代理 504 Gateway Timeout
+const AI_TIMEOUT = { timeout: 20000 };
 
 export const apiAi = {
   getMarketSummary: () => api.get('/ai/market-summary', AI_TIMEOUT),

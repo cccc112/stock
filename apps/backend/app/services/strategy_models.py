@@ -583,12 +583,53 @@ async def build_deep_research_report(symbol: str) -> Dict[str, Any]:
     s_val = f_scores.get("valuation") or 60
     s_mom = round(((tech.get("score") or 50) * 0.6) + ((chips.get("score") or 50) * 0.4))
 
+    q0 = (fin_data.get("quarters") or [{}])[0] if fin_data.get("quarters") else {}
+    bal_d = fin_data.get("balance") or {}
+    val_d = fin_data.get("valuation") or {}
+    m_rev0 = (fin_data.get("monthly_revenue") or [{}])[0] if fin_data.get("monthly_revenue") else {}
+
+    om_val = q0.get("operating_margin")
+    roe_val = bal_d.get("roe_ttm")
+    gm_val = q0.get("gross_margin")
+    ry_val = q0.get("revenue_yoy") if q0.get("revenue_yoy") is not None else m_rev0.get("yoy")
+    ey_val = q0.get("eps_yoy")
+    dr_val = bal_d.get("debt_ratio")
+    cr_val = bal_d.get("current_ratio")
+    per_val = val_d.get("per")
+    pbr_val = val_d.get("pbr")
+    dy_val = val_d.get("dividend_yield")
+
     radar_list = [
-        {"axis": "獲利能力", "key": "profitability", "score": int(_clamp(s_profit))},
-        {"axis": "成長動能", "key": "growth", "score": int(_clamp(s_growth))},
-        {"axis": "財務安全", "key": "safety", "score": int(_clamp(s_safety))},
-        {"axis": "估值吸引", "key": "valuation", "score": int(_clamp(s_val))},
-        {"axis": "技術籌碼", "key": "momentum", "score": int(_clamp(s_mom))},
+        {
+            "axis": "獲利能力",
+            "key": "profitability",
+            "score": int(_clamp(s_profit)),
+            "metric": f"營益率 {f'{om_val:.1f}%' if om_val is not None else '—'} · ROE {f'{roe_val:.1f}%' if roe_val is not None else '—'} · 毛利率 {f'{gm_val:.1f}%' if gm_val is not None else '—'}",
+        },
+        {
+            "axis": "成長動能",
+            "key": "growth",
+            "score": int(_clamp(s_growth)),
+            "metric": f"營收 YoY {f'{ry_val:+.1f}%' if ry_val is not None else '—'} · EPS YoY {f'{ey_val:+.1f}%' if ey_val is not None else '—'}",
+        },
+        {
+            "axis": "財務安全",
+            "key": "safety",
+            "score": int(_clamp(s_safety)),
+            "metric": f"負債比 {f'{dr_val:.1f}%' if dr_val is not None else '—'} · 流動比 {f'{cr_val}x' if cr_val is not None else '—'} · F-Score {m_piotroski['score']}/9",
+        },
+        {
+            "axis": "估值股息",
+            "key": "valuation",
+            "score": int(_clamp(s_val)),
+            "metric": f"PER {f'{per_val:.1f}x' if per_val is not None else '—'} · PBR {f'{pbr_val:.2f}x' if pbr_val is not None else '—'} · 殖利率 {f'{dy_val:.2f}%' if dy_val is not None else '—'}",
+        },
+        {
+            "axis": "技術籌碼",
+            "key": "momentum",
+            "score": int(_clamp(s_mom)),
+            "metric": f"20日 {tech.get('ret_20d') or 0:+.1f}% · Minervini {m_minervini['score']}/{m_minervini['max_score']} · SMC {m_smc['score']}/5",
+        },
     ]
 
     # 四大模型總通過率 + 五維度雷達綜合總分

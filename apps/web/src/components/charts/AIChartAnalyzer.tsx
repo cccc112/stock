@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Button from "@/components/ui/Button";
 import { apiAi } from "@/lib/api";
+import { fetchOrBuildDeepReport, generateSmartStockAnalysis } from "@/lib/clientDeepReport";
 import { Sparkles, Loader2 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 
@@ -20,26 +21,46 @@ export default function AIChartAnalyzer({ symbol, onLinesCalculated }: AIChartAn
     setLoading(true);
     setError(null);
     try {
-      // Direct API call
-      const res = await apiAi.chartAnalysis(symbol);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("CHART_AI_TIMEOUT")), 14000)
+      );
+      const res = await Promise.race([apiAi.chartAnalysis(symbol), timeoutPromise]);
       const data = res.data;
-      
+
       const newLines: any[] = [];
-      data.supportLines.forEach((price: number, i: number) => {
-        newLines.push({ price, color: '#22c55e', title: `支撐 ${i+1}` });
+      (data.supportLines || []).forEach((price: number, i: number) => {
+        newLines.push({ price, color: "#22c55e", title: `支撐 ${i + 1}` });
       });
-      data.resistanceLines.forEach((price: number, i: number) => {
-        newLines.push({ price, color: '#ef4444', title: `壓力 ${i+1}` });
+      (data.resistanceLines || []).forEach((price: number, i: number) => {
+        newLines.push({ price, color: "#ef4444", title: `壓力 ${i + 1}` });
       });
-      
+
       onLinesCalculated(newLines);
-      setAnalysis(data.analysis);
-      // 線已畫在圖上；AI 解讀失敗（例如沒設 API Key）只提示，不影響畫線
-      if (data.analysis_error) setError(`支撐壓力線已標在圖上，但 AI 解讀失敗：${data.analysis_error}`);
-      
-    } catch (err: any) {
-      console.error(err);
-      setError(err?.response?.data?.detail || "分析失敗，請稍後再試。請確定您已設定 Gemini API Key。");
+
+      if (data.analysis && !String(data.analysis).includes("呼叫失敗")) {
+        setAnalysis(data.analysis);
+      } else {
+        const smart = await generateSmartStockAnalysis(symbol);
+        setAnalysis(smart.analysis);
+      }
+    } catch {
+      try {
+        const [deep, smart] = await Promise.all([
+          fetchOrBuildDeepReport(symbol),
+          generateSmartStockAnalysis(symbol),
+        ]);
+        const v = deep?.verdict;
+        if (v) {
+          onLinesCalculated([
+            { price: v.target_price, color: "#ef4444", title: "目標壓力" },
+            { price: v.entry_zone?.[0] || v.stop_loss, color: "#22c55e", title: "關鍵支撐" },
+            { price: v.stop_loss, color: "#f59e0b", title: "防守停損" },
+          ]);
+        }
+        setAnalysis(smart.analysis);
+      } catch (err: any) {
+        setError(err?.message || "分析失敗，請稍後再試。");
+      }
     } finally {
       setLoading(false);
     }

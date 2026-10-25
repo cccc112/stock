@@ -44,16 +44,15 @@ async def get_market_summary(refresh: bool = False, authorization: Optional[str]
 
 @router.post("/analyze/{symbol}", response_model=AIAnalysisResponse)
 async def analyze_stock(symbol: str, req: AIAnalysisRequest = None, authorization: Optional[str] = Header(None)):
-    try:
-        period = req.period if req else "3mo"
-        api_key = None
-        if req and req.api_key:
-            api_key = req.api_key
-        elif authorization and authorization.startswith("Bearer "):
-            api_key = authorization.replace("Bearer ", "")
+    period = req.period if req else "3mo"
+    api_key = None
+    if req and req.api_key:
+        api_key = req.api_key
+    elif authorization and authorization.startswith("Bearer "):
+        api_key = authorization.replace("Bearer ", "")
 
+    try:
         quant_data = await get_full_analysis(symbol, period)
-        
         from app.services import market_data
         history = await market_data.get_history(symbol, period=period)
         kline_summary = []
@@ -69,14 +68,47 @@ async def analyze_stock(symbol: str, req: AIAnalysisRequest = None, authorizatio
             vap=[v.dict() for v in quant_data.vap],
             api_key=api_key
         )
-        
         return AIAnalysisResponse(
             symbol=symbol,
             analysis=analysis,
             generated_at=datetime.utcnow()
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        # 當 Gemini 限流、逾時或未設定 Key 時，自動以真實財報與四大模型產生完整診斷報告，絕不回傳 500/504
+        try:
+            from app.services.strategy_models import build_deep_research_report
+            rep = await build_deep_research_report(symbol)
+            v = rep.get("verdict") or {}
+            dup = (rep.get("financials") or {}).get("dupont") or {}
+            val = (rep.get("financials") or {}).get("valuation") or {}
+            bal = (rep.get("financials") or {}).get("balance") or {}
+            models = rep.get("models") or {}
+            pio = models.get("piotroski") or {}
+            can = models.get("canslim") or {}
+            min_m = models.get("minervini") or {}
+            smc = models.get("smc") or {}
+            ez = v.get("entry_zone") or [0, 0]
+            fallback_md = (
+                f"### 1. 綜合多空裁決：{v.get('rating', '中立')}（總分 {v.get('total_score', 60)}/100）\n"
+                f"- **核心結論**：{v.get('conclusion', '')}\n\n"
+                f"### 2. 財報基本面與杜邦 ROE 剖析\n"
+                f"- **杜邦三因子**：近四季 ROE **{dup.get('roe_ttm') or '—'}%**（淨利率 **{dup.get('net_margin_ttm') or '—'}%** · 資產週轉 **{dup.get('asset_turnover') or '—'}x** · 權益乘數 **{dup.get('equity_multiplier') or '—'}x**），屬於「**{dup.get('driver', '穩健型')}**」。\n"
+                f"- **Piotroski F-Score**：**{pio.get('score', 0)}/9 分**（{pio.get('status', '')}），負債比 **{bal.get('debt_ratio') or '—'}%**、流動比 **{bal.get('current_ratio') or '—'}x**。\n"
+                f"- **估值位階**：本益比 **{val.get('per') or '—'}x**、股價淨值比 **{val.get('pbr') or '—'}x**、殖利率 **{val.get('dividend_yield') or '—'}%**。\n\n"
+                f"### 3. 技術結構與操作建議\n"
+                f"- **四大模型檢核**：CANSLIM **{can.get('score', 0)}/7** · Minervini **{min_m.get('score', 0)}/{min_m.get('max_score', 7)}** · SMC **{smc.get('score', 0)}/5**。\n"
+                f"- **建議進場區間**：**{ez[0]} ~ {ez[-1]}**\n"
+                f"- **防守停損價**：**{v.get('stop_loss', '—')}**\n"
+                f"- **波段目標價**：**{v.get('target_price', '—')}**（風報比 **1 : {v.get('risk_reward', '—')}**）\n\n"
+                f"> *以上內容由量化與財報診斷引擎根據真實市場數據生成，僅供研究參考，非投資建議。*"
+            )
+            return AIAnalysisResponse(
+                symbol=symbol,
+                analysis=fallback_md,
+                generated_at=datetime.utcnow()
+            )
+        except Exception as e2:
+            raise HTTPException(status_code=500, detail=str(e2))
 
 @router.post("/review/{portfolio_id}")
 async def review_trades(portfolio_id: str, db=Depends(get_db)):

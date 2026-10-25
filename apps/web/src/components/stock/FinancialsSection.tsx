@@ -6,7 +6,7 @@ import Link from "next/link";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import { apiResearch, apiErrorMessage } from "@/lib/api";
-import { fetchOrBuildDeepReport } from "@/lib/clientDeepReport";
+import { fetchOrBuildDeepReport, generateSmartStockAnalysis } from "@/lib/clientDeepReport";
 import { Sparkles, CheckCircle2, XCircle, ArrowRight, ShieldCheck, AlertTriangle, Layers } from "lucide-react";
 import { BarTrend, LineTrend } from "@/components/stock/TrendCharts";
 import SnowflakeRadar, { RadarItem } from "@/components/stock/SnowflakeRadar";
@@ -212,12 +212,25 @@ export default function FinancialsSection({
     setAdviceLoading(true);
     setAdviceError("");
     try {
-      const r = await apiResearch.getFinancialAdvice(symbol);
-      setAdvice(r.data.advice);
-    } catch (e) {
-      setAdviceError(apiErrorMessage(e));
-    } finally {
-      setAdviceLoading(false);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("ADVICE_TIMEOUT")), 14000)
+      );
+      const r = await Promise.race([apiResearch.getFinancialAdvice(symbol), timeoutPromise]);
+      if (r?.data?.advice && !String(r.data.advice).includes("呼叫失敗")) {
+        setAdvice(r.data.advice);
+        setAdviceLoading(false);
+        return;
+      }
+      throw new Error("FALLBACK_ADVICE");
+    } catch {
+      try {
+        const smart = await generateSmartStockAnalysis(symbol);
+        setAdvice(smart.analysis);
+      } catch (e) {
+        setAdviceError(apiErrorMessage(e));
+      } finally {
+        setAdviceLoading(false);
+      }
     }
   };
 

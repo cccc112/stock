@@ -4,6 +4,7 @@ import { useState } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { apiAi } from "@/lib/api";
+import { generateSmartAICommittee } from "@/lib/clientDeepReport";
 import {
   Users,
   ShieldAlert,
@@ -33,16 +34,29 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiAi.runCommittee(symbol);
-      setData(res.data);
-    } catch (err: any) {
-      console.error(err);
-      setError(
-        err?.response?.data?.detail ||
-          "AI 投資委員會會議召開失敗。請確認您已在設定中輸入 Gemini API Key (BYOK)。"
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("COMMITTEE_TIMEOUT")), 15000)
       );
-    } finally {
-      setLoading(false);
+      const res = await Promise.race([apiAi.runCommittee(symbol), timeoutPromise]);
+      if (
+        res?.data?.cio_verdict &&
+        !res.data.cio_verdict.error &&
+        !res.data.experts?.buffett?.error
+      ) {
+        setData(res.data);
+        setLoading(false);
+        return;
+      }
+      throw new Error("FALLBACK_COMMITTEE");
+    } catch {
+      try {
+        const smartData = await generateSmartAICommittee(symbol);
+        setData(smartData);
+      } catch (err: any) {
+        setError(err?.message || "AI 投資委員會會議召開失敗，請稍後再試。");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 

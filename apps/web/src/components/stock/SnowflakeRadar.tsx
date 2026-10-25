@@ -6,32 +6,36 @@ export interface RadarItem {
   axis: string;
   key: string;
   score: number;
+  metric?: string;
 }
 
 interface SnowflakeRadarProps {
   items: RadarItem[];
   totalScore?: number;
   size?: number;
+  showMetrics?: boolean;
 }
 
 export default function SnowflakeRadar({
   items,
   totalScore = 60,
-  size = 250,
+  size = 240,
+  showMetrics = true,
 }: SnowflakeRadarProps) {
-  const axes = items.length === 5
-    ? items
-    : [
-        { axis: "獲利能力", key: "profitability", score: 50 },
-        { axis: "成長動能", key: "growth", score: 50 },
-        { axis: "財務安全", key: "safety", score: 50 },
-        { axis: "估值吸引", key: "valuation", score: 50 },
-        { axis: "技術籌碼", key: "momentum", score: 50 },
-      ];
+  const axes =
+    items.length === 5
+      ? items
+      : [
+          { axis: "獲利能力", key: "profitability", score: 50 },
+          { axis: "成長動能", key: "growth", score: 50 },
+          { axis: "財務安全", key: "safety", score: 50 },
+          { axis: "估值股息", key: "valuation", score: 50 },
+          { axis: "技術籌碼", key: "momentum", score: 50 },
+        ];
 
   const cx = size / 2;
   const cy = size / 2;
-  const maxR = size * 0.34;
+  const maxR = size * 0.33;
   const levels = [20, 40, 60, 80, 100];
 
   const angleFor = (idx: number) => -Math.PI / 2 + (idx * 2 * Math.PI) / axes.length;
@@ -53,16 +57,18 @@ export default function SnowflakeRadar({
     .join(" ");
 
   const strokeColor =
-    totalScore >= 68 ? "#10b981" : totalScore >= 48 ? "#6366f1" : "#f59e0b";
+    totalScore >= 68 ? "#10b981" : totalScore >= 48 ? "#38bdf8" : "#f59e0b";
   const fillColor =
     totalScore >= 68
       ? "rgba(16, 185, 129, 0.24)"
       : totalScore >= 48
-      ? "rgba(99, 102, 241, 0.24)"
+      ? "rgba(56, 189, 248, 0.22)"
       : "rgba(245, 158, 11, 0.22)";
 
+  const hasMetrics = showMetrics && axes.some((a) => a.metric);
+
   return (
-    <div className="flex flex-col items-center justify-center select-none">
+    <div className="flex flex-col items-center justify-center select-none w-full">
       <svg
         width={size}
         height={size}
@@ -82,7 +88,7 @@ export default function SnowflakeRadar({
               key={lv}
               points={pts}
               fill="none"
-              stroke="rgba(148, 163, 184, 0.16)"
+              stroke="rgba(148, 163, 184, 0.22)"
               strokeWidth={lv === 100 ? 1.2 : 0.8}
               strokeDasharray={lv === 60 ? "3 2" : undefined}
             />
@@ -99,7 +105,7 @@ export default function SnowflakeRadar({
               y1={cy}
               x2={outer.x}
               y2={outer.y}
-              stroke="rgba(148, 163, 184, 0.2)"
+              stroke="rgba(148, 163, 184, 0.25)"
               strokeWidth={0.9}
             />
           );
@@ -129,14 +135,15 @@ export default function SnowflakeRadar({
                 cy={pt.y}
                 r={4}
                 fill={strokeColor}
-                stroke="#0f172a"
+                stroke="var(--color-bg-secondary)"
                 strokeWidth={1.5}
               />
               <text
                 x={labelPt.x}
                 y={labelPt.y - 5}
                 textAnchor={textAnchor}
-                className="fill-slate-300 text-[11px] font-medium"
+                fill="var(--color-text-secondary)"
+                className="text-[11px] font-medium"
               >
                 {item.axis}
               </text>
@@ -153,6 +160,27 @@ export default function SnowflakeRadar({
           );
         })}
       </svg>
+
+      {hasMetrics && (
+        <div className="w-full mt-2 pt-2.5 border-t border-[var(--border)] px-2.5 pb-1 space-y-1.5 text-[11px]">
+          <div className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1">
+            五維度真實財報與量化計算依據
+          </div>
+          {axes.map((item) => (
+            <div key={item.key} className="flex flex-col gap-0.5 py-0.5">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-primary">{item.axis}</span>
+                <span className="font-mono font-bold text-accent">{item.score} 分</span>
+              </div>
+              {item.metric && (
+                <div className="text-[10px] text-secondary font-mono truncate" title={item.metric}>
+                  {item.metric}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

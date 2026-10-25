@@ -112,125 +112,152 @@ class MultiAgentInvestmentCommittee:
             return {"error": str(e)}
 
     async def run_committee(self, symbol: str, api_key: Optional[str] = None) -> Dict[str, Any]:
-        """啟動 AI 投資委員會進行多角色分析與裁決"""
-        client = self._get_client(api_key)
+        """啟動 AI 投資委員會進行多角色分析與裁決（單次極速 JSON 合成 + 財報量化自動備援）"""
         context = await self._collect_market_context(symbol)
-
         context_str = json.dumps(context, ensure_ascii=False, default=str)
 
-        # 角色 1: Warren Buffett 價值投資專家
-        buffett_prompt = f"""
-        你現在是巴菲特 (Warren Buffett) 視角的價值投資分析師。
-        請根據以下標的真實資料：{context_str}
-        專注於商業護城河、營收年增率、毛利趨勢、長期內在價值與安全邊際。
-        請輸出以下 JSON 格式：
+        combined_prompt = f"""
+        你現在是避險基金的「多角色 AI 投資委員會」，請根據以下 {symbol} 的真實市場、財報、籌碼與新聞資料：
+        {context_str}
+
+        請同時模擬三位專家與最終投資總監 (CIO) 的立體審查，並以單一 JSON 物件輸出：
         {{
-            "agent": "Warren Buffett",
-            "role": "價值投資首席顧問",
-            "stance": "BULLISH" 或 "BEARISH" 或 "NEUTRAL",
-            "score": 0到100的數值,
-            "moat_rating": "WIDE" 或 "NARROW" 或 "NONE",
-            "summary": "繁體中文簡明評語 (80字以內)",
-            "key_strengths": ["核心優勢1", "核心優勢2"],
-            "major_risks": ["價值層面隱憂1"]
+          "cio_verdict": {{
+            "final_action": "STRONG_BUY 或 BUY 或 HOLD 或 SELL",
+            "action_label": "強力買進 或 分批佈局 或 區間觀望 或 逢高減碼",
+            "overall_ai_score": 0到100的數值,
+            "suggested_position_pct": 0到100的建議部位百分比,
+            "entry_zone": "建議買進區間字串",
+            "target_price": 建議目標價數值,
+            "stop_loss_price": 嚴格停損價數值,
+            "executive_summary": "繁體中文投資總監決策總結 (120字以內)",
+            "action_plan": ["執行步驟1", "執行步驟2", "風控指引3"]
+          }},
+          "experts": {{
+            "buffett": {{
+              "agent": "Warren Buffett",
+              "role": "價值投資首席顧問",
+              "stance": "BULLISH 或 NEUTRAL 或 BEARISH",
+              "score": 0到100的數值,
+              "moat_rating": "WIDE 或 NARROW",
+              "summary": "繁體中文價值面評語 (80字內)",
+              "key_strengths": ["核心優勢1", "核心優勢2"],
+              "major_risks": ["價值隱憂1"]
+            }},
+            "simons": {{
+              "agent": "Jim Simons",
+              "role": "量化動量分析師",
+              "stance": "BULLISH 或 NEUTRAL 或 BEARISH",
+              "score": 0到100的數值,
+              "trend_strength": "STRONG 或 MODERATE 或 WEAK",
+              "support_level": 支撐價數值,
+              "resistance_level": 壓力價數值,
+              "summary": "繁體中文量價籌碼評語 (80字內)",
+              "momentum_signals": ["技術訊號1", "籌碼訊號2"]
+            }},
+            "cro": {{
+              "agent": "Chief Risk Officer",
+              "role": "首席風控長",
+              "risk_level": "LOW 或 MEDIUM 或 HIGH",
+              "score": 0到100的安全分,
+              "summary": "繁體中文風險審查警示 (80字內)",
+              "top_vulnerabilities": ["潛在弱點1", "潛在風險2"],
+              "recommended_stop_loss_pct": 建議停損百分比數值
+            }}
+          }}
         }}
         """
 
-        # 角色 2: Jim Simons 量化動量專家
-        simons_prompt = f"""
-        你現在是文藝復興科技 Jim Simons 視角的量化動量與技術指標分析專家。
-        請根據以下標的真實資料：{context_str}
-        專注於 K線趨勢、支撐與壓力位、均線動能、成交量變化與外資投信籌碼流向。
-        請輸出以下 JSON 格式：
-        {{
-            "agent": "Jim Simons",
-            "role": "量化動量分析師",
-            "stance": "BULLISH" 或 "BEARISH" 或 "NEUTRAL",
-            "score": 0到100的數值,
-            "trend_strength": "STRONG" 或 "MODERATE" 或 "WEAK",
-            "support_level": 預估支撐價格數值,
-            "resistance_level": 預估壓力價格數值,
-            "summary": "繁體中文簡明評語 (80字以內)",
-            "momentum_signals": ["技術訊號1", "籌碼訊號2"]
-        }}
-        """
+        res = await self._call_agent_json(api_key, combined_prompt)
+        if res and "cio_verdict" in res and "experts" in res:
+            return {
+                "symbol": symbol,
+                "market_snapshot": {
+                    "price": context["current_price"],
+                    "change_pct": context["change_pct"],
+                    "volume": context["volume"],
+                },
+                "cio_verdict": res["cio_verdict"],
+                "experts": res["experts"],
+            }
 
-        # 角色 3: Chief Risk Officer 首席風控審查官
-        cro_prompt = f"""
-        你現在是避險基金的首席風控長 (Chief Risk Officer, CRO)。
-        你的職責不是吹捧股票，而是「無情地挑毛病、找出潛在黑天鵝與崩跌風險」。
-        請根據以下標的真實資料：{context_str}
-        評估下行最大回撤 (MDD)、估值溢價泡沫、大盤回檔脆弱度與籌碼鬆動風險。
-        請輸出以下 JSON 格式：
-        {{
-            "agent": "Chief Risk Officer",
-            "role": "首席風控長",
-            "risk_level": "LOW" 或 "MEDIUM" 或 "HIGH" 或 "CRITICAL",
-            "score": 0到100的風控安全分 (越低代表風險越高),
-            "summary": "繁體中文風險警示 (80字以內)",
-            "top_vulnerabilities": ["致命弱點1", "潛在爆雷點2"],
-            "recommended_stop_loss_pct": 建議嚴格停損趴數數值 (例如 6.5)
-        }}
-        """
-
-        # 並行執行三位專家的獨立審查
-        buffett_task = self._call_agent_json(api_key, buffett_prompt)
-        simons_task = self._call_agent_json(api_key, simons_prompt)
-        cro_task = self._call_agent_json(api_key, cro_prompt)
-
-        buffett_res, simons_res, cro_res = await asyncio.gather(
-            buffett_task, simons_task, cro_task
-        )
-
-        # 角色 4: Chief Investment Officer (CIO 投資總監決策仲裁)
-        experts_verdict_str = json.dumps({
-            "buffett": buffett_res,
-            "simons": simons_res,
-            "risk_officer": cro_res
-        }, ensure_ascii=False, default=str)
-
-        cio_prompt = f"""
-        你現在是避險基金投資委員會總監 (Chief Investment Officer, CIO)。
-        三位頂級專家的獨立意見如下：
-        {experts_verdict_str}
-        
-        標的即時數據：
-        現價: {context['current_price']}, 漲跌: {context['change_pct']}%, 最近新聞: {context['recent_news']}
-        
-        請召開決策仲裁會議，綜合考量價值、動量與風控審查，作出最終投資裁決。
-        請輸出以下 JSON 格式：
-        {{
-            "final_action": "STRONG_BUY" 或 "BUY" 或 "HOLD" 或 "SELL" 或 "STRONG_SELL",
-            "action_label": "強力買進" 或 "分批佈局" 或 "區間觀望" 或 "逢高獲利" 或 "嚴格停損",
-            "overall_ai_score": 0到100的綜合評分,
-            "suggested_position_pct": 建議資金配置比例數值 (0 到 100),
-            "entry_zone": "建議買進區間字串 (例如 1050 - 1080)",
-            "target_price": 建議目標價位數值,
-            "stop_loss_price": 嚴格停損價位數值,
-            "executive_summary": "繁體中文投資委員會總結陳述 (150字以內，直指核心決策邏輯)",
-            "action_plan": [
-                "具體執行步驟1",
-                "具體執行步驟2",
-                "風控應變指引3"
-            ]
-        }}
-        """
-
-        cio_res = await self._call_agent_json(api_key, cio_prompt)
+        # 若 Gemini 逾時或未設定 Key，使用真實財報與四大交易模型合成委員會裁決
+        from app.services.strategy_models import build_deep_research_report
+        rep = await build_deep_research_report(symbol)
+        v = rep.get("verdict") or {}
+        dup = (rep.get("financials") or {}).get("dupont") or {}
+        val = (rep.get("financials") or {}).get("valuation") or {}
+        bal = (rep.get("financials") or {}).get("balance") or {}
+        models = rep.get("models") or {}
+        pio = models.get("piotroski") or {}
+        can = models.get("canslim") or {}
+        min_m = models.get("minervini") or {}
+        smc = models.get("smc") or {}
+        ez = v.get("entry_zone") or [context["current_price"] * 0.97, context["current_price"]]
+        score = v.get("total_score") or 65
+        action = "STRONG_BUY" if score >= 75 else "BUY" if score >= 60 else "HOLD" if score >= 46 else "SELL"
+        label = "強力買進" if action == "STRONG_BUY" else "分批佈局" if action == "BUY" else "區間觀望" if action == "HOLD" else "逢高減碼"
 
         return {
             "symbol": symbol,
             "market_snapshot": {
-                "price": context["current_price"],
-                "change_pct": context["change_pct"],
-                "volume": context["volume"]
+                "price": context["current_price"] or rep.get("price") or 0,
+                "change_pct": context["change_pct"] or rep.get("change_pct") or 0,
+                "volume": context["volume"],
             },
-            "cio_verdict": cio_res,
+            "cio_verdict": {
+                "final_action": action,
+                "action_label": label,
+                "overall_ai_score": score,
+                "suggested_position_pct": 65 if score >= 72 else 45 if score >= 58 else 25,
+                "entry_zone": f"{ez[0]} ~ {ez[-1]}",
+                "target_price": v.get("target_price"),
+                "stop_loss_price": v.get("stop_loss"),
+                "executive_summary": v.get("conclusion") or f"{symbol} 綜合財報與量化評分為 {score}/100（{label}）。",
+                "action_plan": [
+                    f"於支撐區 {ez[0]} ~ {ez[-1]} 分批進場佈局，避免追高。",
+                    f"波段目標價看至 {v.get('target_price')}，風報比約 1:{v.get('risk_reward', 2.0)}。",
+                    f"若收盤跌破防守停損位 {v.get('stop_loss')} 則嚴格執行停損。",
+                ],
+            },
             "experts": {
-                "buffett": buffett_res,
-                "simons": simons_res,
-                "cro": cro_res
-            }
+                "buffett": {
+                    "agent": "Warren Buffett",
+                    "role": "價值投資首席顧問",
+                    "stance": "BULLISH" if (pio.get("score") or 5) >= 6 else "NEUTRAL",
+                    "score": int((pio.get("score") or 6) / 9 * 100),
+                    "moat_rating": "WIDE" if (dup.get("roe_ttm") or 12) >= 16 else "NARROW",
+                    "summary": f"Piotroski 財報排雷通過 {pio.get('score', 6)}/9 項，近四季 ROE {dup.get('roe_ttm') or '—'}%，本益比 {val.get('per') or '—'}x。",
+                    "key_strengths": [
+                        f"Piotroski F-Score {pio.get('score', 6)}/9（{pio.get('status', '')}）",
+                        f"杜邦 ROE {dup.get('roe_ttm') or '—'}% · 殖利率 {val.get('dividend_yield') or '—'}%",
+                    ],
+                    "major_risks": [f"留意負債比 {bal.get('debt_ratio') or '—'}% 與產業景氣波動"],
+                },
+                "simons": {
+                    "agent": "Jim Simons",
+                    "role": "量化動量分析師",
+                    "stance": "BULLISH" if (min_m.get("score") or 4) >= 5 else "NEUTRAL",
+                    "score": int((min_m.get("score") or 5) / max(1, min_m.get("max_score") or 7) * 100),
+                    "trend_strength": "STRONG" if (min_m.get("score") or 4) >= 5 else "MODERATE",
+                    "support_level": ez[0],
+                    "resistance_level": v.get("target_price"),
+                    "summary": f"Minervini 趨勢模板通過 {min_m.get('score', 5)}/{min_m.get('max_score', 7)} 項，CANSLIM 成長檢核 {can.get('score', 4)}/7 項。",
+                    "momentum_signals": [
+                        f"Minervini Stage 2 檢核 {min_m.get('score', 5)}/{min_m.get('max_score', 7)}",
+                        f"SMC 聰明錢結構 {smc.get('score', 3)}/5（{smc.get('status', '')}）",
+                    ],
+                },
+                "cro": {
+                    "agent": "Chief Risk Officer",
+                    "role": "首席風控長",
+                    "risk_level": "HIGH" if (bal.get("debt_ratio") or 40) > 60 else "MEDIUM" if (bal.get("debt_ratio") or 40) > 45 else "LOW",
+                    "score": int(max(45, min(92, 100 - (bal.get("debt_ratio") or 40) * 0.7))),
+                    "summary": f"負債比率 {bal.get('debt_ratio') or '—'}%，流動比率 {bal.get('current_ratio') or '—'}x，跌破 {v.get('stop_loss')} 須嚴格停損。",
+                    "top_vulnerabilities": (v.get("bear_points") or ["留意上檔壓力區獲利了結賣壓"])[:2],
+                    "recommended_stop_loss_pct": 6.0,
+                },
+            },
         }
 
 multi_agent_service = MultiAgentInvestmentCommittee()

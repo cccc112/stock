@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     # Gemini AI
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-3.8-flash"  # 失敗時依序退回 gemini-flash-latest；舊版模型名稱會被下架(404)
+    gemini_model: str = "gemini-2.5-flash"  # 失敗時依序退回 gemini-2.0-flash / gemini-flash-latest
 
     # FinMind
     finmind_api_key: str = ""
