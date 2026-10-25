@@ -3,6 +3,7 @@ import "@/styles/globals.css";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import BackendStatusBanner from "@/components/layout/BackendStatusBanner";
+import WatchlistRadarListener from "@/components/layout/WatchlistRadarListener";
 import { BeginnerModeProvider } from "@/components/ui/TermTooltip";
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export default function RootLayout({
             <div className="main-content">
               <BackendStatusBanner />
               <TopBar />
+              <WatchlistRadarListener />
               <main className="page-content">
                 {children}
               </main>
