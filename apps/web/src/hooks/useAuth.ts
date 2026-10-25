@@ -62,6 +62,12 @@ export function useAuthManager() {
     };
 
     localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(profile));
+    try {
+      const raw = localStorage.getItem("stock_saved_google_accounts");
+      const list: UserProfile[] = raw ? JSON.parse(raw) : [];
+      const updated = [profile, ...list.filter((a) => a.email !== profile.email)].slice(0, 6);
+      localStorage.setItem("stock_saved_google_accounts", JSON.stringify(updated));
+    } catch {}
     setUser(profile);
 
     // 檢查該使用者先前有無儲存的 Key

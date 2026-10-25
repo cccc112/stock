@@ -96,16 +96,16 @@ ETF_PROFILES: Dict[str, Dict[str, Any]] = {
             "每年 6 月與 12 月進行成分股定期審核換股，投信換股期間常引發成分股籌碼波動。"
         ],
         "holdings": [
-            {"symbol": "2454", "name": "聯發科", "weight": 4.6},
-            {"symbol": "2603", "name": "長榮", "weight": 4.4},
-            {"symbol": "2303", "name": "聯電", "weight": 4.1},
-            {"symbol": "2382", "name": "廣達", "weight": 3.8},
-            {"symbol": "2891", "name": "中信金", "weight": 3.6},
-            {"symbol": "2886", "name": "兆豐金", "weight": 3.4},
-            {"symbol": "2357", "name": "華碩", "weight": 3.3},
-            {"symbol": "3034", "name": "聯詠", "weight": 3.1},
-            {"symbol": "2890", "name": "永豐金", "weight": 2.9},
-            {"symbol": "3231", "name": "緯創", "weight": 2.7},
+            {"symbol": "1303", "name": "南亞", "weight": 8.37},
+            {"symbol": "2408", "name": "南亞科", "weight": 4.36},
+            {"symbol": "2357", "name": "華碩", "weight": 4.18},
+            {"symbol": "2890", "name": "永豐金", "weight": 4.02},
+            {"symbol": "2880", "name": "華南金", "weight": 3.94},
+            {"symbol": "2344", "name": "華邦電", "weight": 3.83},
+            {"symbol": "2891", "name": "中信金", "weight": 3.73},
+            {"symbol": "3231", "name": "緯創", "weight": 3.59},
+            {"symbol": "2382", "name": "廣達", "weight": 3.52},
+            {"symbol": "2886", "name": "兆豐金", "weight": 3.32},
         ],
         "sector_weights": [
             {"sector": "電腦及週邊設備", "weight": 26.5},
@@ -129,16 +129,16 @@ ETF_PROFILES: Dict[str, Dict[str, Any]] = {
             "波動度通常低於純科技型 ETF，每年 5 月與 11 月進行成分股調整。"
         ],
         "holdings": [
-            {"symbol": "2454", "name": "聯發科", "weight": 5.2},
-            {"symbol": "2303", "name": "聯電", "weight": 4.9},
-            {"symbol": "2891", "name": "中信金", "weight": 4.5},
-            {"symbol": "2357", "name": "華碩", "weight": 4.2},
-            {"symbol": "3034", "name": "聯詠", "weight": 4.0},
-            {"symbol": "2882", "name": "國泰金", "weight": 3.8},
-            {"symbol": "2881", "name": "富邦金", "weight": 3.7},
-            {"symbol": "2382", "name": "廣達", "weight": 3.5},
-            {"symbol": "3711", "name": "日月光投控", "weight": 3.4},
-            {"symbol": "2886", "name": "兆豐金", "weight": 3.2},
+            {"symbol": "2891", "name": "中信金", "weight": 9.65},
+            {"symbol": "2382", "name": "廣達", "weight": 9.14},
+            {"symbol": "2882", "name": "國泰金", "weight": 6.43},
+            {"symbol": "2357", "name": "華碩", "weight": 5.80},
+            {"symbol": "2303", "name": "聯電", "weight": 4.50},
+            {"symbol": "2454", "name": "聯發科", "weight": 4.35},
+            {"symbol": "2881", "name": "富邦金", "weight": 4.12},
+            {"symbol": "3034", "name": "聯詠", "weight": 3.85},
+            {"symbol": "2308", "name": "台達電", "weight": 3.60},
+            {"symbol": "3711", "name": "日月光投控", "weight": 3.40},
         ],
         "sector_weights": [
             {"sector": "電腦及週邊設備", "weight": 28.0},
@@ -780,6 +780,47 @@ def is_etf_or_multi_asset(symbol: str) -> str:
     return "STOCK"
 
 
+async def fetch_live_etf_holdings(symbol: str, kind: str, code: str) -> List[Dict[str, Any]]:
+    """動態從 Yahoo Finance 抓取真實即時 ETF 前十大成分股與權重（自動轉換繁體中文名稱）"""
+    import yfinance as yf
+    from app.services.market_data import tw_name_map
+
+    # 台股若為上櫃債券 ETF (例如 00679B) 亦可嘗試 .TWO
+    yf_sym = f"{code}.TW" if kind == "TW" else symbol.upper()
+
+    try:
+        def _get(sym):
+            t = yf.Ticker(sym)
+            fd = getattr(t, "funds_data", None)
+            if fd and hasattr(fd, "top_holdings") and fd.top_holdings is not None and not fd.top_holdings.empty:
+                return fd.top_holdings
+            return None
+
+        df = await asyncio.wait_for(asyncio.to_thread(_get, yf_sym), timeout=4.0)
+        # 若 .TW 無資料且為台股代碼，嘗試 .TWO (上櫃)
+        if df is None and kind == "TW":
+            df = await asyncio.wait_for(asyncio.to_thread(_get, f"{code}.TWO"), timeout=2.5)
+
+        if df is not None and not df.empty:
+            tw_names = await tw_name_map() if kind == "TW" else {}
+            holdings = []
+            for s, row in df.iterrows():
+                clean = str(s).replace(".TW", "").replace(".TWO", "").strip()
+                raw_name = str(row.get("Name", "")).strip()
+                name = tw_names.get(clean) or raw_name or clean
+                pct = round(float(row.get("Holding Percent", 0)) * 100, 2)
+                holdings.append({
+                    "symbol": clean,
+                    "name": name,
+                    "weight": pct,
+                })
+            if holdings:
+                return holdings
+    except Exception as e:
+        logger.debug("fetch_live_etf_holdings %s error: %s", symbol, e)
+    return []
+
+
 async def build_etf_report(symbol: str) -> Dict[str, Any]:
     """整合 ETF / 跨資產標的追蹤資訊、真實歷史績效、波動度與配息紀錄"""
     symbol = await market_data.resolve_symbol_query(symbol)
@@ -893,6 +934,10 @@ async def build_etf_report(symbol: str) -> Dict[str, Any]:
             "可搭配 K 線上下趨勢線、20MA 乖離率與年化波動率判讀中期多空支撐壓力區。"
         ]
 
+    # 優先從 Yahoo Finance 動態取得最新成分股，若無法取得則回退至快照
+    live_holdings = await fetch_live_etf_holdings(symbol, kind, code)
+    holdings = live_holdings if live_holdings else profile.get("holdings", [])
+
     return {
         "symbol": symbol,
         "name": name,
@@ -907,7 +952,7 @@ async def build_etf_report(symbol: str) -> Dict[str, Any]:
         "dividend_yield": profile.get("dividend_yield_est"),
         "performance": perf,
         "dividends": dividends,
-        "holdings": profile.get("holdings", []),
+        "holdings": holdings,
         "sector_weights": profile.get("sector_weights", []),
         "focus_points": profile.get("focus_points") or default_focus,
     }
