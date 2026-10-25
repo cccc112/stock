@@ -273,7 +273,11 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
           {deepSummary?.verdict && (
             <Card
               title={<Term k="snowflake_radar" label="最終多空裁決與五維雷達" />}
-              subtitle="整合財報、杜邦與四大經典策略模型"
+              subtitle={
+                deepSummary.is_etf
+                  ? "整合追蹤指數、內扣費用、波動率與趨勢結構"
+                  : "整合財報、杜邦與四大經典策略模型"
+              }
               variant="accent-border"
             >
               <div className="space-y-4">
@@ -297,13 +301,21 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                 {deepSummary.models && (
                   <div className="space-y-1.5 text-xs border-t border-[var(--border)] pt-3">
                     <div className="flex justify-between items-center">
-                      <Term k="piotroski" label="Piotroski F-Score" className="text-secondary" />
+                      {deepSummary.is_etf ? (
+                        <Term k="expense_ratio" label="追蹤與費用結構" className="text-secondary" />
+                      ) : (
+                        <Term k="piotroski" label="Piotroski F-Score" className="text-secondary" />
+                      )}
                       <span className="font-mono font-semibold text-primary">
                         {deepSummary.models.piotroski?.score}/{deepSummary.models.piotroski?.max_score} ({deepSummary.models.piotroski?.status})
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <Term k="canslim" label="O'Neil CANSLIM" className="text-secondary" />
+                      {deepSummary.is_etf ? (
+                        <Term k="bias_20ma" label="波段相對強度" className="text-secondary" />
+                      ) : (
+                        <Term k="canslim" label="O'Neil CANSLIM" className="text-secondary" />
+                      )}
                       <span className="font-mono font-semibold text-primary">
                         {deepSummary.models.canslim?.score}/{deepSummary.models.canslim?.max_score} ({deepSummary.models.canslim?.status})
                       </span>

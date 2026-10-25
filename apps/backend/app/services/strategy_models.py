@@ -599,36 +599,103 @@ async def build_deep_research_report(symbol: str) -> Dict[str, Any]:
     pbr_val = val_d.get("pbr")
     dy_val = val_d.get("dividend_yield")
 
+    sc_profit = int(_clamp(s_profit))
+    sc_growth = int(_clamp(s_growth))
+    sc_safety = int(_clamp(s_safety))
+    sc_val = int(_clamp(s_val))
+    sc_mom = int(_clamp(s_mom))
+
+    # 各維度判定依據與理由說明
+    reason_profit = (
+        f"營業利益率 {om_val:.1f}% 且近四季 ROE 達 {roe_val:.1f}%，本業定價權與股東權益報酬亮眼。"
+        if (om_val or 0) >= 15 and (roe_val or 0) >= 15
+        else f"本業營益率 ({om_val or 0:.1f}%) 與毛利率處於常態中位數，獲利表現平穩。"
+        if sc_profit >= 50
+        else f"營益率偏薄或 ROE 偏低，本業獲利能力待強化。"
+    )
+
+    reason_growth = (
+        f"單季營收年增 +{ry_val:.1f}% 且 EPS 年增 +{ey_val:.1f}%，雙位數高速擴張，動能旺盛。"
+        if (ry_val or 0) >= 10 and (ey_val or 0) >= 10
+        else f"單季營收年增率為正 ({ry_val or 0:+.1f}%)，成長動能保持溫和健康。"
+        if (ry_val or 0) >= 0
+        else f"營收或 EPS 年增率出現衰退 ({ry_val or 0:.1f}%)，短線面臨景氣逆風或基期修正。"
+    )
+
+    reason_safety = (
+        f"負債比僅 {dr_val or 0:.1f}% 處於 50% 安全線以下，流動比率 {cr_val or 1.5}x 償債充裕，F-Score 排雷通過 {m_piotroski['score']}/9 項。"
+        if sc_safety >= 70
+        else f"負債比率 {dr_val or 0:.1f}% 與流動比率處於合理受控區間。"
+        if sc_safety >= 50
+        else f"負債比率偏高 ({dr_val or 0:.1f}%) 或短期流動性緩衝不足，需留意財務槓桿。"
+    )
+
+    reason_val = (
+        f"目前本益比 {per_val or 0:.1f}x 處於歷史相對低估位階，評價具備安全邊際，殖利率 {dy_val or 0:.1f}%。"
+        if sc_val >= 70
+        else f"本益比 {per_val or 0:.1f}x 處於歷史中位數常態區間，評價公允合理。"
+        if sc_val >= 50
+        else f"本益比處於歷史高分位，市場已給予高溢價，估值相對昂貴。"
+    )
+
+    reason_mom = (
+        f"符合 Minervini Stage 2 多頭排列 (通過 {m_minervini['score']}/8 項)，近 20 日漲幅 {tech.get('ret_20d') or 0:+.1f}%，機構買盤訂單塊支撐確立。"
+        if sc_mom >= 70
+        else f"均線多空交戰，VCP 波動收斂中，下方獲 SMC 機構訂單塊支撐。"
+        if sc_mom >= 50
+        else f"跌破關鍵均線且動能偏弱，上檔反壓沉重，短線以整理觀望為主。"
+    )
+
     radar_list = [
         {
             "axis": "獲利能力",
             "key": "profitability",
-            "score": int(_clamp(s_profit)),
+            "score": sc_profit,
+            "grade": "極優" if sc_profit >= 80 else "良好" if sc_profit >= 65 else "中立" if sc_profit >= 50 else "偏弱",
             "metric": f"營益率 {f'{om_val:.1f}%' if om_val is not None else '—'} · ROE {f'{roe_val:.1f}%' if roe_val is not None else '—'} · 毛利率 {f'{gm_val:.1f}%' if gm_val is not None else '—'}",
+            "reason": reason_profit,
+            "pros": [f"營益率 {om_val:.1f}%"] if (om_val or 0) >= 15 else [],
+            "cons": [f"營益率僅 {om_val:.1f}%"] if (om_val or 0) < 8 else [],
         },
         {
             "axis": "成長動能",
             "key": "growth",
-            "score": int(_clamp(s_growth)),
+            "score": sc_growth,
+            "grade": "極優" if sc_growth >= 75 else "良好" if sc_growth >= 60 else "中立" if sc_growth >= 48 else "偏弱",
             "metric": f"營收 YoY {f'{ry_val:+.1f}%' if ry_val is not None else '—'} · EPS YoY {f'{ey_val:+.1f}%' if ey_val is not None else '—'}",
+            "reason": reason_growth,
+            "pros": [f"營收 YoY +{ry_val:.1f}%"] if (ry_val or 0) >= 10 else [],
+            "cons": [f"營收出現衰退"] if (ry_val or 0) < 0 else [],
         },
         {
             "axis": "財務安全",
             "key": "safety",
-            "score": int(_clamp(s_safety)),
+            "score": sc_safety,
+            "grade": "極優" if sc_safety >= 80 else "良好" if sc_safety >= 65 else "中立" if sc_safety >= 50 else "偏弱",
             "metric": f"負債比 {f'{dr_val:.1f}%' if dr_val is not None else '—'} · 流動比 {f'{cr_val}x' if cr_val is not None else '—'} · F-Score {m_piotroski['score']}/9",
+            "reason": reason_safety,
+            "pros": [f"負債比 {dr_val:.1f}% 低於警戒線"] if (dr_val or 100) <= 45 else [],
+            "cons": [f"負債比 {dr_val:.1f}% 偏高"] if (dr_val or 0) > 60 else [],
         },
         {
             "axis": "估值股息",
             "key": "valuation",
-            "score": int(_clamp(s_val)),
+            "score": sc_val,
+            "grade": "極優" if sc_val >= 75 else "良好" if sc_val >= 60 else "中立" if sc_val >= 46 else "偏弱",
             "metric": f"PER {f'{per_val:.1f}x' if per_val is not None else '—'} · PBR {f'{pbr_val:.2f}x' if pbr_val is not None else '—'} · 殖利率 {f'{dy_val:.2f}%' if dy_val is not None else '—'}",
+            "reason": reason_val,
+            "pros": [f"殖利率 {dy_val:.1f}%"] if (dy_val or 0) >= 3.5 else [],
+            "cons": [f"本益比偏高"] if (per_val or 0) > 30 else [],
         },
         {
             "axis": "技術籌碼",
             "key": "momentum",
-            "score": int(_clamp(s_mom)),
+            "score": sc_mom,
+            "grade": "極優" if sc_mom >= 75 else "良好" if sc_mom >= 60 else "中立" if sc_mom >= 46 else "偏弱",
             "metric": f"20日 {tech.get('ret_20d') or 0:+.1f}% · Minervini {m_minervini['score']}/{m_minervini['max_score']} · SMC {m_smc['score']}/5",
+            "reason": reason_mom,
+            "pros": [f"Minervini 多頭排列 {m_minervini['score']}/8"] if m_minervini['score'] >= 5 else [],
+            "cons": [f"短線均線反壓"] if m_minervini['score'] <= 3 else [],
         },
     ]
 

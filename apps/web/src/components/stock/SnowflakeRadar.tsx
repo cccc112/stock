@@ -1,12 +1,18 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
+import { InfoTip } from "@/components/ui/TermTooltip";
+import { ChevronDown, ChevronUp, CheckCircle2, AlertTriangle, HelpCircle } from "lucide-react";
 
 export interface RadarItem {
   axis: string;
   key: string;
   score: number;
+  grade?: string;
   metric?: string;
+  reason?: string;
+  pros?: string[];
+  cons?: string[];
 }
 
 interface SnowflakeRadarProps {
@@ -22,7 +28,10 @@ export default function SnowflakeRadar({
   size = 240,
   showMetrics = true,
 }: SnowflakeRadarProps) {
-  const axes =
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [expandAllReasons, setExpandAllReasons] = useState(true);
+
+  const axes: RadarItem[] =
     items.length === 5
       ? items
       : [
@@ -35,7 +44,7 @@ export default function SnowflakeRadar({
 
   const cx = size / 2;
   const cy = size / 2;
-  const maxR = size * 0.33;
+  const maxR = size * 0.32;
   const levels = [20, 40, 60, 80, 100];
 
   const angleFor = (idx: number) => -Math.PI / 2 + (idx * 2 * Math.PI) / axes.length;
@@ -60,20 +69,28 @@ export default function SnowflakeRadar({
     totalScore >= 68 ? "#10b981" : totalScore >= 48 ? "#38bdf8" : "#f59e0b";
   const fillColor =
     totalScore >= 68
-      ? "rgba(16, 185, 129, 0.24)"
+      ? "rgba(16, 185, 129, 0.22)"
       : totalScore >= 48
-      ? "rgba(56, 189, 248, 0.22)"
-      : "rgba(245, 158, 11, 0.22)";
+      ? "rgba(56, 189, 248, 0.20)"
+      : "rgba(245, 158, 11, 0.20)";
 
-  const hasMetrics = showMetrics && axes.some((a) => a.metric);
+  const getScoreColor = (sc: number) =>
+    sc >= 75 ? "text-emerald-400" : sc >= 60 ? "text-sky-400" : sc >= 46 ? "text-amber-400" : "text-rose-400";
+
+  const getScoreBg = (sc: number) =>
+    sc >= 75 ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300" : sc >= 60 ? "bg-sky-500/15 border-sky-500/30 text-sky-300" : sc >= 46 ? "bg-amber-500/15 border-amber-500/30 text-amber-300" : "bg-rose-500/15 border-rose-500/30 text-rose-300";
+
+  const getProgressBarColor = (sc: number) =>
+    sc >= 75 ? "bg-emerald-500" : sc >= 60 ? "bg-sky-500" : sc >= 46 ? "bg-amber-500" : "bg-rose-500";
 
   return (
     <div className="flex flex-col items-center justify-center select-none w-full">
+      {/* 1. 五維幾何雪花圖 */}
       <svg
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        className="overflow-visible"
+        className="overflow-visible cursor-pointer"
       >
         {/* Concentric pentagons */}
         {levels.map((lv) => {
@@ -128,22 +145,28 @@ export default function SnowflakeRadar({
           const cos = Math.cos(a);
           const textAnchor =
             Math.abs(cos) < 0.2 ? "middle" : cos > 0 ? "start" : "end";
+          const isSelected = selectedKey === item.key;
+
           return (
-            <g key={item.key}>
+            <g
+              key={item.key}
+              onClick={() => setSelectedKey(isSelected ? null : item.key)}
+              className="transition-transform hover:scale-105"
+            >
               <circle
                 cx={pt.x}
                 cy={pt.y}
-                r={4}
-                fill={strokeColor}
-                stroke="var(--color-bg-secondary)"
-                strokeWidth={1.5}
+                r={isSelected ? 6 : 4}
+                fill={isSelected ? "#ffffff" : strokeColor}
+                stroke={isSelected ? strokeColor : "var(--color-bg-secondary)"}
+                strokeWidth={isSelected ? 2.5 : 1.5}
               />
               <text
                 x={labelPt.x}
                 y={labelPt.y - 5}
                 textAnchor={textAnchor}
-                fill="var(--color-text-secondary)"
-                className="text-[11px] font-medium"
+                fill={isSelected ? "var(--color-accent)" : "var(--color-text-secondary)"}
+                className={`text-[11px] ${isSelected ? "font-bold" : "font-medium"}`}
               >
                 {item.axis}
               </text>
@@ -161,24 +184,134 @@ export default function SnowflakeRadar({
         })}
       </svg>
 
-      {hasMetrics && (
-        <div className="w-full mt-2 pt-2.5 border-t border-[var(--border)] px-2.5 pb-1 space-y-1.5 text-[11px]">
-          <div className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1">
-            五維度真實財報與量化計算依據
-          </div>
-          {axes.map((item) => (
-            <div key={item.key} className="flex flex-col gap-0.5 py-0.5">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-primary">{item.axis}</span>
-                <span className="font-mono font-bold text-accent">{item.score} 分</span>
-              </div>
-              {item.metric && (
-                <div className="text-[10px] text-secondary font-mono truncate" title={item.metric}>
-                  {item.metric}
-                </div>
+      {/* 2. 五維度評分判定理由與扣分/加分詳細說明面板 */}
+      {showMetrics && (
+        <div className="w-full mt-3 pt-3 border-t border-[var(--border)] space-y-2.5 text-xs">
+          <div className="flex items-center justify-between pb-1">
+            <span className="text-[11px] font-semibold text-primary flex items-center gap-1.5">
+              <span>五維度評分判定依據與理由說明</span>
+              <HelpCircle size={13} className="text-secondary" />
+            </span>
+            <button
+              type="button"
+              className="text-[10px] text-accent hover:underline flex items-center gap-0.5"
+              onClick={() => {
+                setExpandAllReasons(!expandAllReasons);
+                setSelectedKey(null);
+              }}
+            >
+              {expandAllReasons ? (
+                <>
+                  <span>收起理由</span>
+                  <ChevronUp size={12} />
+                </>
+              ) : (
+                <>
+                  <span>展開全部理由</span>
+                  <ChevronDown size={12} />
+                </>
               )}
-            </div>
-          ))}
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {axes.map((item) => {
+              const isTarget = selectedKey === item.key || (expandAllReasons && selectedKey === null);
+              const sc = item.score || 50;
+              const grade = item.grade || (sc >= 80 ? "極優" : sc >= 65 ? "良好" : sc >= 50 ? "中立" : "偏弱");
+
+              return (
+                <div
+                  key={item.key}
+                  className={`rounded-lg border p-2.5 transition-all ${
+                    selectedKey === item.key
+                      ? "border-accent bg-accent/10 shadow-sm"
+                      : "border-[var(--border)] bg-[var(--bg-primary)]/50 hover:bg-[var(--bg-primary)]"
+                  }`}
+                  onClick={() => setSelectedKey(selectedKey === item.key ? null : item.key)}
+                >
+                  {/* 維度標題、分數與進度條 */}
+                  <div className="flex items-center justify-between gap-2 mb-1.5 cursor-pointer">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-primary">{item.axis}</span>
+                      <InfoTip term={item.key} />
+                      <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold border ${getScoreBg(sc)}`}>
+                        {grade}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className={`font-mono font-bold text-xs ${getScoreColor(sc)}`}>
+                        {sc} 分
+                      </span>
+                      <ChevronDown
+                        size={13}
+                        className={`text-secondary transition-transform ${isTarget ? "rotate-180" : ""}`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 分數條 */}
+                  <div className="w-full h-1.5 rounded-full bg-[var(--bg-tertiary)] overflow-hidden mb-2">
+                    <div
+                      className={`h-full rounded-full ${getProgressBarColor(sc)}`}
+                      style={{ width: `${Math.min(100, Math.max(8, sc))}%` }}
+                    />
+                  </div>
+
+                  {/* 展開之判定理由與加扣分因數 */}
+                  {isTarget && (
+                    <div className="space-y-1.5 pt-1 border-t border-[var(--border)]/70 text-[11px] leading-relaxed animate-fadeIn">
+                      {/* 核心判定理由 */}
+                      {item.reason && (
+                        <div className="p-1.5 rounded bg-[var(--bg-secondary)] border border-[var(--border)] text-primary">
+                          <span className="font-semibold text-accent mr-1">💡 判定理由：</span>
+                          {item.reason}
+                        </div>
+                      )}
+
+                      {/* 加分優勢與扣分隱憂 */}
+                      {(item.pros?.length || item.cons?.length) ? (
+                        <div className="flex flex-wrap gap-1.5 pt-0.5">
+                          {item.pros?.map((p, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/15 border border-emerald-500/30 text-emerald-300"
+                            >
+                              <CheckCircle2 size={11} className="text-emerald-400" />
+                              <span>{p}</span>
+                            </span>
+                          ))}
+                          {item.cons?.map((c, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-rose-500/15 border border-rose-500/30 text-rose-300"
+                            >
+                              <AlertTriangle size={11} className="text-rose-400" />
+                              <span>{c}</span>
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {/* 真實數據依據 */}
+                      {item.metric && (
+                        <div className="text-[10px] text-secondary font-mono pt-0.5">
+                          <span className="text-muted">真實數據：</span>
+                          {item.metric}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!isTarget && item.metric && (
+                    <div className="text-[10px] text-secondary font-mono truncate" title={item.metric}>
+                      {item.metric}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

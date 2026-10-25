@@ -591,7 +591,171 @@ ETF_PROFILES: Dict[str, Dict[str, Any]] = {
             {"sector": "晶圓代工與記憶體", "weight": 20.0},
         ],
     },
+    "00757": {
+        "name": "統一FANG+",
+        "issuer": "統一投信",
+        "category": "海外美股尖牙科技巨頭 ETF",
+        "tracking_index": "NYSE FANG+ Index (洲際交易所 FANG+ 指數)",
+        "expense_ratio": "1.03%",
+        "dividend_freq": "不配息（資本利得與股息100%滾入淨值複利）",
+        "aum": "約 420 億 TWD",
+        "dividend_yield_est": None,
+        "focus_points": [
+            "採平均等權重（每檔約 10%）集中投資美股 10 大 AI、雲端、串流與資安科技巨頭，完全不配息。"
+        ],
+        "holdings": [
+            {"symbol": "NVDA", "name": "NVIDIA Corp.", "weight": 10.6},
+            {"symbol": "META", "name": "Meta Platforms", "weight": 10.4},
+            {"symbol": "AVGO", "name": "Broadcom Inc.", "weight": 10.3},
+            {"symbol": "AAPL", "name": "Apple Inc.", "weight": 10.1},
+            {"symbol": "AMZN", "name": "Amazon.com Inc.", "weight": 10.0},
+            {"symbol": "MSFT", "name": "Microsoft Corp.", "weight": 9.9},
+            {"symbol": "GOOGL", "name": "Alphabet Inc.", "weight": 9.8},
+            {"symbol": "NFLX", "name": "Netflix Inc.", "weight": 9.7},
+            {"symbol": "NOW", "name": "ServiceNow Inc.", "weight": 9.6},
+            {"symbol": "CRWD", "name": "CrowdStrike Holdings", "weight": 9.6},
+        ],
+        "sector_weights": [
+            {"sector": "美股七巨頭 (AI 雲端與消費科技)", "weight": 60.5},
+            {"sector": "AI 算力晶片 (NVIDIA / Broadcom)", "weight": 20.9},
+            {"sector": "SaaS 企業軟體與 AI 資安", "weight": 18.6},
+        ],
+    },
+    "00662": {
+        "name": "富邦NASDAQ",
+        "issuer": "富邦投信",
+        "category": "海外美股科技指數 ETF",
+        "tracking_index": "Nasdaq-100 Index (美國那斯達克100指數)",
+        "expense_ratio": "0.49%",
+        "dividend_freq": "不配息（收益滾入淨值）",
+        "aum": "約 260 億 TWD",
+        "dividend_yield_est": None,
+        "focus_points": [
+            "台股版 QQQ，直接追蹤美國 Nasdaq-100 指數，且不配息免除海外所得稅與二代健保補充保費。"
+        ],
+        "holdings": [
+            {"symbol": "AAPL", "name": "Apple Inc.", "weight": 8.9},
+            {"symbol": "NVDA", "name": "NVIDIA Corp.", "weight": 8.4},
+            {"symbol": "MSFT", "name": "Microsoft Corp.", "weight": 8.1},
+            {"symbol": "AMZN", "name": "Amazon.com Inc.", "weight": 5.3},
+            {"symbol": "AVGO", "name": "Broadcom Inc.", "weight": 5.1},
+            {"symbol": "META", "name": "Meta Platforms", "weight": 4.9},
+        ],
+        "sector_weights": [
+            {"sector": "Technology (美國科技與半導體)", "weight": 59.5},
+            {"sector": "Communication Services", "weight": 15.8},
+            {"sector": "Consumer Discretionary & Others", "weight": 24.7},
+        ],
+    },
+    "00646": {
+        "name": "元大S&P500",
+        "issuer": "元大投信",
+        "category": "海外美股大盤指數 ETF",
+        "tracking_index": "S&P 500 Index (標準普爾500指數)",
+        "expense_ratio": "0.46%",
+        "dividend_freq": "不配息（收益滾入淨值）",
+        "aum": "約 280 億 TWD",
+        "dividend_yield_est": None,
+        "focus_points": [
+            "台股版 SPY / VOO，直接用台幣帳戶投資美國標普 500 大企業，且不配息自動再投資。"
+        ],
+        "holdings": [
+            {"symbol": "AAPL", "name": "Apple Inc.", "weight": 7.1},
+            {"symbol": "NVDA", "name": "NVIDIA Corp.", "weight": 6.8},
+            {"symbol": "MSFT", "name": "Microsoft Corp.", "weight": 6.5},
+            {"symbol": "AMZN", "name": "Amazon.com Inc.", "weight": 3.8},
+            {"symbol": "META", "name": "Meta Platforms", "weight": 2.6},
+        ],
+        "sector_weights": [
+            {"sector": "Information Technology (科技)", "weight": 31.8},
+            {"sector": "Financials & Healthcare", "weight": 24.6},
+            {"sector": "Consumer & Industrials", "weight": 43.6},
+        ],
+    },
+    "00631L": {
+        "name": "元大台灣50正2",
+        "issuer": "元大投信",
+        "category": "2倍槓桿型台股期貨 ETF",
+        "tracking_index": "臺灣50指數單日正向 2 倍報酬",
+        "expense_ratio": "1.04%",
+        "dividend_freq": "不配息（期貨轉倉收益直接滾入淨值）",
+        "aum": "約 260 億 TWD",
+        "dividend_yield_est": None,
+        "focus_points": [
+            "透過台指期與臺灣50期貨合約提供單日正向 2 倍曝險（非直接持有現股），不配息。"
+        ],
+        "holdings": [
+            {"symbol": "^TWII", "name": "臺股期貨 (TX) 與臺灣50期貨近月多頭契約 (約 200% 曝險)", "weight": 100.0},
+        ],
+        "sector_weights": [
+            {"sector": "台指期貨多頭部位 (200% 曝險) 與保證金", "weight": 100.0},
+        ],
+    },
+    "00632R": {
+        "name": "元大台灣50反1",
+        "issuer": "元大投信",
+        "category": "1倍反向避險型期貨 ETF",
+        "tracking_index": "臺灣50指數單日反向 1 倍報酬",
+        "expense_ratio": "1.04%",
+        "dividend_freq": "不配息（反向期貨避險工具）",
+        "aum": "約 350 億 TWD",
+        "dividend_yield_est": None,
+        "focus_points": [
+            "透過放空台指期貨達成單日反向 1 倍報酬，不配息，僅適合短期大盤避險。"
+        ],
+        "holdings": [
+            {"symbol": "^TWII", "name": "臺股期貨 (TX) 空頭避險部位 (-100% 曝險)", "weight": 100.0},
+        ],
+        "sector_weights": [
+            {"sector": "台指期貨反向空頭部位 (-100%) 與保證金", "weight": 100.0},
+        ],
+    },
+    "00937B": {
+        "name": "群益ESG投等債20+",
+        "issuer": "群益投信",
+        "category": "月配長天期投資等級公司債 ETF",
+        "tracking_index": "ICE ESG 20年期以上BBB級成熟市場大型美元公司債指數",
+        "expense_ratio": "0.26%",
+        "dividend_freq": "月配息",
+        "aum": "約 2,400 億 TWD",
+        "dividend_yield_est": 6.10,
+        "focus_points": [
+            "台股規模最大的月配息 BBB 級投資等級公司債 ETF，鎖定票面利率 > 4.5% 之 20 年以上大型企業債。"
+        ],
+        "holdings": [
+            {"symbol": "LQD", "name": "美國與成熟市場 BBB 級大型企業長天期公司債組合", "weight": 98.8},
+        ],
+        "sector_weights": [
+            {"sector": "BBB 級跨國大型企業長債", "weight": 98.8},
+            {"sector": "美元流動準備金", "weight": 1.2},
+        ],
+    },
 }
+
+
+def infer_tw_issuer(name: str) -> str:
+    issuer_map = [
+        ("元大", "元大投信"),
+        ("國泰", "國泰投信"),
+        ("富邦", "富邦投信"),
+        ("群益", "群益投信"),
+        ("復華", "復華投信"),
+        ("中信", "中國信託投信"),
+        ("統一", "統一投信"),
+        ("台新", "台新投信"),
+        ("凱基", "凱基投信"),
+        ("大華", "大華銀投信"),
+        ("野村", "野村投信"),
+        ("兆豐", "兆豐投信"),
+        ("永豐", "永豐投信"),
+        ("FT", "富蘭克林華美投信"),
+        ("新光", "新光投信"),
+        ("街口", "街口投信"),
+    ]
+    for prefix, issuer in issuer_map:
+        if prefix in name:
+            return issuer
+    return "台灣投信發行"
 
 
 def is_etf_or_multi_asset(symbol: str) -> str:
@@ -607,7 +771,11 @@ def is_etf_or_multi_asset(symbol: str) -> str:
         if "ETF" in ind:
             return "ETF"
         return "ASSET"
-    if s in ("DIA", "VYM", "XLK", "BND", "IEF", "SHY", "LQD", "GLD", "SLV", "USO", "IBIT", "VNQ", "SMH", "IVV"):
+    if s in (
+        "DIA", "IWM", "VYM", "SCHD", "JEPI", "JEPQ", "XLK", "XLF", "XLE", "XLV",
+        "SOXX", "SMH", "ARKK", "TLT", "BND", "IEF", "SHY", "LQD", "HYG",
+        "GLD", "SLV", "USO", "DBA", "IBIT", "FBTC", "ETHA", "VNQ", "IVV"
+    ):
         return "ETF"
     return "STOCK"
 
@@ -694,11 +862,30 @@ async def build_etf_report(symbol: str) -> Dict[str, Any]:
         except Exception:
             pass
 
-    # 若為台股未知 ETF，根據名稱自動推論追蹤類型與觀察重點
-    default_cat = asset_info.get("industry") or ("債券型 ETF" if "債" in name or code.endswith("B") else "高股息 ETF" if "息" in name else "指數股票型基金 (ETF)")
+    # 若為台股未知 ETF，根據名稱與尾碼自動推論追蹤類型、發行商與配息機制
+    is_lev_or_inv = code.endswith("L") or code.endswith("R") or "正2" in name or "反1" in name
+    is_cmdty_etf = code.endswith("U") or "黃金" in name or "白銀" in name or "石油" in name
+    is_bond_etf = code.endswith("B") or "債" in name
+
+    if is_lev_or_inv:
+        default_cat = "槓桿 / 反向期貨型 ETF"
+        default_div_freq = "不配息（期貨部位轉倉收益滾入淨值）"
+    elif is_cmdty_etf:
+        default_cat = "大宗商品期貨型 ETF"
+        default_div_freq = "不配息（商品期貨型 ETF）"
+    elif is_bond_etf:
+        default_cat = "固定收益債券型 ETF"
+        default_div_freq = "月配息 / 季配息"
+    elif "息" in name:
+        default_cat = "高股息策略型 ETF"
+        default_div_freq = "季配息 / 月配息"
+    else:
+        default_cat = asset_info.get("industry") or "指數股票型基金 (ETF)"
+        default_div_freq = "季配 / 半年配" if asset_kind == "ETF" else "無配息（價格報酬型標的）"
+
     default_focus = [
         f"追蹤 {name} ({symbol}) 與對應標的指數之淨值走勢、成交量能變化與均線乖離率。",
-        "留意除權息旺季之配息公告、折溢價幅度（建議溢價超過 1% 時避免追高）與法人申贖動向。"
+        "留意折溢價幅度（建議溢價超過 1% 時避免追高）與 20MA 月線支撐位階。"
     ]
     if asset_kind == "ASSET":
         default_focus = [
@@ -712,10 +899,10 @@ async def build_etf_report(symbol: str) -> Dict[str, Any]:
         "market": "TW" if kind == "TW" else "US",
         "asset_kind": asset_kind,
         "category": profile.get("category") or default_cat,
-        "issuer": profile.get("issuer") or ("台灣投信發行" if kind == "TW" else "國際資產管理機構"),
+        "issuer": profile.get("issuer") or (infer_tw_issuer(name) if kind == "TW" else "國際資產管理機構"),
         "tracking_index": profile.get("tracking_index") or f"{name} 對應標的指數",
         "expense_ratio": profile.get("expense_ratio") or ("0.35% ~ 0.65%" if kind == "TW" else "0.09% ~ 0.35%"),
-        "dividend_freq": profile.get("dividend_freq") or ("季配 / 半年配" if asset_kind == "ETF" else "無配息（價格報酬型標的）"),
+        "dividend_freq": profile.get("dividend_freq") or default_div_freq,
         "aum": profile.get("aum") or "即時追蹤中",
         "dividend_yield": profile.get("dividend_yield_est"),
         "performance": perf,
