@@ -575,21 +575,13 @@ async def build_deep_research_report(symbol: str) -> Dict[str, Any]:
         "追蹤機構大戶結構突破 (BOS)、多空機構訂單塊 (Order Blocks) 支撐壓力與公允價值缺口 (FVG)。",
     )
 
-    # 計算五維度雪花雷達分數 (0-100)
-    f_scores = fin_data.get("scores") or {}
-    s_profit = f_scores.get("profitability") or round((m_piotroski["score"] / 9) * 100)
-    s_growth = f_scores.get("growth") or (ev_data.get("growth") or {}).get("score") or round((m_canslim["score"] / 7) * 100)
-    s_safety = f_scores.get("safety") or round((m_piotroski["score"] / 9) * 100)
-    s_val = f_scores.get("valuation") or 60
-    s_mom = round(((tech.get("score") or 50) * 0.6) + ((chips.get("score") or 50) * 0.4))
-
     q0 = (fin_data.get("quarters") or [{}])[0] if fin_data.get("quarters") else {}
     bal_d = fin_data.get("balance") or {}
     val_d = fin_data.get("valuation") or {}
     m_rev0 = (fin_data.get("monthly_revenue") or [{}])[0] if fin_data.get("monthly_revenue") else {}
 
     om_val = q0.get("operating_margin")
-    roe_val = bal_d.get("roe_ttm")
+    roe_val = bal_d.get("roe_ttm") or (fin_data.get("dupont") or {}).get("roe_ttm")
     gm_val = q0.get("gross_margin")
     ry_val = q0.get("revenue_yoy") if q0.get("revenue_yoy") is not None else m_rev0.get("yoy")
     ey_val = q0.get("eps_yoy")
@@ -598,6 +590,42 @@ async def build_deep_research_report(symbol: str) -> Dict[str, Any]:
     per_val = val_d.get("per")
     pbr_val = val_d.get("pbr")
     dy_val = val_d.get("dividend_yield")
+    pct_val = val_d.get("per_percentile")
+
+    # 統一前後端數學公式：確保離峰/開盤前/週末下午與晚上計算結果 100% 嚴格一致
+    f_scores = fin_data.get("scores") or {}
+    if f_scores.get("profitability") is not None:
+        s_profit = f_scores["profitability"]
+    elif om_val is not None and roe_val is not None:
+        s_profit = 35 + float(om_val) * 1.4 + float(roe_val) * 1.1 + (8 if float(gm_val or 0) >= 30 else 0)
+    else:
+        s_profit = round((m_piotroski["score"] / 9) * 80 + 15)
+
+    if f_scores.get("growth") is not None:
+        s_growth = f_scores["growth"]
+    elif ry_val is not None:
+        s_growth = 50 + float(ry_val) * 0.85 + float(ey_val or (float(ry_val) * 1.15)) * 0.45
+    else:
+        s_growth = round((m_canslim["score"] / 7) * 80 + 15)
+
+    if f_scores.get("safety") is not None:
+        s_safety = f_scores["safety"]
+    elif dr_val is not None:
+        s_safety = 95 - max(0.0, float(dr_val) - 25.0) * 1.1 + min(12.0, (float(cr_val or 1.5) - 1.2) * 10.0)
+    else:
+        s_safety = round((m_piotroski["score"] / 9) * 85 + 10)
+
+    if f_scores.get("valuation") is not None:
+        s_val = f_scores["valuation"]
+    elif pct_val is not None:
+        s_val = 90 - float(pct_val) * 0.55 + min(15.0, float(dy_val or 3.0) * 2.5)
+    elif per_val:
+        s_val = 100 - (float(per_val) - 10.0) * 2.0 + min(15.0, float(dy_val or 3.0) * 2.5)
+    else:
+        s_val = 60
+
+    ret_20d = float(tech.get("ret_20d") or 0)
+    s_mom = round(((m_minervini["score"] / 8) * 55 + (m_smc["score"] / 5) * 45) + (5 if ret_20d > 0 else -5))
 
     sc_profit = int(_clamp(s_profit))
     sc_growth = int(_clamp(s_growth))
@@ -827,5 +855,11 @@ async def build_deep_research_report(symbol: str) -> Dict[str, Any]:
             "conclusion": conclusion,
         },
     }
-    await cache_service.set(cache_key, json.dumps(out, ensure_ascii=False, default=str), ttl=900)
+    import datetime
+    now_dt = datetime.datetime.now()
+    # 週末(六/日)市場未開盤，深度報告快取 24 小時；平時收盤後快取 4 小時；開盤時快取 15 分鐘
+    is_weekend = now_dt.weekday() >= 5
+    is_after_hours = now_dt.hour >= 14 or now_dt.hour < 9
+    ttl_sec = 86400 if is_weekend else (14400 if is_after_hours else 900)
+    await cache_service.set(cache_key, json.dumps(out, ensure_ascii=False, default=str), ttl=ttl_sec)
     return out
