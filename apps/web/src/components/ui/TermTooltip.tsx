@@ -108,7 +108,7 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
   },
   risk_reward: {
     title: "預估風險報酬比 (Risk / Reward Ratio)",
-    plain: "「如果看錯會賠1塊錢，那看對能賺幾塊錢」的划算程度。",
+    plain: "「如果看錯會賠1塊錢，那看對能賺幾塊錢」的劃算程度。",
     guide: "一般建議至少要 1 : 1.5 以上才值得出手；若大於 1 : 2 代表下檔停損小、上檔獲利空間大。",
   },
 

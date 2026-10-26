@@ -3,12 +3,10 @@
 import { useState, useEffect } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
-import { Server, Bell, KeyRound, Trash2, CheckCircle2, ShieldCheck, ChevronDown, ChevronUp } from "lucide-react";
+import { Server, Bell, Trash2, CheckCircle2, ShieldCheck, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function SettingsPage() {
-  const [apiKey, setApiKey] = useState("");
   const [backendUrl, setBackendUrl] = useState("");
-  const [saveMessage, setSaveMessage] = useState("");
   const [urlMessage, setUrlMessage] = useState("");
   const [testingUrl, setTestingUrl] = useState(false);
   const [clearMessage, setClearMessage] = useState("");
@@ -18,20 +16,12 @@ export default function SettingsPage() {
   const DEFAULT_BACKEND = "https://stock-backend-lz9p.onrender.com";
 
   useEffect(() => {
-    const key = localStorage.getItem("byok_api_key");
-    if (key) setApiKey(key);
     const customUrl = localStorage.getItem("backend_api_url");
     if (customUrl) setBackendUrl(customUrl);
 
     const radarSetting = localStorage.getItem("watchlist_radar_enabled");
     setRadarEnabled(radarSetting !== "false");
   }, []);
-
-  const handleSaveApiKey = () => {
-    localStorage.setItem("byok_api_key", apiKey);
-    setSaveMessage("AI 金鑰已儲存");
-    setTimeout(() => setSaveMessage(""), 2000);
-  };
 
   const handleToggleRadar = () => {
     const next = !radarEnabled;
@@ -186,34 +176,7 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      {/* 3. AI 金鑰設定 (BYOK) */}
-      <Card title="個人專屬 AI 金鑰 (BYOK - 選填)">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-secondary mb-1">
-              Google Gemini API Key
-            </label>
-            <p className="text-xs text-secondary mb-3">
-              若您希望擁有無上限的個人專屬算力，可填入由 Google AI Studio 免費申請的 Key。未填寫時系統自動連線站長提供的公用 AI 算力。
-            </p>
-            <input
-              type="password"
-              className="w-full max-w-md bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-3 py-2 font-mono text-xs text-primary outline-none focus:border-accent"
-              placeholder="AIzaSy..."
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center gap-4">
-            <Button size="sm" onClick={handleSaveApiKey}>
-              儲存金鑰
-            </Button>
-            {saveMessage && <span className="text-emerald-400 text-xs font-medium">{saveMessage}</span>}
-          </div>
-        </div>
-      </Card>
-
-      {/* 4. 快取管理 */}
+      {/* 2. 快取管理 */}
       <Card title="本機快取與自選重設">
         <div className="flex items-center justify-between">
           <div>

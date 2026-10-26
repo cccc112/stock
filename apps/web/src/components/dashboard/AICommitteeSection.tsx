@@ -4,8 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { apiAi } from "@/lib/api";
-import { useAuthManager } from "@/hooks/useAuth";
-import ApiKeyGuideModal from "@/components/auth/ApiKeyGuideModal";
 import {
   generateSmartAICommittee,
   ThinkingStep,
@@ -34,8 +32,6 @@ interface AICommitteeProps {
 }
 
 export default function AICommitteeSection({ symbol }: AICommitteeProps) {
-  const { isApiKeyConfigured } = useAuthManager();
-  const [keyModalOpen, setKeyModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<any | null>(null);
@@ -121,15 +117,13 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 font-medium">
               Multi-Agent Live Debate & Execution
             </span>
-            <button
-              type="button"
-              onClick={() => setKeyModalOpen(true)}
-              className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors cursor-pointer flex items-center gap-1"
-              title="已連線主機 Gemini AI 算力。點此亦可自訂綁定個人 Key"
+            <div
+              className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 select-none"
+              title="已連線主機 Gemini AI 算力"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
               <span>主機 AI 算力在線</span>
-            </button>
+            </div>
           </div>
           <p className="text-secondary text-xs sm:text-sm">
             避險基金實戰規格：專注「專家現場多空互槓辯論」、「資產配置上限%」、「階梯式限價掛單手冊」與「突發 If-Then 應變守則」
@@ -730,8 +724,6 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
           </div>
         </div>
       )}
-
-      <ApiKeyGuideModal isOpen={keyModalOpen} onClose={() => setKeyModalOpen(false)} />
     </div>
   );
 }

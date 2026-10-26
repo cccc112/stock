@@ -17,8 +17,6 @@ import {
   Calendar,
 } from "lucide-react";
 import { apiAi } from "@/lib/api";
-import { useAuthManager } from "@/hooks/useAuth";
-import ApiKeyGuideModal from "@/components/auth/ApiKeyGuideModal";
 import {
   generateSmartStockAnalysis,
   EquityResearchData,
@@ -32,8 +30,6 @@ export default function AISection({
   symbol: string;
   autoRun?: boolean;
 }) {
-  const { isApiKeyConfigured } = useAuthManager();
-  const [keyModalOpen, setKeyModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [researchData, setResearchData] = useState<EquityResearchData | null>(null);
   const [analysisText, setAnalysisText] = useState<string>("");
@@ -101,15 +97,13 @@ export default function AISection({
                 {sourceLabel}
               </span>
             )}
-            <button
-              type="button"
-              onClick={() => setKeyModalOpen(true)}
-              className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors cursor-pointer flex items-center gap-1"
-              title="已連線主機 Gemini AI 算力。點此亦可自訂綁定個人 Key"
+            <div
+              className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 select-none"
+              title="已連線主機 Gemini AI 算力"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
               <span>主機 AI 算力在線</span>
-            </button>
+            </div>
           </div>
           <p className="text-xs text-secondary mt-1">
             券商法人規格：專注「商業模式與護城河」、「財報三表深度體檢」、「三種情境估值目標價」與「未來重大催化劑」
@@ -393,8 +387,6 @@ export default function AISection({
           </div>
         </div>
       )}
-
-      <ApiKeyGuideModal isOpen={keyModalOpen} onClose={() => setKeyModalOpen(false)} />
     </div>
   );
 }
