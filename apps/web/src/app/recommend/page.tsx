@@ -32,10 +32,10 @@ interface Pick {
 }
 
 const STYLES = [
-  { id: 'balanced', label: '均衡', desc: '技術45% 籌碼25% 成長30%' },
-  { id: 'momentum', label: '強勢動能', desc: '偏重趨勢與價量' },
-  { id: 'growth', label: '營收成長', desc: '偏重營收年增' },
-  { id: 'chips', label: '籌碼追蹤', desc: '偏重外資投信買超' },
+  { id: 'balanced', label: '均衡多因子', desc: '技術35% 籌碼35% 成長30% 均衡篩選' },
+  { id: 'momentum', label: '強勢動能', desc: '偏重創高突破、均線多頭、RSI動能與價量齊揚' },
+  { id: 'growth', label: '營收成長', desc: '偏重近季營收高年增爆發與最新單月成長加速' },
+  { id: 'chips', label: '籌碼追蹤', desc: '偏重外資投信土洋同步大額買超與籌碼集中度' },
 ];
 const MARKETS = [{ id: 'tw', label: '台股' }, { id: 'us', label: '美股' }, { id: 'all', label: '全部' }];
 

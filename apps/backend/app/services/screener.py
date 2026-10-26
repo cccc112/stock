@@ -21,28 +21,28 @@ from app.services.fundamentals import _monthly_revenue
 
 logger = logging.getLogger(__name__)
 
-# 產業 -> 代表個股 (流動性佳的大型/中型股)。可自行增修。
+# 產業 -> 代表個股 (流動性佳的大型/中型股，涵蓋多元主流板塊)。
 SECTORS: Dict[str, List[str]] = {
-    "半導體": ["2330", "2454", "2303", "3711", "2379", "3034", "3443"],
-    "AI伺服器/電腦": ["2317", "2382", "3231", "6669", "2356", "2357", "2376"],
-    "電子零組件/散熱": ["2308", "3037", "2368", "3017", "3324", "2327"],
-    "通訊網路": ["2412", "3045", "4904", "2345", "5388"],
-    "金融": ["2881", "2882", "2891", "2886", "2884", "2892", "2880"],
-    "航運": ["2603", "2609", "2615"],
-    "塑化鋼鐵": ["1301", "1303", "1326", "2002"],
-    "食品民生": ["1216", "2912", "1101"],
-    "汽車": ["2207", "2201", "1590"],
-    "生技醫療": ["6446", "4743", "1760", "4128"],
+    "半導體": ["2330", "2454", "2303", "3711", "2379", "3034", "3443", "3661", "3035", "6488"],
+    "AI伺服器/電腦": ["2317", "2382", "3231", "6669", "2356", "2357", "2376", "2383"],
+    "電子零組件/散熱": ["2308", "3037", "2368", "3017", "3324", "2327", "8996"],
+    "重電綠能/電線電纜": ["1519", "1503", "1513", "1514", "1609", "6806"],
+    "通訊網路/光通訊": ["2412", "3045", "4904", "2345", "5388", "3450", "4977"],
+    "金融": ["2881", "2882", "2891", "2886", "2884", "2892", "2880", "5880"],
+    "航運/航空": ["2603", "2609", "2615", "2618", "2610"],
+    "塑化鋼鐵/原物料": ["1301", "1303", "1326", "2002", "1101", "1216"],
+    "汽車/機器人自動化": ["2207", "2201", "1590", "2049", "2359", "4583"],
+    "生技醫療": ["6446", "4743", "1760", "4128", "6547"],
     "美股科技": ["NVDA", "MSFT", "AAPL", "GOOGL", "AMZN", "META", "AVGO", "TSM"],
-    "美股半導體": ["AMD", "INTC", "QCOM", "MU", "ASML", "AMAT"],
+    "美股半導體": ["AMD", "INTC", "QCOM", "MU", "ASML", "AMAT", "ARM", "MRVL"],
 }
 US_SECTORS = {"美股科技", "美股半導體"}
 
 STYLE_WEIGHTS = {
-    "balanced": {"tech": 0.45, "chips": 0.25, "growth": 0.30},
-    "momentum": {"tech": 0.65, "chips": 0.25, "growth": 0.10},
-    "growth": {"tech": 0.25, "chips": 0.15, "growth": 0.60},
-    "chips": {"tech": 0.30, "chips": 0.55, "growth": 0.15},
+    "balanced": {"tech": 0.35, "chips": 0.35, "growth": 0.30},
+    "momentum": {"tech": 0.70, "chips": 0.15, "growth": 0.15},
+    "growth": {"tech": 0.20, "chips": 0.15, "growth": 0.65},
+    "chips": {"tech": 0.20, "chips": 0.70, "growth": 0.10},
 }
 
 _sem = asyncio.Semaphore(10)
@@ -132,8 +132,24 @@ async def chips_metrics(code: str, avg_price: float, vol_5d: float) -> Optional[
         sig.append(f"外資近5日賣超 {abs(foreign) / 1000:,.0f} 張")
     if trust > 0:
         sig.append(f"投信近5日買超 {trust / 1000:,.0f} 張")
-    return {"foreign_5d": foreign, "trust_5d": trust, "net_amount_5d": (foreign + trust) * avg_price,
-            "score": round(_clamp(50 + ratio * 500, 0, 100)), "signals": sig}
+    elif trust < 0:
+        sig.append(f"投信近5日賣超 {abs(trust) / 1000:,.0f} 張")
+    
+    # 平滑量化評分：連續雙曲正切映射，避免所有個股全部被夾在 0 或 100 分
+    # 比例為 +10% 淨買超約 78 分，+20% 約 88 分，雙資同步加分
+    base_score = 50.0 + float(np.tanh(ratio * 7.5)) * 42.0
+    if foreign > 0 and trust > 0:
+        base_score += 8.0
+        sig.append("土洋聯手同步買超")
+    net_amt = (foreign + trust) * avg_price
+    if net_amt > 1_000_000_000:
+        base_score += 5.0
+        sig.append(f"法人5日淨佈局逾 {net_amt / 100_000_000:,.1f} 億")
+    elif net_amt < -1_000_000_000:
+        base_score -= 8.0
+
+    return {"foreign_5d": foreign, "trust_5d": trust, "net_amount_5d": net_amt,
+            "score": round(_clamp(base_score, 5.0, 99.0)), "signals": sig}
 
 
 async def growth_metrics(code: str) -> Optional[Dict[str, Any]]:
@@ -142,9 +158,21 @@ async def growth_metrics(code: str) -> Optional[Dict[str, Any]]:
     if not yoys:
         return None
     avg = sum(yoys) / len(yoys)
-    return {"revenue_yoy_3m": round(avg, 1), "latest_month": rev[0]["month"], "latest_yoy": rev[0]["yoy"],
-            "score": round(_clamp(50 + avg * 0.7)),
-            "signals": [f"近3個月營收年增均值 {avg:+.1f}%（{rev[0]['month']} 年增 {rev[0]['yoy']}%）"]}
+    latest_yoy = rev[0]["yoy"] if rev and rev[0].get("yoy") is not None else avg
+    sig = [f"近3個月營收年增均值 {avg:+.1f}%（{rev[0]['month']} 年增 {latest_yoy:+.1f}%）"]
+
+    # 成長評分模型：以近 3 個月營收年增與最新單月動能為核心
+    base_score = 50.0 + float(np.tanh(avg / 45.0)) * 36.0
+    if latest_yoy > avg + 3:
+        base_score += 8.0
+        sig.append("最新單月營收動能加速超越近季平均")
+    if latest_yoy > 30:
+        base_score += 6.0
+        sig.append("單月營收年增爆發突破 30%")
+
+    return {"revenue_yoy_3m": round(avg, 1), "latest_month": rev[0]["month"], "latest_yoy": latest_yoy,
+            "score": round(_clamp(base_score, 5.0, 99.0)),
+            "signals": sig}
 
 
 # ---------------------------------------------------------------- 單檔評估
@@ -208,14 +236,63 @@ async def evaluate(symbol: str, with_chips: bool = True, with_growth: bool = Tru
 
 
 def composite(ev: Dict[str, Any], style: str = "balanced") -> Dict[str, Any]:
-    w = STYLE_WEIGHTS.get(style, STYLE_WEIGHTS["balanced"])
-    parts = {"tech": ev["tech"]["score"],
-             "chips": ev["chips"]["score"] if ev.get("chips") else None,
-             "growth": ev["growth"]["score"] if ev.get("growth") else None}
-    used = {k: v for k, v in parts.items() if v is not None}
-    wsum = sum(w[k] for k in used)
-    total = round(sum(parts[k] * w[k] for k in used) / wsum) if wsum else 0
     t = ev["tech"]
+    chips = ev.get("chips")
+    growth = ev.get("growth")
+    tech_score = float(t["score"])
+    chips_score = float(chips["score"]) if chips else tech_score
+    growth_score = float(growth["score"]) if growth else tech_score
+
+    # 針對四大投資哲學風格量身定制量化評分演算法
+    if style == "momentum":
+        # 動能型：以短中期價格趨勢、突破力道與成交量放大為核心
+        mom = 45.0
+        r20 = t.get("ret_20d") or 0
+        r5 = t.get("ret_5d") or 0
+        mom += _clamp(r20 * 1.5, -25, 30)  # 20日強勢度
+        mom += _clamp(r5 * 1.2, -12, 18)   # 5日短線衝力
+        if t["close"] >= t["high_60"] * 0.97:
+            mom += 15  # 逼近或創60日新高
+        if t["vol_ratio"] >= 1.2:
+            mom += min(15, (t["vol_ratio"] - 1.0) * 12)  # 帶量突破
+        if t["ma5"] > t["ma20"] and (t.get("ma60") and t["ma20"] > t["ma60"]):
+            mom += 12  # 多頭排列
+        if 52 <= t["rsi"] <= 74:
+            mom += 10  # 動能黃金區
+        if t["macd_hist"] > 0 and t["macd_hist"] > t["macd_hist_prev"]:
+            mom += 8   # MACD 柱狀增長
+        total = round(_clamp(mom * 0.75 + chips_score * 0.15 + growth_score * 0.10))
+
+    elif style == "growth":
+        # 成長型：以營收爆發率與年增加速為主軸，搭配均線多頭
+        gw = 42.0
+        yoy3m = growth["revenue_yoy_3m"] if growth else (t.get("ret_20d") or 0)
+        gw += float(np.tanh(yoy3m / 35.0)) * 40.0
+        if growth and growth.get("latest_yoy", 0) > growth.get("revenue_yoy_3m", 0):
+            gw += 12  # 最新月份年增加速
+        if t["close"] >= t["ma20"]:
+            gw += 10  # 股價位於月線之上
+        if t.get("ma60") and t["close"] >= t["ma60"]:
+            gw += 8   # 股價位於季線之上
+        total = round(_clamp(gw * 0.65 + tech_score * 0.20 + chips_score * 0.15))
+
+    elif style == "chips":
+        # 籌碼型：以法人大戶籌碼連續性集中度為第一要素
+        cp = chips_score * 0.70 + tech_score * 0.20 + growth_score * 0.10
+        total = round(_clamp(cp))
+
+    else:
+        # 均衡型 (balanced)：技術 35%、籌碼 35%、成長 30% 平衡配置
+        w = STYLE_WEIGHTS.get(style, STYLE_WEIGHTS["balanced"])
+        parts = {
+            "tech": tech_score,
+            "chips": chips_score if chips else None,
+            "growth": growth_score if growth else None
+        }
+        used = {k: v for k, v in parts.items() if v is not None}
+        wsum = sum(w[k] for k in used)
+        total = round(sum(parts[k] * w[k] for k in used) / wsum) if wsum else round(tech_score)
+
     atr = t["atr"]
     action = "強勢標的，可分批佈局" if total >= 75 else "條件不錯，拉回找買點" if total >= 62 else "中性，觀望" if total >= 48 else "偏弱，不建議追"
     sigs = list(t["signals"])
@@ -226,7 +303,13 @@ def composite(ev: Dict[str, Any], style: str = "balanced") -> Dict[str, Any]:
         "symbol": ev["symbol"], "code": ev["code"], "name": ev["name"], "market": ev["market"],
         "industry": ev["industry"], "price": round(t["close"], 2),
         "change_pct": round(t["ret_1d"] or 0, 2), "ret_20d": round(t["ret_20d"] or 0, 2),
-        "score": total, "scores": parts, "action": action, "signals": sigs,
+        "score": total,
+        "scores": {
+            "tech": round(tech_score),
+            "chips": round(chips_score) if chips else None,
+            "growth": round(growth_score) if growth else None
+        },
+        "action": action, "signals": sigs,
         # 以 ATR 估算的參考價位：拉回至月線附近承接，停損 2 ATR，目標 3 ATR（報酬風險比 1.5）
         "entry_zone": [round(max(min(t["ma20"], t["close"]), t["close"] - atr), 2), round(t["close"], 2)],
         "stop_loss": round(t["close"] - 2 * atr, 2), "target": round(t["close"] + 3 * atr, 2),

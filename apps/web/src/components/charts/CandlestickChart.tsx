@@ -174,10 +174,15 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
   const chartRef = useRef<IChartApi | null>(null);
   const upperTrendRef = useRef<ISeriesApi<"Line"> | null>(null);
   const lowerTrendRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const ma5Ref = useRef<ISeriesApi<"Line"> | null>(null);
+  const ma20Ref = useRef<ISeriesApi<"Line"> | null>(null);
+  const ma60Ref = useRef<ISeriesApi<"Line"> | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activePeriod, setActivePeriod] = useState(period);
   const [showAutoTrends, setShowAutoTrends] = useState(true);
+  const [showMA, setShowMA] = useState(true);
   const [upperTrendColor, setUpperTrendColor] = useState('#ef4444');
   const [tooltipData, setTooltipData] = useState<any>(null);
   const [overlay, setOverlay] = useState<{ chart: IChartApi; series: ISeriesApi<SeriesType>; bars: BarInfo[] } | null>(null);
@@ -253,9 +258,12 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
     });
 
     const maOptions = { lineWidth: 1 as const, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false };
-    const ma5Series = chart.addSeries(LineSeries, { color: '#6366f1', ...maOptions });
-    const ma20Series = chart.addSeries(LineSeries, { color: '#f59e0b', ...maOptions });
-    const ma60Series = chart.addSeries(LineSeries, { color: '#10b981', ...maOptions });
+    const ma5Series = chart.addSeries(LineSeries, { color: '#6366f1', visible: showMA, ...maOptions });
+    const ma20Series = chart.addSeries(LineSeries, { color: '#f59e0b', visible: showMA, ...maOptions });
+    const ma60Series = chart.addSeries(LineSeries, { color: '#10b981', visible: showMA, ...maOptions });
+    ma5Ref.current = ma5Series;
+    ma20Ref.current = ma20Series;
+    ma60Ref.current = ma60Series;
 
     // 原生上下趨勢通道線 (Upper Resistance & Lower Support Trendlines)
     const upperTrendSeries = chart.addSeries(LineSeries, {
@@ -421,6 +429,9 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
       setOverlay(null);
       upperTrendRef.current = null;
       lowerTrendRef.current = null;
+      ma5Ref.current = null;
+      ma20Ref.current = null;
+      ma60Ref.current = null;
       resizeObserver.disconnect();
       if (chartRef.current) {
         chartRef.current.remove();
@@ -428,6 +439,17 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
       }
     };
   }, [symbol, market, activePeriod, upColor, downColor]);
+
+  // 切換 MA 均線 (5MA / 20MA / 60MA) 顯示狀態
+  useEffect(() => {
+    try {
+      ma5Ref.current?.applyOptions({ visible: showMA });
+      ma20Ref.current?.applyOptions({ visible: showMA });
+      ma60Ref.current?.applyOptions({ visible: showMA });
+    } catch {
+      /* ignore if disposed */
+    }
+  }, [showMA]);
 
   // 切換原生自動上下趨勢線顯示狀態與主題顏色
   useEffect(() => {
@@ -506,6 +528,13 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
         bars={overlay?.bars}
         showAutoTrends={showAutoTrends}
         onToggleAutoTrends={() => setShowAutoTrends(prev => !prev)}
+        showMA={showMA}
+        onToggleMA={() => setShowMA(prev => !prev)}
+        onClearAllAuxiliary={() => {
+          drawingsApi.clear();
+          setShowAutoTrends(false);
+          setShowMA(false);
+        }}
         onApplyThemeColor={(c) => {
           setUpperTrendColor(c);
           setShowAutoTrends(true);
@@ -514,25 +543,45 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
 
       <div className="relative h-[400px] border border-[var(--border)] rounded-xl bg-[var(--bg-secondary)]/60 overflow-hidden">
         {/* Legends */}
-        <div className="absolute top-3 left-4 z-10 flex flex-wrap items-center gap-3 text-xs font-mono">
-          <div className="flex gap-1.5 items-center">
-            <span className="w-2 h-2 rounded-full bg-[#6366f1]"></span> 5MA <InfoTip term="ma5" />
-          </div>
-          <div className="flex gap-1.5 items-center">
-            <span className="w-2 h-2 rounded-full bg-[#f59e0b]"></span> 20MA <InfoTip term="ma20" />
-          </div>
-          <div className="flex gap-1.5 items-center">
-            <span className="w-2 h-2 rounded-full bg-[#10b981]"></span> 60MA <InfoTip term="ma60" />
-          </div>
+        <div className="absolute top-3 left-4 z-10 flex flex-wrap items-center gap-3 text-xs font-mono select-none">
+          {showMA ? (
+            <div className="flex items-center gap-2.5 bg-black/25 dark:bg-black/40 px-2 py-0.5 rounded-md backdrop-blur-sm">
+              <div className="flex gap-1.5 items-center">
+                <span className="w-2 h-2 rounded-full bg-[#6366f1]"></span> 5MA <InfoTip term="ma5" />
+              </div>
+              <div className="flex gap-1.5 items-center">
+                <span className="w-2 h-2 rounded-full bg-[#f59e0b]"></span> 20MA <InfoTip term="ma20" />
+              </div>
+              <div className="flex gap-1.5 items-center">
+                <span className="w-2 h-2 rounded-full bg-[#10b981]"></span> 60MA <InfoTip term="ma60" />
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowMA(true)}
+              className="px-2 py-0.5 rounded bg-black/30 hover:bg-black/50 text-secondary hover:text-primary transition-colors text-[11px] cursor-pointer"
+              title="點擊恢復顯示 5MA / 20MA / 60MA 均線"
+            >
+              均線已隱藏 (點擊開啟)
+            </button>
+          )}
+
           {showAutoTrends && (
-            <>
+            <div className="flex items-center gap-2.5 bg-black/25 dark:bg-black/40 px-2 py-0.5 rounded-md backdrop-blur-sm">
               <div className="flex gap-1.5 items-center" style={{ color: upperTrendColor }}>
                 <span className="w-3 border-t-2 border-dashed" style={{ borderColor: upperTrendColor }}></span> 上趨勢壓力
               </div>
               <div className="flex gap-1.5 items-center text-[#22c55e]">
                 <span className="w-3 border-t-2 border-dashed border-[#22c55e]"></span> 下趨勢支撐
               </div>
-            </>
+            </div>
+          )}
+
+          {!showMA && !showAutoTrends && drawingsApi.drawings.length === 0 && (
+            <div className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-sans font-medium flex items-center gap-1">
+              <span>✨ 純淨 K 線模式</span>
+            </div>
           )}
         </div>
 

@@ -59,7 +59,8 @@ export default function QuantScreenerPage() {
           apiMarket.getPopularETFs()
         ]);
         const universe = [...(trendingRes.data || []), ...(etfRes.data || [])];
-        targetUniverse = Array.from(new Map(universe.map((item: any) => [item.symbol, item])).values()).slice(0, 20);
+        // 擴大候選掃描池至 50 檔熱門與權值標的，使各策略皆能精準篩出差異化標的
+        targetUniverse = Array.from(new Map(universe.map((item: any) => [item.symbol, item])).values()).slice(0, 50);
         targetSymbols = targetUniverse.map(t => t.symbol);
       } else if (source === 'watchlist') {
         // 自選股存在瀏覽器（與「自選股」頁一致），不是後端資料庫
@@ -79,12 +80,15 @@ export default function QuantScreenerPage() {
       }
 
       const currentTab = TABS.find(t => t.label === activeTab);
-      const strategy = currentTab ? currentTab.value : '';
+      const strategy = currentTab ? `${currentTab.value},${currentTab.label}` : '';
 
       let screenMatchedSymbols: string[] = [];
       if (activeTab !== '全部') {
         const screenRes = await apiQuant.screenStocks({ strategies: strategy, symbols: targetSymbols, params });
-        screenMatchedSymbols = (screenRes.data || []).map((item: any) => typeof item === 'string' ? item : item.symbol);
+        const rawResults = Array.isArray(screenRes.data)
+          ? screenRes.data
+          : (screenRes.data?.results || []);
+        screenMatchedSymbols = rawResults.map((item: any) => typeof item === 'string' ? item : item.symbol);
       } else {
         screenMatchedSymbols = targetSymbols;
       }

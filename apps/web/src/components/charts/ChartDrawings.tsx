@@ -530,12 +530,18 @@ export function DrawingToolbar({
   bars = [],
   showAutoTrends = true,
   onToggleAutoTrends,
+  showMA = true,
+  onToggleMA,
+  onClearAllAuxiliary,
   onApplyThemeColor,
 }: {
   api: DrawingsApi;
   bars?: BarInfo[];
   showAutoTrends?: boolean;
   onToggleAutoTrends?: () => void;
+  showMA?: boolean;
+  onToggleMA?: () => void;
+  onClearAllAuxiliary?: () => void;
   onApplyThemeColor?: (color: string) => void;
 }) {
   const { tool, setTool, draft, color, setColor, selected, removeSelectedOrLast, clear, undo, magnet, setMagnet, drawings, setSelected, addMany } = api;
@@ -548,7 +554,7 @@ export function DrawingToolbar({
   };
 
   const btn = (active: boolean) =>
-    `px-2.5 py-1 text-xs rounded-md border transition-all whitespace-nowrap ${
+    `px-2.5 py-1 text-xs rounded-md border transition-all whitespace-nowrap cursor-pointer ${
       active
         ? 'border-[var(--accent)] text-accent bg-[var(--accent)]/15 shadow-sm'
         : 'border-[var(--border)] text-secondary hover:text-primary hover:border-[var(--border-hover)]'}`;
@@ -586,7 +592,34 @@ export function DrawingToolbar({
   return (
     <div className="mb-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-secondary mr-1">畫線</span>
+        {/* 一鍵純淨 K 線 (清除所有輔助線只留K線) */}
+        <button
+          type="button"
+          className="px-2.5 py-1 text-xs rounded-md border border-rose-500/50 bg-rose-500/15 text-rose-400 font-semibold hover:bg-rose-500/25 transition-all whitespace-nowrap shadow-sm flex items-center gap-1 cursor-pointer"
+          onClick={() => {
+            if (onClearAllAuxiliary) {
+              onClearAllAuxiliary();
+            } else {
+              clear();
+            }
+            showToast('🧹 已清除所有輔助線，僅保留純 K 線！(可點擊均線或趨勢線按鈕隨時恢復)');
+          }}
+          title="一鍵清除所有輔助線：手動畫線、自動趨勢通道、SMC 箱體、斐波那契及均線(MA)，僅保留乾淨 K 線"
+        >
+          <span>🧹 一鍵純淨 K 線</span>
+        </button>
+
+        {onToggleMA && (
+          <button
+            type="button"
+            title="切換 5MA / 20MA / 60MA 移動平均線顯示"
+            className={btn(Boolean(showMA))}
+            onClick={onToggleMA}
+          >
+            均線 (MA)
+          </button>
+        )}
+
         {onToggleAutoTrends && (
           <div className="inline-flex items-center">
             <button
@@ -601,10 +634,12 @@ export function DrawingToolbar({
           </div>
         )}
 
+        <span className="w-px h-5 bg-[var(--border)] mx-0.5" />
+
         {/* 一鍵全套智能自動畫出 */}
         <button
           type="button"
-          className="px-2.5 py-1 text-xs rounded-md border border-amber-500/40 bg-amber-500/15 text-amber-400 font-semibold hover:bg-amber-500/25 transition-all whitespace-nowrap shadow-sm flex items-center gap-1"
+          className="px-2.5 py-1 text-xs rounded-md border border-amber-500/40 bg-amber-500/15 text-amber-400 font-semibold hover:bg-amber-500/25 transition-all whitespace-nowrap shadow-sm flex items-center gap-1 cursor-pointer"
           onClick={() => {
             if (!bars || bars.length < 5) return;
             const all = autoGenerateAllDrawings(bars, color);
@@ -620,7 +655,7 @@ export function DrawingToolbar({
         {/* 自動畫出 / 手動畫線 切換模式標籤 */}
         <button
           type="button"
-          className={`px-2 py-1 text-xs rounded-md border transition-all whitespace-nowrap font-medium ${
+          className={`px-2 py-1 text-xs rounded-md border transition-all whitespace-nowrap font-medium cursor-pointer ${
             autoDrawMode
               ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
               : 'border-slate-400/50 dark:border-slate-500/50 bg-slate-500/10 dark:bg-slate-500/15 text-slate-700 dark:text-slate-300'
@@ -688,7 +723,7 @@ export function DrawingToolbar({
         {(tool !== 'cursor' || draft) && (
           <button
             type="button"
-            className="px-2.5 py-1 text-xs rounded-md border border-amber-500/40 bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 transition-colors whitespace-nowrap"
+            className="px-2.5 py-1 text-xs rounded-md border border-amber-500/40 bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 transition-colors whitespace-nowrap cursor-pointer"
             onClick={() => setTool('cursor')}
           >
             取消畫線
@@ -713,7 +748,7 @@ export function DrawingToolbar({
           onClick={clear}
           title="一鍵清除圖上所有手動畫線"
         >
-          全部清除
+          清除畫線
         </button>
       </div>
 

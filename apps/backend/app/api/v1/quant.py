@@ -112,6 +112,31 @@ async def scan_all(db=Depends(get_db)):
             
     return results
 
+STRATEGY_ALIASES = {
+    "golden_death_cross": ["均線交叉", "golden_death_cross", "黃金交叉", "死亡交叉"],
+    "ma_alignment": ["均線排列", "ma_alignment", "多頭排列", "空頭排列"],
+    "macd_divergence": ["macd背離", "macd_divergence", "macd", "背離"],
+    "bollinger_squeeze": ["布林擠壓", "bollinger_squeeze", "布林", "帶狀壓縮"],
+    "kdj_cross": ["kdj交叉", "kdj_cross", "kd交叉", "kdj", "kd"],
+    "volume_breakout": ["爆量突破", "volume_breakout", "量能爆發", "爆量"],
+    "bottom_volume_breakout": ["底部爆量起漲", "bottom_volume_breakout", "底部爆量"],
+    "volume_anomaly": ["量價異動", "volume_anomaly", "成交量異常"],
+}
+
+def _matches_strategy(sig_strategy: str, filter_tokens: List[str]) -> bool:
+    if not filter_tokens or "all" in filter_tokens or "全部" in filter_tokens:
+        return True
+    sig_lower = sig_strategy.lower()
+    for token in filter_tokens:
+        tok_lower = token.lower()
+        if tok_lower == sig_lower or tok_lower in sig_lower or sig_lower in tok_lower:
+            return True
+        for _, aliases in STRATEGY_ALIASES.items():
+            if tok_lower in [a.lower() for a in aliases]:
+                if any(a.lower() in sig_lower for a in aliases):
+                    return True
+    return False
+
 @router.post("/screen")
 async def screen_stocks(req: QuantScreenRequest, db=Depends(get_db)):
     """Screen stocks by strategy. strategies is comma-separated list."""
@@ -131,9 +156,23 @@ async def screen_stocks(req: QuantScreenRequest, db=Depends(get_db)):
             df = await get_df(sym, "3mo")
             signals = run_all_strategies(df, req.params)
             
+            # 若包含量價異動檢測
+            if any(t in filter_strategies for t in ["volume_anomaly", "量價異動", "all", "全部"]):
+                try:
+                    anomaly = detect_volume_anomaly(df)
+                    if anomaly and getattr(anomaly, "type", "NORMAL") != "NORMAL":
+                        signals.append({
+                            "strategy": "量價異動",
+                            "direction": "BUY" if getattr(anomaly, "confidence", 0) >= 0.5 else "NEUTRAL",
+                            "confidence": getattr(anomaly, "confidence", 0.6),
+                            "description": getattr(anomaly, "description", f"偵測到 {anomaly.type} 異常量能")
+                        })
+                except Exception:
+                    pass
+
             matched_signals = []
             for sig in signals:
-                if not filter_strategies or sig['strategy'].lower() in filter_strategies:
+                if _matches_strategy(sig['strategy'], filter_strategies):
                     matched_signals.append(sig)
                     
             if matched_signals:
