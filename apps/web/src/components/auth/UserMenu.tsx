@@ -63,9 +63,9 @@ export default function UserMenu() {
       return;
     }
 
-    if (typeof window !== "undefined" && (window as any).google?.accounts?.oauth2) {
-      setIsRedirecting(true);
+    const startGIS = () => {
       try {
+        setIsRedirecting(true);
         const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
           client_id: activeClientId,
           scope: "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email openid",
@@ -82,7 +82,6 @@ export default function UserMenu() {
                 }
               } catch (err) {
                 console.error("Failed to fetch userinfo", err);
-                setAuthModalOpen(true);
               }
             }
           },
@@ -91,10 +90,21 @@ export default function UserMenu() {
       } catch (e) {
         console.error(e);
         setIsRedirecting(false);
-        setAuthModalOpen(true);
       }
-    } else {
-      setAuthModalOpen(true);
+    };
+
+    if (typeof window !== "undefined") {
+      if ((window as any).google?.accounts?.oauth2) {
+        startGIS();
+      } else {
+        setIsRedirecting(true);
+        const script = document.createElement("script");
+        script.src = "https://accounts.google.com/gsi/client";
+        script.async = true;
+        script.onload = () => startGIS();
+        script.onerror = () => setIsRedirecting(false);
+        document.body.appendChild(script);
+      }
     }
   };
 
@@ -103,13 +113,13 @@ export default function UserMenu() {
       <div className="relative" ref={menuRef}>
         {!user ? (
           <div className="flex items-center gap-1.5">
-            {/* 未登入時：真實 Google 官方跳轉登入按鈕 (像藝廊專案一樣) */}
+            {/* 未登入時：唯一 Google 官方登入按鈕 */}
             <button
               type="button"
               disabled={isRedirecting}
               onClick={handleDirectGoogleLogin}
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] hover:border-accent text-xs font-semibold text-primary transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-75"
-              title="使用 Google 官方帳號登入 (跳轉 Google 帳號選擇與授權)"
+              title="使用 Google 官方帳號登入"
             >
               {isRedirecting ? (
                 <Loader2 className="w-4 h-4 animate-spin text-accent" />
@@ -136,16 +146,6 @@ export default function UserMenu() {
                 </div>
               )}
               <span>{isRedirecting ? "連線 Google 中..." : "Google 登入"}</span>
-            </button>
-
-            {/* 備援或多帳號選擇 */}
-            <button
-              type="button"
-              onClick={() => setAuthModalOpen(true)}
-              className="p-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] hover:border-accent text-secondary hover:text-primary text-xs transition-colors cursor-pointer"
-              title="選擇或切換本機記憶帳號"
-            >
-              <User size={13} />
             </button>
 
             <button

@@ -84,39 +84,63 @@ export function useAuthManager() {
 
   // 1. 初始化讀取本地已存真實 Session (不依賴 Supabase)
   useEffect(() => {
-    try {
-      const savedUser = localStorage.getItem(STORAGE_KEY_USER);
-      if (savedUser) {
-        const parsed = JSON.parse(savedUser) as UserProfile;
-        // 如果是舊的訪客模擬帳號，自動清理
-        if (parsed.email === "trader.guest@gmail.com") {
-          localStorage.removeItem(STORAGE_KEY_USER);
-          setUser(null);
+    const syncUserFromStorage = () => {
+      try {
+        const savedUser = localStorage.getItem(STORAGE_KEY_USER);
+        if (savedUser) {
+          const parsed = JSON.parse(savedUser) as UserProfile;
+          if (parsed.email === "trader.guest@gmail.com") {
+            localStorage.removeItem(STORAGE_KEY_USER);
+            setUser(null);
+          } else {
+            setUser(parsed);
+            const userKey =
+              localStorage.getItem(`byok_api_key_${parsed.id}`) ||
+              localStorage.getItem(STORAGE_KEY_LEGACY_BYOK) ||
+              "";
+            setApiKeyState(userKey);
+          }
         } else {
-          setUser(parsed);
-          const userKey =
-            localStorage.getItem(`byok_api_key_${parsed.id}`) ||
-            localStorage.getItem(STORAGE_KEY_LEGACY_BYOK) ||
-            "";
-          setApiKeyState(userKey);
+          setUser(null);
+          const guestKey = localStorage.getItem(STORAGE_KEY_LEGACY_BYOK) || "";
+          setApiKeyState(guestKey);
         }
+      } catch {
+        // ignore
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    syncUserFromStorage();
+
+    // 跨元件 / 跨分頁即時同步
+    const handleAuthChanged = (e: any) => {
+      const u = e?.detail ?? null;
+      setUser(u);
+      if (u?.id) {
+        const userKey =
+          localStorage.getItem(`byok_api_key_${u.id}`) ||
+          localStorage.getItem(STORAGE_KEY_LEGACY_BYOK) ||
+          "";
+        setApiKeyState(userKey);
       } else {
         const guestKey = localStorage.getItem(STORAGE_KEY_LEGACY_BYOK) || "";
         setApiKeyState(guestKey);
       }
-    } catch {
-      // ignore
-    } finally {
-      setIsLoading(false);
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("stock_auth_changed", handleAuthChanged);
+      window.addEventListener("storage", syncUserFromStorage);
     }
 
-    // 清除舊 URL 中遺留的 Supabase hash token 或 code
-    if (typeof window !== "undefined") {
-      if (window.location.hash.includes("access_token") || window.location.search.includes("code=")) {
-        const cleanUrl = window.location.origin + window.location.pathname;
-        window.history.replaceState(null, "", cleanUrl);
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("stock_auth_changed", handleAuthChanged);
+        window.removeEventListener("storage", syncUserFromStorage);
       }
-    }
+    };
   }, []);
 
   const logout = useCallback(() => {
