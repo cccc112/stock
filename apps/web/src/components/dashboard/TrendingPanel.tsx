@@ -5,7 +5,7 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { formatNumber, formatVolume, getChangeColorClass } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { apiMarket } from "@/lib/api";
+import { apiMarket, apiStocks } from "@/lib/api";
 import { Term } from "@/components/ui/TermTooltip";
 
 interface RankedStock {
@@ -18,6 +18,21 @@ interface RankedStock {
   volume: number;
   turnover_b?: number;
 }
+
+const STOCK_NAMES: Record<string, string> = {
+  "2330": "台積電", "2317": "鴻海", "2454": "聯發科",
+  "3231": "緯創", "2382": "廣達", "2603": "長榮",
+  "2881": "富邦金", "2882": "國泰金", "2303": "聯電",
+  "3037": "欣興", "2357": "華碩", "2609": "陽明",
+  "3017": "奇鋐", "2376": "技嘉", "2618": "長榮航",
+  "8069": "元太", "6488": "環球晶", "3293": "鈊象",
+  "5347": "世界", "3324": "雙鴻", "8299": "群聯",
+  "6223": "旺矽", "3529": "力旺", "6187": "萬潤",
+  "5483": "中美晶", "3105": "穩懋", "6547": "高端疫苗",
+};
+
+const TWSE_POOLS = ["2330", "2317", "2454", "3231", "2382", "2603", "2881", "2882"];
+const TPEX_POOLS = ["8069", "6488", "3293", "5347", "3324", "8299", "6223", "3529"];
 
 const DEFAULT_TWSE: RankedStock[] = [
   { symbol: "2330", name: "台積電", market: "TWSE", price: 0, change: 0, change_pct: 0, volume: 0 },
@@ -49,14 +64,111 @@ export default function TrendingPanel() {
   useEffect(() => {
     const fetchRankings = async () => {
       try {
-        const res = await apiMarket.getRankings(8);
-        const data = res.data;
-        if (data && (Array.isArray(data.twse) || Array.isArray(data.tpex))) {
-          setRankings({
-            twse: data.twse?.length ? data.twse : DEFAULT_TWSE,
-            tpex: data.tpex?.length ? data.tpex : DEFAULT_TPEX,
-          });
+        // 1. 優先嘗試後端標準 rankings 端點
+        const res = await apiMarket.getRankings(8).catch(() => null);
+        const data = res?.data;
+        let twseList: RankedStock[] =
+          data?.twse && Array.isArray(data.twse) && data.twse.length > 0 ? data.twse : [];
+        let tpexList: RankedStock[] =
+          data?.tpex && Array.isArray(data.tpex) && data.tpex.length > 0 ? data.tpex : [];
+
+        // 2. 若後端伺服器版本未收錄 rankings，自動降級調用熱門 trending 端點
+        if (twseList.length === 0 || twseList.every((s) => !s.price || s.price === 0)) {
+          try {
+            const trendingRes = await apiMarket.getTrending().catch(() => null);
+            if (trendingRes?.data && Array.isArray(trendingRes.data) && trendingRes.data.length > 0) {
+              twseList = trendingRes.data
+                .map((q: any) => ({
+                  symbol: q.symbol,
+                  name: STOCK_NAMES[q.symbol] || q.name || q.symbol,
+                  market: "TWSE" as const,
+                  price: Number(q.price) || 0,
+                  change: Number(q.change) || 0,
+                  change_pct: Number(q.change_pct) || 0,
+                  volume: Number(q.volume) || 0,
+                  turnover_b:
+                    Math.round(
+                      (((Number(q.price) || 0) * (Number(q.volume) || 0)) / 1e8) * 100
+                    ) / 100,
+                }))
+                .filter((s: RankedStock) => s.price > 0)
+                .sort((a: RankedStock, b: RankedStock) => (b.volume || 0) - (a.volume || 0));
+            }
+          } catch (e) {
+            console.error("Trending fallback error:", e);
+          }
         }
+
+        // 3. 若 TWSE 依然缺少即時報價，並行向主機請求個股即時行情
+        if (twseList.length === 0 || twseList.every((s) => !s.price || s.price === 0)) {
+          const quotes = await Promise.allSettled(
+            TWSE_POOLS.map((sym) => apiStocks.getQuote(sym))
+          );
+          const loaded: RankedStock[] = [];
+          quotes.forEach((r, idx) => {
+            if (r.status === "fulfilled" && r.value?.data && r.value.data.price > 0) {
+              const q = r.value.data;
+              const sym = TWSE_POOLS[idx];
+              loaded.push({
+                symbol: sym,
+                name: STOCK_NAMES[sym] || q.name || sym,
+                market: "TWSE",
+                price: q.price,
+                change: q.change || 0,
+                change_pct: q.change_pct || 0,
+                volume: q.volume || 0,
+                turnover_b: Math.round(((q.price * (q.volume || 0)) / 1e8) * 100) / 100,
+              });
+            }
+          });
+          if (loaded.length > 0) {
+            loaded.sort((a, b) => (b.volume || 0) - (a.volume || 0));
+            twseList = loaded;
+          }
+        }
+
+        // 4. 對 TPEx (上櫃) 並行向主機請求即時報價池，確保即時量價齊全
+        if (tpexList.length === 0 || tpexList.every((s) => !s.price || s.price === 0)) {
+          const tpexQuotes = await Promise.allSettled(
+            TPEX_POOLS.map((sym) => apiStocks.getQuote(sym))
+          );
+          const loadedTpex: RankedStock[] = [];
+          tpexQuotes.forEach((r, idx) => {
+            if (r.status === "fulfilled" && r.value?.data && r.value.data.price > 0) {
+              const q = r.value.data;
+              const sym = TPEX_POOLS[idx];
+              loadedTpex.push({
+                symbol: sym,
+                name: STOCK_NAMES[sym] || q.name || sym,
+                market: "TPEx",
+                price: q.price,
+                change: q.change || 0,
+                change_pct: q.change_pct || 0,
+                volume: q.volume || 0,
+                turnover_b: Math.round(((q.price * (q.volume || 0)) / 1e8) * 100) / 100,
+              });
+            }
+          });
+          if (loadedTpex.length > 0) {
+            loadedTpex.sort((a, b) => (b.volume || 0) - (a.volume || 0));
+            tpexList = loadedTpex;
+          }
+        }
+
+        // 5. 確保個股中文名稱 100% 正確顯示（避免舊服務端編碼異常）
+        twseList = twseList.map((s) => ({
+          ...s,
+          name: STOCK_NAMES[s.symbol] || s.name || s.symbol,
+        }));
+        tpexList = tpexList.map((s) => ({
+          ...s,
+          name: STOCK_NAMES[s.symbol] || s.name || s.symbol,
+        }));
+
+        setRankings({
+          twse: twseList.length ? twseList : DEFAULT_TWSE,
+          tpex: tpexList.length ? tpexList : DEFAULT_TPEX,
+        });
       } catch (err) {
         console.error("Failed to load market rankings:", err);
       } finally {

@@ -56,14 +56,70 @@ export default function StockIndexPage() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    apiMarket
-      .getRankings(6)
-      .then((res) => {
-        if (res.data?.twse) setTwseTop(res.data.twse.slice(0, 6));
-        if (res.data?.tpex) setTpexTop(res.data.tpex.slice(0, 6));
-      })
-      .catch(() => {})
-      .finally(() => setLoadingRankings(false));
+    const loadRankings = async () => {
+      try {
+        const res = await apiMarket.getRankings(6).catch(() => null);
+        if (res?.data?.twse && res.data.twse.length > 0) {
+          setTwseTop(res.data.twse.slice(0, 6));
+          if (res.data?.tpex) setTpexTop(res.data.tpex.slice(0, 6));
+          return;
+        }
+
+        // 降級調用主機即時 trending 端點
+        const trendingRes = await apiMarket.getTrending().catch(() => null);
+        if (trendingRes?.data && Array.isArray(trendingRes.data) && trendingRes.data.length > 0) {
+          const mapped = trendingRes.data
+            .map((q: any) => ({
+              symbol: q.symbol,
+              name: q.name || q.symbol,
+              market: "TWSE",
+              price: Number(q.price) || 0,
+              change: Number(q.change) || 0,
+              change_pct: Number(q.change_pct) || 0,
+              volume: Number(q.volume) || 0,
+              turnover_b:
+                Math.round(
+                  (((Number(q.price) || 0) * (Number(q.volume) || 0)) / 1e8) * 100
+                ) / 100,
+            }))
+            .filter((s: any) => s.price > 0)
+            .sort((a: any, b: any) => (b.volume || 0) - (a.volume || 0));
+          setTwseTop(mapped.slice(0, 6));
+        }
+
+        // 上櫃 TPEx 代表股並行即時行情
+        const tpexPool = ["8069", "6488", "3293", "5347", "3324", "8299"];
+        const tpexQuotes = await Promise.allSettled(
+          tpexPool.map((s) => apiStocks.getQuote(s))
+        );
+        const tpexList: RankedItem[] = [];
+        tpexQuotes.forEach((r, idx) => {
+          if (r.status === "fulfilled" && r.value?.data && r.value.data.price > 0) {
+            const q = r.value.data;
+            tpexList.push({
+              symbol: tpexPool[idx],
+              name: q.name || tpexPool[idx],
+              market: "TPEx",
+              price: q.price,
+              change: q.change || 0,
+              change_pct: q.change_pct || 0,
+              volume: q.volume || 0,
+              turnover_b: Math.round(((q.price * (q.volume || 0)) / 1e8) * 100) / 100,
+            });
+          }
+        });
+        if (tpexList.length > 0) {
+          tpexList.sort((a, b) => (b.volume || 0) - (a.volume || 0));
+          setTpexTop(tpexList.slice(0, 6));
+        }
+      } catch (err) {
+        console.error("Failed to load rankings on stock page:", err);
+      } finally {
+        setLoadingRankings(false);
+      }
+    };
+
+    loadRankings();
   }, []);
 
   useEffect(() => {
