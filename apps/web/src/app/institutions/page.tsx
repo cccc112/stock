@@ -89,151 +89,47 @@ const PRESET_STOCKS = [
   { symbol: "2881", name: "富邦金", price: 91.5 },
 ];
 
-export default function InstitutionsPage() {
-  // 頂部主標籤：三大法人動向 vs 華爾街 13F 機構深度報告
-  const [activeMainTab, setActiveMainTab] = useState<'TW' | 'US_13F'>('TW');
-  
-  // 台股內部視圖：先顯示大盤，使用者選取個股後切換到個股
-  const [twView, setTwView] = useState<'TOTAL' | 'STOCK'>('TOTAL');
+// ------------------------------------------------------------- 擬真高品質降級資料 (放於外部避免 TDZ 錯誤)
+function getRealisticTwData(): TwInstData[] {
+  const data: TwInstData[] = [];
+  const today = new Date();
+  const seedValues = [
+    { f: -182.6, t: 48.7, dl: -31.5 },
+    { f: 245.8, t: 62.4, dl: 38.9 },
+    { f: -95.2, t: 29.8, dl: -14.1 },
+    { f: 124.5, t: 36.4, dl: 15.2 },
+    { f: -278.4, t: 71.2, dl: -52.8 },
+    { f: 186.2, t: 55.3, dl: 31.2 },
+    { f: -112.5, t: 39.8, dl: -19.4 },
+    { f: 205.3, t: 46.1, dl: 28.7 },
+    { f: -342.1, t: 82.5, dl: -65.4 },
+    { f: 98.4, t: 34.2, dl: 12.6 },
+    { f: -165.2, t: 51.4, dl: -28.9 },
+    { f: 312.6, t: 68.2, dl: 45.1 },
+    { f: -89.4, t: 28.5, dl: -12.3 },
+    { f: 145.8, t: 42.1, dl: 18.5 },
+    { f: -215.3, t: 38.6, dl: -42.1 },
+  ];
+  let idx = 0;
+  for (let i = 24; i >= 0 && data.length < 15; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    if (d.getDay() === 0 || d.getDay() === 6) continue;
+    const s = seedValues[idx % seedValues.length];
+    idx++;
+    data.push({
+      date: `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`,
+      full_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+      foreign: s.f,
+      trust: s.t,
+      dealer: s.dl,
+    });
+  }
+  return data;
+}
 
-  const [loading, setLoading] = useState(true);
-  const [twData, setTwData] = useState<TwInstData[]>([]);
-  const [usData, setUsData] = useState<any[]>([]);
-  const [ranks, setRanks] = useState<any>(null);
-
-  // 個股籌碼狀態
-  const [selectedStock, setSelectedStock] = useState("2330");
-  const [stockInput, setStockInput] = useState("");
-  const [stockData, setStockData] = useState<StockInstData | null>(null);
-  const [stockLoading, setStockLoading] = useState(false);
-
-  // 13F 深度報告彈窗
-  const [selectedFund, setSelectedFund] = useState<any | null>(null);
-
-  useEffect(() => {
-    fetchInitialData();
-  }, []);
-
-  useEffect(() => {
-    if (twView === 'STOCK') {
-      fetchStockInstitutions(selectedStock);
-    }
-  }, [twView, selectedStock]);
-
-  // 封裝安全超時請求，防止遠端後端冷啟動導致手機無限轉圈或白屏
-  const withTimeout = <T,>(promise: Promise<T>, ms = 3500): Promise<T> => {
-    return Promise.race([
-      promise,
-      new Promise<T>((_, reject) => setTimeout(() => reject(new Error("Timeout")), ms)),
-    ]);
-  };
-
-  const fetchInitialData = async () => {
-    setLoading(true);
-    try {
-      const [resTw, resUs, resRanks] = await Promise.allSettled([
-        withTimeout(apiInstitutions.getTw()),
-        withTimeout(apiInstitutions.getUs13F()),
-        withTimeout(apiInstitutions.getRanksTw()),
-      ]);
-
-      if (resTw.status === "fulfilled" && Array.isArray(resTw.value.data) && resTw.value.data.length > 0) {
-        setTwData(resTw.value.data);
-      } else {
-        setTwData(getRealisticTwData());
-      }
-
-      if (resUs.status === "fulfilled" && Array.isArray(resUs.value.data) && resUs.value.data.length > 0) {
-        setUsData(resUs.value.data);
-      } else {
-        setUsData(getRealisticUsData());
-      }
-
-      if (resRanks.status === "fulfilled" && resRanks.value.data) {
-        setRanks(resRanks.value.data);
-      } else {
-        setRanks(getRealisticRanks());
-      }
-    } catch {
-      setTwData(getRealisticTwData());
-      setUsData(getRealisticUsData());
-      setRanks(getRealisticRanks());
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchStockInstitutions = async (sym: string) => {
-    setStockLoading(true);
-    try {
-      const res = await withTimeout(apiInstitutions.getStockTw(sym));
-      if (res?.data && res.data.history && res.data.history.length > 0) {
-        setStockData(res.data);
-      } else {
-        setStockData(getRealisticStockData(sym));
-      }
-    } catch {
-      setStockData(getRealisticStockData(sym));
-    } finally {
-      setStockLoading(false);
-    }
-  };
-
-  const handleStockSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (stockInput.trim()) {
-      const code = stockInput.trim().toUpperCase();
-      setSelectedStock(code);
-      setTwView('STOCK');
-      setStockInput("");
-    }
-  };
-
-  const selectStockAndSwitch = (sym: string) => {
-    setSelectedStock(sym);
-    setTwView('STOCK');
-  };
-
-  // ------------------------------------------------------------- 擬真高品質降級資料
-  const getRealisticTwData = (): TwInstData[] => {
-    const data: TwInstData[] = [];
-    const today = new Date();
-    const seedValues = [
-      { f: -182.6, t: 48.7, dl: -31.5 },
-      { f: 245.8, t: 62.4, dl: 38.9 },
-      { f: -95.2, t: 29.8, dl: -14.1 },
-      { f: 124.5, t: 36.4, dl: 15.2 },
-      { f: -278.4, t: 71.2, dl: -52.8 },
-      { f: 186.2, t: 55.3, dl: 31.2 },
-      { f: -112.5, t: 39.8, dl: -19.4 },
-      { f: 205.3, t: 46.1, dl: 28.7 },
-      { f: -342.1, t: 82.5, dl: -65.4 },
-      { f: 98.4, t: 34.2, dl: 12.6 },
-      { f: -165.2, t: 51.4, dl: -28.9 },
-      { f: 312.6, t: 68.2, dl: 45.1 },
-      { f: -89.4, t: 28.5, dl: -12.3 },
-      { f: 145.8, t: 42.1, dl: 18.5 },
-      { f: -215.3, t: 38.6, dl: -42.1 },
-    ];
-    let idx = 0;
-    for (let i = 24; i >= 0 && data.length < 15; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      if (d.getDay() === 0 || d.getDay() === 6) continue;
-      const s = seedValues[idx % seedValues.length];
-      idx++;
-      data.push({
-        date: `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`,
-        full_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
-        foreign: s.f,
-        trust: s.t,
-        dealer: s.dl,
-      });
-    }
-    return data;
-  };
-
-  const getRealisticRanks = () => ({
+function getRealisticRanks() {
+  return {
     foreign_buys: [
       { symbol: "2330", name: "台積電", price: 1085, change_pct: 2.36, shares: 28450 },
       { symbol: "2317", name: "鴻海", price: 218.5, change_pct: 1.63, shares: 19230 },
@@ -248,71 +144,73 @@ export default function InstitutionsPage() {
       { symbol: "3231", name: "緯創", price: 118.0, change_pct: 3.51, shares: 2850, consecutive_days: 4 },
       { symbol: "2454", name: "聯發科", price: 1315.0, change_pct: 2.73, shares: 1540, consecutive_days: 3 },
     ]
-  });
-
-  const getRealisticStockData = (sym: string): StockInstData => {
-    const preset = PRESET_STOCKS.find(s => s.symbol === sym);
-    const stockName = preset ? preset.name : `個股 ${sym}`;
-    const baseP = preset ? preset.price : 120.0;
-    const today = new Date();
-    const history: StockInstHistory[] = [];
-    const seedValues = [
-      { f: 3250, t: 850, dl: -320 }, { f: -1450, t: 420, dl: 110 }, { f: 2800, t: 1200, dl: -90 },
-      { f: 4100, t: 1650, dl: 430 }, { f: -980, t: 520, dl: -150 }, { f: 1890, t: 890, dl: 210 },
-      { f: 3450, t: 1450, dl: 310 }, { f: -2100, t: 310, dl: -420 }, { f: 2600, t: 920, dl: 150 },
-      { f: 4800, t: 2100, dl: 520 }, { f: -1250, t: 680, dl: -210 }, { f: 3150, t: 1150, dl: 280 },
-      { f: 2900, t: 840, dl: 190 }, { f: 5100, t: 2400, dl: 610 }, { f: 4320, t: 1890, dl: 420 }
-    ];
-    let currP = baseP;
-    for (let i = 20; i >= 0 && history.length < 15; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      if (d.getDay() === 0 || d.getDay() === 6) continue;
-      const s = seedValues[history.length % seedValues.length];
-      const ret = (s.f + s.t) / 45000.0;
-      currP = Math.round(currP * (1.0 + ret * 0.35) * 10) / 10;
-      history.push({
-        date: `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`,
-        full_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
-        foreign: s.f,
-        trust: s.t,
-        dealer: s.dl,
-        close: currP,
-      });
-    }
-
-    const latest = history[history.length - 1];
-    const recent5 = history.slice(-5);
-    const sum5F = recent5.reduce((sum, h) => sum + h.foreign, 0);
-    const sum5T = recent5.reduce((sum, h) => sum + h.trust, 0);
-    const sum5Dl = recent5.reduce((sum, h) => sum + h.dealer, 0);
-
-    return {
-      symbol: sym,
-      name: stockName,
-      latest_close: latest.close,
-      latest: {
-        foreign: latest.foreign,
-        trust: latest.trust,
-        dealer: latest.dealer,
-        total: latest.foreign + latest.trust + latest.dealer,
-        date: latest.date,
-      },
-      stats_5d: {
-        foreign: sum5F,
-        trust: sum5T,
-        dealer: sum5Dl,
-        total: sum5F + sum5T + sum5Dl,
-      },
-      consecutive: {
-        foreign: { days: 3, action: "買超" },
-        trust: { days: 6, action: "買超" },
-      },
-      history,
-    };
   };
+}
 
-  const getRealisticUsData = () => [
+function getRealisticStockData(sym: string): StockInstData {
+  const preset = PRESET_STOCKS.find(s => s.symbol === sym);
+  const stockName = preset ? preset.name : `個股 ${sym}`;
+  const baseP = preset ? preset.price : 120.0;
+  const today = new Date();
+  const history: StockInstHistory[] = [];
+  const seedValues = [
+    { f: 3250, t: 850, dl: -320 }, { f: -1450, t: 420, dl: 110 }, { f: 2800, t: 1200, dl: -90 },
+    { f: 4100, t: 1650, dl: 430 }, { f: -980, t: 520, dl: -150 }, { f: 1890, t: 890, dl: 210 },
+    { f: 3450, t: 1450, dl: 310 }, { f: -2100, t: 310, dl: -420 }, { f: 2600, t: 920, dl: 150 },
+    { f: 4800, t: 2100, dl: 520 }, { f: -1250, t: 680, dl: -210 }, { f: 3150, t: 1150, dl: 280 },
+    { f: 2900, t: 840, dl: 190 }, { f: 5100, t: 2400, dl: 610 }, { f: 4320, t: 1890, dl: 420 }
+  ];
+  let currP = baseP;
+  for (let i = 20; i >= 0 && history.length < 15; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    if (d.getDay() === 0 || d.getDay() === 6) continue;
+    const s = seedValues[history.length % seedValues.length];
+    const ret = (s.f + s.t) / 45000.0;
+    currP = Math.round(currP * (1.0 + ret * 0.35) * 10) / 10;
+    history.push({
+      date: `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`,
+      full_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+      foreign: s.f,
+      trust: s.t,
+      dealer: s.dl,
+      close: currP,
+    });
+  }
+
+  const latest = history[history.length - 1];
+  const recent5 = history.slice(-5);
+  const sum5F = recent5.reduce((sum, h) => sum + h.foreign, 0);
+  const sum5T = recent5.reduce((sum, h) => sum + h.trust, 0);
+  const sum5Dl = recent5.reduce((sum, h) => sum + h.dealer, 0);
+
+  return {
+    symbol: sym,
+    name: stockName,
+    latest_close: latest.close,
+    latest: {
+      foreign: latest.foreign,
+      trust: latest.trust,
+      dealer: latest.dealer,
+      total: latest.foreign + latest.trust + latest.dealer,
+      date: latest.date,
+    },
+    stats_5d: {
+      foreign: sum5F,
+      trust: sum5T,
+      dealer: sum5Dl,
+      total: sum5F + sum5T + sum5Dl,
+    },
+    consecutive: {
+      foreign: { days: 3, action: "買超" },
+      trust: { days: 6, action: "買超" },
+    },
+    history,
+  };
+}
+
+function getRealisticUsData() {
+  return [
     {
       id: "berkshire",
       fundName: "Berkshire Hathaway (波克夏·海瑟威)",
@@ -465,6 +363,112 @@ export default function InstitutionsPage() {
       ],
     },
   ];
+}
+
+export default function InstitutionsPage() {
+  // 頂部主標籤：三大法人動向 vs 華爾街 13F 機構深度報告
+  const [activeMainTab, setActiveMainTab] = useState<'TW' | 'US_13F'>('TW');
+  
+  // 台股內部視圖：先顯示大盤，使用者選取個股後切換到個股
+  const [twView, setTwView] = useState<'TOTAL' | 'STOCK'>('TOTAL');
+
+  const [loading, setLoading] = useState(false);
+  const [twData, setTwData] = useState<TwInstData[]>(() => getRealisticTwData());
+  const [usData, setUsData] = useState<any[]>(() => getRealisticUsData());
+  const [ranks, setRanks] = useState<any>(() => getRealisticRanks());
+
+  // 個股籌碼狀態
+  const [selectedStock, setSelectedStock] = useState("2330");
+  const [stockInput, setStockInput] = useState("");
+  const [stockData, setStockData] = useState<StockInstData | null>(() => getRealisticStockData("2330"));
+  const [stockLoading, setStockLoading] = useState(false);
+
+  // 13F 深度報告彈窗
+  const [selectedFund, setSelectedFund] = useState<any | null>(null);
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  useEffect(() => {
+    if (twView === 'STOCK') {
+      fetchStockInstitutions(selectedStock);
+    }
+  }, [twView, selectedStock]);
+
+  // 封裝安全超時請求，防止遠端後端冷啟動導致手機無限轉圈或白屏
+  const withTimeout = <T,>(promise: Promise<T>, ms = 3500): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) => setTimeout(() => reject(new Error("Timeout")), ms)),
+    ]);
+  };
+
+  const fetchInitialData = async () => {
+    setLoading(true);
+    try {
+      const [resTw, resUs, resRanks] = await Promise.allSettled([
+        withTimeout(apiInstitutions.getTw()),
+        withTimeout(apiInstitutions.getUs13F()),
+        withTimeout(apiInstitutions.getRanksTw()),
+      ]);
+
+      if (resTw.status === "fulfilled" && Array.isArray(resTw.value.data) && resTw.value.data.length > 0) {
+        setTwData(resTw.value.data);
+      } else {
+        setTwData(getRealisticTwData());
+      }
+
+      if (resUs.status === "fulfilled" && Array.isArray(resUs.value.data) && resUs.value.data.length > 0) {
+        setUsData(resUs.value.data);
+      } else {
+        setUsData(getRealisticUsData());
+      }
+
+      if (resRanks.status === "fulfilled" && resRanks.value.data) {
+        setRanks(resRanks.value.data);
+      } else {
+        setRanks(getRealisticRanks());
+      }
+    } catch {
+      setTwData(getRealisticTwData());
+      setUsData(getRealisticUsData());
+      setRanks(getRealisticRanks());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStockInstitutions = async (sym: string) => {
+    setStockLoading(true);
+    try {
+      const res = await withTimeout(apiInstitutions.getStockTw(sym));
+      if (res?.data && res.data.history && res.data.history.length > 0) {
+        setStockData(res.data);
+      } else {
+        setStockData(getRealisticStockData(sym));
+      }
+    } catch {
+      setStockData(getRealisticStockData(sym));
+    } finally {
+      setStockLoading(false);
+    }
+  };
+
+  const handleStockSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (stockInput.trim()) {
+      const code = stockInput.trim().toUpperCase();
+      setSelectedStock(code);
+      setTwView('STOCK');
+      setStockInput("");
+    }
+  };
+
+  const selectStockAndSwitch = (sym: string) => {
+    setSelectedStock(sym);
+    setTwView('STOCK');
+  };
 
   // 格式化輔助
   const latestItem = twData.length > 0 ? twData[twData.length - 1] : null;

@@ -13,6 +13,7 @@ import {
   PieChart,
   Sparkles,
   TrendingUp,
+  Landmark,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -44,9 +45,15 @@ const navGroups: { title: string; items: NavItem[] }[] = [
         icon: Sparkles,
       },
       {
-        name: "資金與法人籌碼",
+        name: "三大法人與 13F 機構",
+        href: "/institutions",
+        matchPrefixes: ["/institutions"],
+        icon: Landmark,
+      },
+      {
+        name: "資金流向與產業輪動",
         href: "/capital-flow",
-        matchPrefixes: ["/capital-flow", "/institutions", "/industry"],
+        matchPrefixes: ["/capital-flow", "/industry"],
         icon: TrendingUp,
       },
     ],
