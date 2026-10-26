@@ -89,11 +89,11 @@ async def financial_advice(symbol: str, authorization: Optional[str] = Header(No
 
 # ---------------------------------------------------------------- 推薦
 @router.get("/recommend")
-async def recommend(market: str = "tw", style: str = "balanced", sector: Optional[str] = None, top: int = 10,
-                    universe: str = "curated"):
+async def recommend(market: str = "tw", style: str = "balanced", sector: Optional[str] = None, top: int = 15,
+                    universe: str = "curated", refresh: bool = False):
     if market not in ("tw", "us", "all") or style not in screener.STYLE_WEIGHTS or universe not in ("curated", "hot"):
         raise HTTPException(status_code=400, detail="market 需為 tw/us/all；style 需為 balanced/momentum/growth/chips；universe 需為 curated/hot")
-    return await screener.recommend(market, style, sector, min(max(top, 1), 30), universe)
+    return await screener.recommend(market, style, sector, min(max(top, 1), 60), universe, refresh=refresh)
 
 
 @router.post("/recommend/explain")

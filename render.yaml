@@ -5,8 +5,8 @@ services:
     plan: free
     autoDeploy: true
     healthCheckPath: /health
-    buildCommand: "cd apps/backend && pip install -r requirements.txt"
-    startCommand: "cd apps/backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    buildCommand: "python -m pip install --upgrade pip && if [ -d apps/backend ]; then cd apps/backend; fi && pip install -r requirements.txt"
+    startCommand: "if [ -d apps/backend ]; then cd apps/backend; fi && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0

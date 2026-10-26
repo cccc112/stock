@@ -346,8 +346,8 @@ async def recommend(market: str = "tw", style: str = "balanced", sector: Optiona
         if finmind_service.rate_limited:
             logger.info("FinMind 額度用完，本次評分僅採技術面")
     result = {"notes": notes, "market": market, "style": style, "sector": sector, "universe_type": universe, "universe": len(symbols),
-              "evaluated": len(picks), "picks": picks[:top],
-              "avoid": [p for p in picks if p["score"] < 45][-3:],
+              "evaluated": len(picks), "picks": picks[:top], "all_picks": picks,
+              "avoid": [p for p in picks if p["score"] < 45][-5:],
               "generated_at": pd.Timestamp.utcnow().isoformat()}
     if picks:
         await cache_service.set(key, json.dumps(result, ensure_ascii=False, default=str), ttl=1200)

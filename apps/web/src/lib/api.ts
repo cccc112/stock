@@ -140,7 +140,7 @@ export const apiResearch = {
   getFinancials: (symbol: string) => api.get(`/research/${encodeURIComponent(symbol)}/financials`),
   getDeepReport: (symbol: string) => api.get(`/research/${encodeURIComponent(symbol)}/deep-report`, { timeout: 60000 }),
   getFinancialAdvice: (symbol: string) => api.post(`/research/${encodeURIComponent(symbol)}/financial-advice`, null, { timeout: 90000 }),
-  getRecommendations: (params: { market?: string; style?: string; sector?: string; top?: number; universe?: string }) =>
+  getRecommendations: (params: { market?: string; style?: string; sector?: string; top?: number; universe?: string; refresh?: boolean; _t?: number }) =>
     api.get('/research/recommend', { params, timeout: 120000 }),
   explainRecommendations: (params: { market?: string; style?: string; sector?: string; universe?: string }) =>
     api.post('/research/recommend/explain', null, { params, timeout: 120000 }),

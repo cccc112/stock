@@ -10,7 +10,7 @@ import QuantPage from "@/app/quant/page";
 import BacktestPage from "@/app/backtest/page";
 import { apiResearch, apiErrorMessage } from "@/lib/api";
 import { getChangeColorClass } from "@/lib/utils";
-import { Sparkles, RefreshCw } from "lucide-react";
+import { Sparkles, RefreshCw, RotateCw, Layers } from "lucide-react";
 import { Term } from "@/components/ui/TermTooltip";
 
 interface Pick {
@@ -92,9 +92,11 @@ function RecommendInner() {
   const [style, setStyle] = useState('balanced');
   const [universe, setUniverse] = useState('curated');
   const [picks, setPicks] = useState<Pick[]>([]);
+  const [allPicks, setAllPicks] = useState<Pick[]>([]);
   const [avoid, setAvoid] = useState<Pick[]>([]);
   const [meta, setMeta] = useState({ universe: 0, evaluated: 0 });
   const [notes, setNotes] = useState<string[]>([]);
+  const [generatedAt, setGeneratedAt] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [rationale, setRationale] = useState('');
@@ -102,27 +104,58 @@ function RecommendInner() {
   const [aiError, setAiError] = useState('');
 
   const [nonce, setNonce] = useState(0);
+  const [forceNext, setForceNext] = useState(false);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 10;
 
-  // 變更條件時在事件處理器內先切到載入狀態，effect 只負責抓資料
-  const refetch = (fn?: () => void) => {
+  // 變更條件或手動強制刷新
+  const refetch = (fn?: () => void, forceRefresh = false) => {
     setLoading(true); setError(''); setRationale(''); setAiError('');
     fn?.();
+    setForceNext(forceRefresh);
+    setPage(0);
     setNonce(n => n + 1);
   };
 
   useEffect(() => {
     let alive = true;
-    apiResearch.getRecommendations({ market, style, top: 10, universe })
+    const isForce = forceNext;
+    setForceNext(false);
+
+    apiResearch.getRecommendations({
+      market,
+      style,
+      top: 30,
+      universe,
+      refresh: isForce,
+      _t: isForce ? Date.now() : undefined,
+    })
       .then(r => {
         if (!alive) return;
-        setPicks(r.data.picks); setAvoid(r.data.avoid || []);
+        const rawAll = (r.data.all_picks && r.data.all_picks.length > 0) ? r.data.all_picks : (r.data.picks || []);
+        setAllPicks(rawAll);
+        setPicks(r.data.picks || []);
+        setAvoid(r.data.avoid || []);
         setMeta({ universe: r.data.universe, evaluated: r.data.evaluated });
         setNotes(r.data.notes || []);
+        if (r.data.generated_at) {
+          try {
+            const d = new Date(r.data.generated_at);
+            setGeneratedAt(d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }));
+          } catch {
+            setGeneratedAt('');
+          }
+        }
       })
       .catch(e => alive && setError(apiErrorMessage(e)))
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
   }, [market, style, universe, nonce]);
+
+  const pool = allPicks.length > 0 ? allPicks : picks;
+  const totalPages = Math.max(1, Math.ceil(pool.length / PAGE_SIZE));
+  const displayedPicks = pool.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const startRank = page * PAGE_SIZE;
 
   const explain = async () => {
     setAiLoading(true); setAiError('');
@@ -142,13 +175,37 @@ function RecommendInner() {
         <div>
           <h1 className="text-2xl font-bold">股票推薦</h1>
           <p className="text-sm text-secondary mt-1">
-            量化評分（技術面 + 籌碼面 + 營收成長）篩選，分數由真實資料計算，AI 僅負責解讀。
+            多因子量化評分（技術面 + 籌碼面 + 營收成長），真實市場數據客觀計分。
             {meta.evaluated > 0 && ` 已評估 ${meta.evaluated}/${meta.universe} 檔。`}
+            {generatedAt && <span className="ml-2 text-xs text-[var(--accent)] font-mono">⚡ 最新運算時間：{generatedAt}</span>}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => refetch()} isLoading={loading}><RefreshCw size={14} className="mr-1" />重新篩選</Button>
-          <Button size="sm" onClick={explain} isLoading={aiLoading} disabled={!picks.length}><Sparkles size={14} className="mr-1" />AI 推薦理由</Button>
+        <div className="flex flex-wrap gap-2 items-center">
+          {totalPages > 1 && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setPage(p => (p + 1) % totalPages)}
+              title="輪流探索股票池內其他高評分潛力標的"
+            >
+              <RotateCw size={14} className="mr-1" />
+              換一批 (第 {page + 1}/{totalPages} 批)
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => refetch(undefined, true)}
+            isLoading={loading}
+            title="清除後端快取，強制抓取最新盤中價與法人數據重新計算"
+          >
+            <RefreshCw size={14} className="mr-1" />
+            重新篩選 (強制刷新)
+          </Button>
+          <Button size="sm" onClick={explain} isLoading={aiLoading} disabled={!displayedPicks.length}>
+            <Sparkles size={14} className="mr-1" />
+            AI 推薦理由
+          </Button>
         </div>
       </div>
 
@@ -183,12 +240,12 @@ function RecommendInner() {
 
       {!loading && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {picks.map((p, i) => (
+          {displayedPicks.map((p, i) => (
             <Card key={p.symbol}>
               <div className="flex justify-between items-start">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-secondary text-sm">#{i + 1}</span>
+                    <span className="text-secondary text-sm">#{startRank + i + 1}</span>
                     <Link href={`/stock/${p.symbol}`} className="text-lg font-bold hover:text-accent">{p.symbol}</Link>
                     <span className="text-secondary">{p.name !== p.symbol ? p.name : ''}</span>
                     {p.industry && <span style={{ fontSize: 10 }} className="px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)]">{p.industry}</span>}
