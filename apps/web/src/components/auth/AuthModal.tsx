@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Modal from "@/components/ui/Modal";
 import { UserProfile, useAuthManager, parseJwt } from "@/hooks/useAuth";
-import { ShieldCheck, User, ArrowRight, ExternalLink, Settings, Trash2, Check, LogOut, AlertCircle } from "lucide-react";
+import { ShieldCheck, ArrowRight, Trash2, Check, LogOut, AlertCircle } from "lucide-react";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -16,14 +16,10 @@ const STORAGE_KEY_SAVED_ACCOUNTS = "stock_saved_google_accounts";
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const { loginWithGoogle, user: currentUser, logout } = useAuthManager();
   const [savedAccounts, setSavedAccounts] = useState<UserProfile[]>([]);
-  const [showConfig, setShowConfig] = useState(false);
-  const [customClientId, setCustomClientId] = useState("");
-  const [isGsiReady, setIsGsiReady] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
-  const envClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
-  const activeClientId = customClientId || envClientId;
+  const activeClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
   // 讀取真實登入過的 Google 帳號清單（徹底清理任何模擬假帳號）
   useEffect(() => {
@@ -42,29 +38,17 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       );
       localStorage.setItem(STORAGE_KEY_SAVED_ACCOUNTS, JSON.stringify(list));
       setSavedAccounts(list);
-
-      const savedCid = localStorage.getItem("stock_custom_google_client_id");
-      if (savedCid) setCustomClientId(savedCid);
-      if (!activeClientId && !savedCid) setShowConfig(true);
     } catch {}
-  }, [isOpen, activeClientId]);
+  }, [isOpen]);
 
   // 載入 Google 官方 Identity Services (GIS) SDK
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !activeClientId) return;
 
     const handleCredential = (response: any) => {
       if (response?.credential) {
         const payload = parseJwt(response.credential);
         if (payload?.email) {
-          const profile: UserProfile = {
-            id: `usr_${btoa(payload.email).replace(/[^a-zA-Z0-9]/g, "").slice(0, 16)}`,
-            email: payload.email,
-            name: payload.name || payload.email.split("@")[0],
-            avatar: payload.picture,
-            provider: "google",
-            createdAt: Date.now(),
-          };
           loginWithGoogle(payload.email, payload.name, payload.picture);
           onClose();
         }
@@ -73,7 +57,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
     if (typeof window !== "undefined") {
       const initGsi = () => {
-        setIsGsiReady(true);
         if ((window as any).google?.accounts?.id && activeClientId && googleBtnRef.current) {
           try {
             (window as any).google.accounts.id.initialize({
@@ -111,8 +94,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const handleTriggerGoogleOAuth = () => {
     setErrorMsg("");
     if (!activeClientId) {
-      setShowConfig(true);
-      setErrorMsg("請先於下方輸入 Google OAuth 2.0 Web Client ID 即可連線。");
+      setErrorMsg("Google 登入服務準備中（請洽系統管理員設定 Client ID）。");
       return;
     }
 
@@ -123,7 +105,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           scope: "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email openid",
           callback: async (tokenResponse: any) => {
             if (tokenResponse?.error) {
-              setErrorMsg(`Google 授權錯誤: ${tokenResponse.error}`);
+              setErrorMsg(`Google 授權中斷: ${tokenResponse.error}`);
               return;
             }
             if (tokenResponse?.access_token) {
@@ -149,7 +131,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         setErrorMsg(`喚起 Google 彈窗失敗: ${err.message}`);
       }
     } else {
-      setErrorMsg("Google 認證服務載入中，請稍候重試。");
+      setErrorMsg("Google 登入服務載入中，請稍候重試。");
     }
   };
 
@@ -215,7 +197,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
         {/* 官方原生 Google 登入按鈕區 */}
         <div className="space-y-3 pt-1">
-          {/* 原生按鈕 (透過 GIS Token Client 喚起 Google 原廠帳號選擇器) */}
           <button
             type="button"
             onClick={handleTriggerGoogleOAuth}
@@ -307,55 +288,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </div>
           </div>
         )}
-
-        {/* Google OAuth Client ID 設定 */}
-        <div className="border-t border-[var(--border)] pt-2.5">
-          {!showConfig ? (
-            <button
-              type="button"
-              onClick={() => setShowConfig(true)}
-              className="text-[11px] text-muted hover:text-secondary flex items-center gap-1 transition-colors cursor-pointer"
-            >
-              <Settings size={12} />
-              <span>設定 Google OAuth 2.0 Client ID</span>
-            </button>
-          ) : (
-            <div className="space-y-2 pt-1 text-xs bg-[var(--bg-tertiary)]/50 p-3 rounded-xl border border-[var(--border)]">
-              <label className="block text-primary font-medium text-xs">
-                Google Cloud Web Client ID
-              </label>
-              <input
-                type="text"
-                placeholder="例如: xxxxxxxxxx-xxxxxxxx.apps.googleusercontent.com"
-                value={customClientId}
-                onChange={(e) => {
-                  const val = e.target.value.trim();
-                  setCustomClientId(val);
-                  localStorage.setItem("stock_custom_google_client_id", val);
-                }}
-                className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 font-mono text-xs text-primary outline-none focus:border-accent"
-              />
-              <div className="flex justify-between items-center text-[10px] text-muted pt-1">
-                <a
-                  href="https://console.cloud.google.com/apis/credentials"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-accent hover:underline flex items-center gap-1"
-                >
-                  <span>前往 Google Cloud 憑證中心建立或複製</span>
-                  <ExternalLink size={10} />
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setShowConfig(false)}
-                  className="text-secondary hover:text-primary cursor-pointer"
-                >
-                  收合
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
     </Modal>
   );

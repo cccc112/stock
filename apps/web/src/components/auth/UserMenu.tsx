@@ -56,8 +56,7 @@ export default function UserMenu() {
   }, []);
 
   const handleDirectGoogleLogin = () => {
-    const customCid = typeof window !== "undefined" ? localStorage.getItem("stock_custom_google_client_id") : "";
-    const activeClientId = customCid || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+    const activeClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
     if (!activeClientId) {
       setAuthModalOpen(true);
