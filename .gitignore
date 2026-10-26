@@ -10,3 +10,4 @@ venv/
 news.json
 test.py
 test_fm.py
+graphify-out/

@@ -83,6 +83,10 @@ class GeminiService:
                     if "NOT_FOUND" in msg or "no longer available" in msg:
                         self._dead.add(m)
                         break
+                    if "per day" in msg.lower() or "limit exceeded on free tier" in msg.lower():
+                        logger.warning("Gemini model %s exceeded daily quota, switching to backup model...", m)
+                        self._dead.add(m)
+                        break
                     transient = any(k in msg for k in ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED",
                                                        "overloaded", "high demand", "timed out", "Timeout"))
                     if transient and attempt == 0:

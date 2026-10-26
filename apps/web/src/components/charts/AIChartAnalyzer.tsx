@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Button from "@/components/ui/Button";
 import { apiAi } from "@/lib/api";
 import {
@@ -23,7 +23,7 @@ export default function AIChartAnalyzer({ symbol, onLinesCalculated }: AIChartAn
   const [showThinking, setShowThinking] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -61,7 +61,7 @@ export default function AIChartAnalyzer({ symbol, onLinesCalculated }: AIChartAn
         ]);
       }
 
-      if (backendRes?.data?.analysis && !String(backendRes.data.analysis).includes("呼叫失敗")) {
+      if (backendRes?.data?.analysis && !String(backendRes.data.analysis).includes("呼叫失敗") && !backendRes.data?.analysis_error) {
         setAnalysis(backendRes.data.analysis);
       } else {
         setAnalysis(smart.analysis);
@@ -71,7 +71,11 @@ export default function AIChartAnalyzer({ symbol, onLinesCalculated }: AIChartAn
     } finally {
       setLoading(false);
     }
-  };
+  }, [symbol, onLinesCalculated]);
+
+  useEffect(() => {
+    handleAnalyze();
+  }, [handleAnalyze]);
 
   return (
     <div className="mt-6 border-t border-[var(--color-border)] pt-6 space-y-4">
