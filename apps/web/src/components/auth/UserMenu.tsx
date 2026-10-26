@@ -23,7 +23,7 @@ import {
 import { useBeginnerMode } from "@/components/ui/TermTooltip";
 
 export default function UserMenu() {
-  const { user, logout, isApiKeyConfigured, loginWithSupabaseGoogle } = useAuthManager();
+  const { user, logout, isApiKeyConfigured, loginWithGoogle } = useAuthManager();
   const { beginnerMode, toggleBeginnerMode } = useBeginnerMode();
   const [menuOpen, setMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -55,14 +55,46 @@ export default function UserMenu() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleDirectGoogleLogin = async () => {
-    setIsRedirecting(true);
-    try {
-      await loginWithSupabaseGoogle();
-    } catch (e) {
-      console.error(e);
-      setIsRedirecting(false);
-      // 若跳轉遭遇阻礙，開啟選擇清單備援
+  const handleDirectGoogleLogin = () => {
+    const customCid = typeof window !== "undefined" ? localStorage.getItem("stock_custom_google_client_id") : "";
+    const activeClientId = customCid || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+
+    if (!activeClientId) {
+      setAuthModalOpen(true);
+      return;
+    }
+
+    if (typeof window !== "undefined" && (window as any).google?.accounts?.oauth2) {
+      setIsRedirecting(true);
+      try {
+        const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: activeClientId,
+          scope: "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email openid",
+          callback: async (tokenResponse: any) => {
+            setIsRedirecting(false);
+            if (tokenResponse?.access_token) {
+              try {
+                const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                });
+                const info = await res.json();
+                if (info?.email) {
+                  loginWithGoogle(info.email, info.name, info.picture);
+                }
+              } catch (err) {
+                console.error("Failed to fetch userinfo", err);
+                setAuthModalOpen(true);
+              }
+            }
+          },
+        });
+        tokenClient.requestAccessToken({ prompt: "select_account" });
+      } catch (e) {
+        console.error(e);
+        setIsRedirecting(false);
+        setAuthModalOpen(true);
+      }
+    } else {
       setAuthModalOpen(true);
     }
   };

@@ -160,18 +160,22 @@ const fmtMoney = (v: number | null | undefined) => {
 };
 
 const growthColor = (v: number | null | undefined, market: string) =>
-  v == null || v === 0 ? "" : (v > 0) === (market === "TW") ? "text-red-400" : "text-emerald-400";
+  v == null || v === 0
+    ? ""
+    : (v > 0) === (market === "TW")
+    ? "text-red-600 dark:text-red-400"
+    : "text-emerald-600 dark:text-emerald-400";
 
 const ratingStyle = (code: string) => {
   switch (code) {
     case "STRONG_BULL":
-      return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
+      return "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/30";
     case "BULL":
-      return "bg-indigo-500/15 text-indigo-400 border-indigo-500/30";
+      return "bg-indigo-500/15 text-indigo-800 dark:text-indigo-300 border-indigo-500/30";
     case "NEUTRAL":
-      return "bg-amber-500/15 text-amber-400 border-amber-500/30";
+      return "bg-amber-500/15 text-amber-900 dark:text-amber-300 border-amber-500/30";
     default:
-      return "bg-rose-500/15 text-rose-400 border-rose-500/30";
+      return "bg-rose-500/15 text-rose-800 dark:text-rose-300 border-rose-500/30";
   }
 };
 
@@ -356,7 +360,7 @@ export default function FinancialsSection({
                 <div className="text-[11px] text-secondary">
                   <Term k="entry_zone" label="建議分批進場區間" />
                 </div>
-                <div className="font-mono text-sm font-bold text-indigo-400 mt-1">
+                <div className="font-mono text-sm font-bold text-indigo-700 dark:text-indigo-400 mt-1">
                   {verdict.entry_zone[0]} ~ {verdict.entry_zone[1]}
                 </div>
               </div>
@@ -364,7 +368,7 @@ export default function FinancialsSection({
                 <div className="text-[11px] text-secondary">
                   <Term k="stop_loss" label="嚴格防守停損價" />
                 </div>
-                <div className="font-mono text-sm font-bold text-rose-400 mt-1">
+                <div className="font-mono text-sm font-bold text-rose-700 dark:text-rose-400 mt-1">
                   {verdict.stop_loss}
                 </div>
               </div>
@@ -372,7 +376,7 @@ export default function FinancialsSection({
                 <div className="text-[11px] text-secondary">
                   <Term k="target_price" label="波段目標價" />
                 </div>
-                <div className="font-mono text-sm font-bold text-emerald-400 mt-1">
+                <div className="font-mono text-sm font-bold text-emerald-700 dark:text-emerald-400 mt-1">
                   {verdict.target_price}
                 </div>
               </div>
@@ -389,28 +393,28 @@ export default function FinancialsSection({
             {/* 多方優勢 vs 空方風險 */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="p-3.5 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 mb-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 mb-2">
                   <ShieldCheck size={14} />
                   <span>多方核心催化與優勢 (Bull Case)</span>
                 </div>
                 <ul className="space-y-1.5 text-xs text-secondary">
                   {verdict.bull_points.map((pt, i) => (
                     <li key={i} className="flex items-start gap-1.5 leading-relaxed">
-                      <span className="text-emerald-400 font-bold mt-0.5">+</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">+</span>
                       <span>{pt}</span>
                     </li>
                   ))}
                 </ul>
               </div>
               <div className="p-3.5 rounded-lg bg-rose-500/5 border border-rose-500/20">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-rose-400 mb-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-rose-700 dark:text-rose-400 mb-2">
                   <AlertTriangle size={14} />
                   <span>空方風險與排雷警示 (Bear Case)</span>
                 </div>
                 <ul className="space-y-1.5 text-xs text-secondary">
                   {verdict.bear_points.map((pt, i) => (
                     <li key={i} className="flex items-start gap-1.5 leading-relaxed">
-                      <span className="text-rose-400 font-bold mt-0.5">-</span>
+                      <span className="text-rose-600 dark:text-rose-400 font-bold mt-0.5">-</span>
                       <span>{pt}</span>
                     </li>
                   ))}
@@ -487,7 +491,7 @@ export default function FinancialsSection({
                         <span className="text-muted block text-[11px]">
                           <Term k="bull_ob" label="多方機構訂單塊 (Bull OB)" />
                         </span>
-                        <span className="font-mono font-semibold text-emerald-400">
+                        <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400">
                           {model.bullish_ob
                             ? `${model.bullish_ob.low} ~ ${model.bullish_ob.high}`
                             : "近期無明顯區間"}
@@ -497,7 +501,7 @@ export default function FinancialsSection({
                         <span className="text-muted block text-[11px]">
                           <Term k="bear_ob" label="空方機構訂單塊 (Bear OB)" />
                         </span>
-                        <span className="font-mono font-semibold text-rose-400">
+                        <span className="font-mono font-semibold text-rose-700 dark:text-rose-400">
                           {model.bearish_ob
                             ? `${model.bearish_ob.low} ~ ${model.bearish_ob.high}`
                             : "近期無明顯區間"}
@@ -672,7 +676,7 @@ export default function FinancialsSection({
                   <span>現金殖利率</span>
                   <InfoTip term="dividend_yield" />
                 </div>
-                <div className="font-mono text-sm font-bold text-emerald-400">
+                <div className="font-mono text-sm font-bold text-emerald-700 dark:text-emerald-400">
                   {val.dividend_yield != null ? `${Number(val.dividend_yield).toFixed(2)}%` : "—"}
                 </div>
               </div>

@@ -357,12 +357,12 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
                 <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
                   <div className="flex items-center justify-between gap-2 mb-1.5">
                     <div className="flex items-center gap-2">
-                      <Scale size={15} className="text-emerald-400" />
-                      <strong className="text-xs text-emerald-400 font-bold">
+                      <Scale size={15} className="text-emerald-600 dark:text-emerald-400" />
+                      <strong className="text-xs text-emerald-700 dark:text-emerald-400 font-bold">
                         Round 1 · {debate.round1_buffett.speaker}（{debate.round1_buffett.role}）
                       </strong>
                     </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-medium">
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 font-medium">
                       {debate.round1_buffett.stance}
                     </span>
                   </div>
@@ -375,12 +375,12 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
                 <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30">
                   <div className="flex items-center justify-between gap-2 mb-1.5">
                     <div className="flex items-center gap-2">
-                      <TrendingUp size={15} className="text-indigo-400" />
-                      <strong className="text-xs text-indigo-400 font-bold">
+                      <TrendingUp size={15} className="text-indigo-600 dark:text-indigo-400" />
+                      <strong className="text-xs text-indigo-700 dark:text-indigo-400 font-bold">
                         Round 2 · {debate.round2_simons.speaker}（{debate.round2_simons.role}）
                       </strong>
                     </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-medium">
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-800 dark:text-indigo-300 font-medium">
                       {debate.round2_simons.stance}
                     </span>
                   </div>
@@ -393,12 +393,12 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
                 <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30">
                   <div className="flex items-center justify-between gap-2 mb-1.5">
                     <div className="flex items-center gap-2">
-                      <ShieldAlert size={15} className="text-rose-400" />
-                      <strong className="text-xs text-rose-400 font-bold">
+                      <ShieldAlert size={15} className="text-rose-600 dark:text-rose-400" />
+                      <strong className="text-xs text-rose-700 dark:text-rose-400 font-bold">
                         Round 3 · {debate.round3_cro.speaker}（{debate.round3_cro.role}）
                       </strong>
                     </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-medium">
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-rose-500/15 text-rose-800 dark:text-rose-300 font-medium">
                       {debate.round3_cro.stance}
                     </span>
                   </div>
@@ -443,10 +443,10 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
 
                 <div className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)]">
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-bold text-indigo-400">
+                    <span className="text-xs font-bold text-indigo-700 dark:text-indigo-400">
                       {ladder.step2_pullback.label}
                     </span>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono font-bold">
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-800 dark:text-indigo-300 font-mono font-bold">
                       {ladder.step2_pullback.share_pct}% 部位
                     </span>
                   </div>
@@ -460,10 +460,10 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
 
                 <div className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)]">
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-bold text-emerald-400">
+                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
                       {ladder.step3_breakout.label}
                     </span>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold">
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 font-mono font-bold">
                       {ladder.step3_breakout.share_pct}% 部位
                     </span>
                   </div>
@@ -515,10 +515,10 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
                     key={idx}
                     className={`p-3.5 rounded-xl border ${
                       pb.type === "danger"
-                        ? "bg-rose-500/5 border-rose-500/30 text-rose-300"
+                        ? "bg-rose-500/5 border-rose-500/30 text-rose-800 dark:text-rose-300"
                         : pb.type === "warning"
-                        ? "bg-amber-500/5 border-amber-500/30 text-amber-300"
-                        : "bg-indigo-500/5 border-indigo-500/30 text-indigo-300"
+                        ? "bg-amber-500/5 border-amber-500/30 text-amber-900 dark:text-amber-300"
+                        : "bg-indigo-500/5 border-indigo-500/30 text-indigo-800 dark:text-indigo-300"
                     }`}
                   >
                     <span className="font-bold text-xs block mb-1">

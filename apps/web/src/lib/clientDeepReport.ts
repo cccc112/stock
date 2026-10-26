@@ -244,12 +244,13 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
       .map((h) => `${h.name}(${h.weight}%)`)
       .join("、");
 
-    // ETF 專屬五維度加扣分理由與判定依據
-    const etfReturnGrade = sReturn >= 75 ? "極優" : sReturn >= 60 ? "良好" : sReturn >= 46 ? "中立" : "偏弱";
-    const etfScaleGrade = sScale >= 80 ? "極優" : sScale >= 65 ? "良好" : sScale >= 50 ? "中立" : "偏弱";
-    const etfVolGrade = sLowVol >= 75 ? "極優" : sLowVol >= 60 ? "良好" : sLowVol >= 46 ? "中立" : "偏弱";
-    const etfCostGrade = sYieldOrGrowth >= 75 ? "極優" : sYieldOrGrowth >= 60 ? "良好" : sYieldOrGrowth >= 46 ? "中立" : "偏弱";
-    const etfTechGrade = sTech >= 75 ? "極優" : sTech >= 60 ? "良好" : sTech >= 46 ? "中立" : "偏弱";
+    // ETF 專屬五維度加扣分理由與統一標準判定
+    const evalEtfGrade = (sc: number) => (sc >= 80 ? "極優" : sc >= 60 ? "良好" : sc >= 45 ? "中立" : "偏弱");
+    const etfReturnGrade = evalEtfGrade(sReturn);
+    const etfScaleGrade = evalEtfGrade(sScale);
+    const etfVolGrade = evalEtfGrade(sLowVol);
+    const etfCostGrade = evalEtfGrade(sYieldOrGrowth);
+    const etfTechGrade = evalEtfGrade(sTech);
 
     const radar = [
       {
@@ -325,15 +326,15 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
 
     const totalScore = Math.round(radar.reduce((a, r) => a + r.score, 0) / radar.length);
     const ratingCode =
-      totalScore >= 75 ? "STRONG_BULL" : totalScore >= 60 ? "BULL" : totalScore >= 46 ? "NEUTRAL" : "BEAR";
+      totalScore >= 80 ? "STRONG_BULL" : totalScore >= 60 ? "BULL" : totalScore >= 45 ? "NEUTRAL" : "BEAR";
     const ratingLabel =
       ratingCode === "STRONG_BULL"
-        ? "強力看多 (Strong Bull)"
+        ? "強力看多 (Strong Bullish)"
         : ratingCode === "BULL"
-        ? "偏多操作 (Bullish)"
+        ? "偏多佈局 (Accumulate)"
         : ratingCode === "NEUTRAL"
-        ? "中立區間 (Neutral)"
-        : "保守觀望 (Cautious)";
+        ? "中性觀望 (Neutral / Hold)"
+        : "保守避開 (Cautious / Avoid)";
 
     const etfQualityScore = clamp(Math.round((sScale + sLowVol + sYieldOrGrowth) / 33), 5, 9);
     const etfMomentumScore = clamp(Math.round(((sReturn + sTech) / 200) * 7), 3, 7);
@@ -578,7 +579,8 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
     Math.round(((minerviniScore / 8) * 55 + (smcScore / 5) * 45) + (ret20 > 0 ? 5 : -5))
   );
 
-  const rProfitGrade = sProfit >= 80 ? "極優" : sProfit >= 65 ? "良好" : sProfit >= 50 ? "中立" : "偏弱";
+  const evalStockGrade = (sc: number) => (sc >= 80 ? "極優" : sc >= 60 ? "良好" : sc >= 45 ? "中立" : "偏弱");
+  const rProfitGrade = evalStockGrade(sProfit);
   const rProfitPros: string[] = [];
   const rProfitCons: string[] = [];
   if (opMargin >= 18) rProfitPros.push(`營益率高達 ${Number(opMargin).toFixed(1)}%（具高本業定價權）`);
@@ -593,7 +595,7 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
       ? `本業營益率 ${Number(opMargin).toFixed(1)}% 與毛利率 ${Number(grossMargin).toFixed(1)}% 維持正常中位水準，獲利表現平穩。`
       : `營業利益率僅 ${Number(opMargin).toFixed(1)}% 或 ROE 偏弱，獲利能力受成本上升或毛利偏低壓制，評為偏弱。`;
 
-  const rGrowthGrade = sGrowth >= 75 ? "極優" : sGrowth >= 60 ? "良好" : sGrowth >= 48 ? "中立" : "偏弱";
+  const rGrowthGrade = evalStockGrade(sGrowth);
   const rGrowthPros: string[] = [];
   const rGrowthCons: string[] = [];
   if (revYoy >= 15) rGrowthPros.push(`單季營收年增 +${revYoy.toFixed(1)}%（雙位數高速擴張）`);
@@ -607,7 +609,7 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
       ? `營收年增率 +${revYoy.toFixed(1)}% 維持溫和擴張，動能平穩未見大幅衰退。`
       : `營收或 EPS 較前期呈現負成長（營收 YoY ${revYoy.toFixed(1)}%），短期動能落入調整期。`;
 
-  const rSafetyGrade = sSafety >= 80 ? "極優" : sSafety >= 65 ? "良好" : sSafety >= 50 ? "中立" : "偏弱";
+  const rSafetyGrade = evalStockGrade(sSafety);
   const rSafetyPros: string[] = [];
   const rSafetyCons: string[] = [];
   if (debtRatio <= 45) rSafetyPros.push(`負債比率僅 ${Number(debtRatio).toFixed(1)}%（處於 50% 安全警戒線以下）`);
@@ -623,7 +625,7 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
       ? `負債比 ${Number(debtRatio).toFixed(1)}% 處合理受控區間，流動比率 ${currentRatio}x 具基本償債能力。`
       : `負債比率偏高 (${Number(debtRatio).toFixed(1)}%) 或流動比不足，財務防禦緩衝較薄弱。`;
 
-  const rValuationGrade = sValuation >= 75 ? "極優" : sValuation >= 60 ? "良好" : sValuation >= 46 ? "中立" : "偏弱";
+  const rValuationGrade = evalStockGrade(sValuation);
   const rValPros: string[] = [];
   const rValCons: string[] = [];
   if (perPercentile <= 35) rValPros.push(`本益比 ${per}x 處於近五年歷史 ${perPercentile.toFixed(0)}% 低分位（具安全邊際）`);
@@ -637,7 +639,7 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
       ? `本益比 ${per}x 處於歷史合理常態中位數 (${perPercentile.toFixed(0)}%)，殖利率 ${dividendYield.toFixed(1)}%，評價公允。`
       : `本益比 ${per}x 已達歷史 ${perPercentile.toFixed(0)}% 高分位，市場期待極高，若後續獲利不如預期易引發本益比修正。`;
 
-  const rMomentumGrade = sMomentum >= 75 ? "極優" : sMomentum >= 60 ? "良好" : sMomentum >= 46 ? "中立" : "偏弱";
+  const rMomentumGrade = evalStockGrade(sMomentum);
   const rMomPros: string[] = [];
   const rMomCons: string[] = [];
   if (price >= ma20) rMomPros.push(`股價站穩 20MA 月線（多頭波段支撐確立）`);
@@ -705,17 +707,22 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
     },
   ];
 
-  const totalScore = Math.round(radar.reduce((a, r) => a + r.score, 0) / radar.length);
+  // 四大模型總通過率 + 五維度雷達綜合總分 (標準化統一計算)
+  const modelPts = (pioScore || 0) + (canslimScore || 0) + (minerviniScore || 0) + (smcScore || 0);
+  const modelMax = 9 + 7 + 8 + 5; // 29
+  const modelPct = Math.round((modelPts / modelMax) * 100);
+  const radarAvg = Math.round(radar.reduce((a, r) => a + r.score, 0) / radar.length);
+  const totalScore = Math.round(radarAvg * 0.55 + modelPct * 0.45);
   const ratingCode =
-    totalScore >= 75 ? "STRONG_BULL" : totalScore >= 60 ? "BULL" : totalScore >= 46 ? "NEUTRAL" : "BEAR";
+    totalScore >= 80 ? "STRONG_BULL" : totalScore >= 60 ? "BULL" : totalScore >= 45 ? "NEUTRAL" : "BEAR";
   const ratingLabel =
     ratingCode === "STRONG_BULL"
-      ? "強力看多 (Strong Bull)"
+      ? "強力看多 (Strong Bullish)"
       : ratingCode === "BULL"
-      ? "偏多操作 (Bullish)"
+      ? "偏多佈局 (Accumulate)"
       : ratingCode === "NEUTRAL"
-      ? "中立區間 (Neutral)"
-      : "保守觀望 (Cautious)";
+      ? "中性觀望 (Neutral / Hold)"
+      : "保守避開 (Cautious / Avoid)";
 
   return {
     symbol,
@@ -830,7 +837,7 @@ function enrichRadarMetrics(
   return radar.map((r) => {
     const k = (r.key || "").toLowerCase();
     const score = r.score || 50;
-    const grade = score >= 80 ? "極優" : score >= 65 ? "良好" : score >= 50 ? "中立" : "偏弱";
+    const grade = r.grade || (score >= 80 ? "極優" : score >= 60 ? "良好" : score >= 45 ? "中立" : "偏弱");
 
     if (k.includes("profit")) {
       const om = q0.operating_margin != null ? Number(q0.operating_margin) : null;

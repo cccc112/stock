@@ -148,18 +148,18 @@ export default function AISection({
             <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/30 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
                     🚀 樂觀情境 (Bull Case)
                   </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono font-bold">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 font-mono font-bold">
                     機率 25%
                   </span>
                 </div>
                 <div className="flex items-baseline gap-2 mb-2">
-                  <span className="text-2xl font-extrabold font-mono text-emerald-400">
+                  <span className="text-2xl font-extrabold font-mono text-emerald-700 dark:text-emerald-400">
                     ${sc.bull.target}
                   </span>
-                  <span className="text-xs font-bold text-emerald-400 font-mono">
+                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 font-mono">
                     +{sc.bull.upside_pct}%
                   </span>
                 </div>
@@ -170,7 +170,7 @@ export default function AISection({
               {sc.bull.per > 0 && (
                 <div className="mt-3 pt-2 border-t border-emerald-500/20 text-[11px] text-secondary flex justify-between font-mono">
                   <span>隱含本益比:</span>
-                  <strong className="text-emerald-400">{sc.bull.per}x</strong>
+                  <strong className="text-emerald-700 dark:text-emerald-400">{sc.bull.per}x</strong>
                 </div>
               )}
             </div>
@@ -210,18 +210,18 @@ export default function AISection({
             <div className="p-4 rounded-xl bg-rose-500/5 border border-rose-500/30 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-bold text-rose-400 flex items-center gap-1">
+                  <span className="text-xs font-bold text-rose-700 dark:text-rose-400 flex items-center gap-1">
                     🛡️ 悲觀情境 (Bear Case)
                   </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-mono font-bold">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-800 dark:text-rose-300 font-mono font-bold">
                     機率 25%
                   </span>
                 </div>
                 <div className="flex items-baseline gap-2 mb-2">
-                  <span className="text-2xl font-extrabold font-mono text-rose-400">
+                  <span className="text-2xl font-extrabold font-mono text-rose-700 dark:text-rose-400">
                     ${sc.bear.target}
                   </span>
-                  <span className="text-xs font-bold text-rose-400 font-mono">
+                  <span className="text-xs font-bold text-rose-700 dark:text-rose-400 font-mono">
                     {sc.bear.upside_pct}%
                   </span>
                 </div>

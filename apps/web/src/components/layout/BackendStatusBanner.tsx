@@ -88,9 +88,9 @@ export default function BackendStatusBanner() {
 
   if (status === "waking") {
     return (
-      <div className="bg-yellow-500/10 border-b border-yellow-500/30 text-yellow-200 px-4 py-2 text-xs sm:text-sm">
+      <div className="bg-yellow-500/10 border-b border-yellow-500/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 text-xs sm:text-sm">
         <div className="max-w-7xl mx-auto flex items-center gap-2">
-          <Loader2 className="animate-spin flex-shrink-0" size={16} />
+          <Loader2 className="animate-spin flex-shrink-0 text-yellow-600 dark:text-yellow-300" size={16} />
           <span>後端伺服器喚醒中（免費方案閒置後會休眠），約需 30～60 秒，資料會自動載入，請稍候…</span>
         </div>
       </div>
@@ -98,16 +98,16 @@ export default function BackendStatusBanner() {
   }
 
   return (
-    <div className="bg-red-500/15 border-b border-red-500/30 text-red-200 px-4 py-3 text-xs sm:text-sm">
+    <div className="bg-red-500/10 dark:bg-red-500/15 border-b border-red-500/30 text-red-900 dark:text-red-200 px-4 py-3 text-xs sm:text-sm">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex items-start gap-2.5">
-          <WifiOff className="text-red-400 mt-0.5 flex-shrink-0" size={18} />
+          <WifiOff className="text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" size={18} />
           <div>
-            <span className="font-bold text-red-300 mr-2">無法連線至後端伺服器</span>
-            <span className="text-red-200/80">
-              目前瀏覽器請求目標為: <code className="bg-red-950/60 px-1.5 py-0.5 rounded text-red-300 font-mono text-xs">{currentUrl}</code>
+            <span className="font-bold text-red-800 dark:text-red-300 mr-2">無法連線至後端伺服器</span>
+            <span className="text-red-800/80 dark:text-red-200/80">
+              目前瀏覽器請求目標為: <code className="bg-red-200 dark:bg-red-950/60 px-1.5 py-0.5 rounded text-red-900 dark:text-red-300 font-mono text-xs">{currentUrl}</code>
             </span>
-            <p className="text-xs text-red-300/70 mt-0.5">
+            <p className="text-xs text-red-700/80 dark:text-red-300/70 mt-0.5">
               若您是在 Vercel 線上瀏覽，通常是因為尚未指定後端伺服器網址；免費方案的後端閒置後會休眠，喚醒約需 30～60 秒，可稍後按右側重新檢測。
             </p>
           </div>
@@ -116,7 +116,7 @@ export default function BackendStatusBanner() {
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={() => setShowConfig(!showConfig)}
-            className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-white rounded-md font-medium text-xs transition-colors"
+            className="flex items-center gap-1 px-3 py-1.5 bg-red-600/15 hover:bg-red-600/25 dark:bg-red-500/20 dark:hover:bg-red-500/30 text-red-800 dark:text-white rounded-md font-medium text-xs transition-colors"
           >
             <Server size={14} />
             設定後端網址
@@ -124,7 +124,7 @@ export default function BackendStatusBanner() {
           </button>
           <button
             onClick={checkConnection}
-            className="p-1.5 bg-red-500/20 hover:bg-red-500/30 text-white rounded-md transition-colors"
+            className="p-1.5 bg-red-600/15 hover:bg-red-600/25 dark:bg-red-500/20 dark:hover:bg-red-500/30 text-red-800 dark:text-white rounded-md transition-colors"
             title="重新檢測"
           >
             <RefreshCw size={14} />

@@ -622,8 +622,8 @@ export function DrawingToolbar({
           type="button"
           className={`px-2 py-1 text-xs rounded-md border transition-all whitespace-nowrap font-medium ${
             autoDrawMode
-              ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-400'
-              : 'border-slate-500/50 bg-slate-500/15 text-slate-300'
+              ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+              : 'border-slate-400/50 dark:border-slate-500/50 bg-slate-500/10 dark:bg-slate-500/15 text-slate-700 dark:text-slate-300'
           }`}
           onClick={() => {
             const nextMode = !autoDrawMode;

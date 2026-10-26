@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { supabase, signInWithGoogleOAuth, signOutSupabase } from "@/lib/supabase";
 
 export interface UserProfile {
   id: string;
@@ -13,7 +12,25 @@ export interface UserProfile {
 }
 
 const STORAGE_KEY_USER = "stock_app_current_user";
+const STORAGE_KEY_SAVED_ACCOUNTS = "stock_saved_google_accounts";
 const STORAGE_KEY_LEGACY_BYOK = "byok_api_key";
+const STORAGE_KEY_CUSTOM_CLIENT_ID = "stock_custom_google_client_id";
+
+export function parseJwt(token: string) {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+}
 
 export function useAuthManager() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -34,10 +51,17 @@ export function useAuthManager() {
 
     localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(profile));
     try {
-      const raw = localStorage.getItem("stock_saved_google_accounts");
+      const raw = localStorage.getItem(STORAGE_KEY_SAVED_ACCOUNTS);
       const list: UserProfile[] = raw ? JSON.parse(raw) : [];
-      const updated = [profile, ...list.filter((a) => a.email !== profile.email)].slice(0, 8);
-      localStorage.setItem("stock_saved_google_accounts", JSON.stringify(updated));
+      // 過濾掉舊版的模擬帳號與重疊帳號
+      const filtered = list.filter(
+        (a) =>
+          a.email !== profile.email &&
+          a.email !== "trader.guest@gmail.com" &&
+          !a.name?.includes("訪客交易者")
+      );
+      const updated = [profile, ...filtered].slice(0, 8);
+      localStorage.setItem(STORAGE_KEY_SAVED_ACCOUNTS, JSON.stringify(updated));
     } catch {}
     setUser(profile);
 
@@ -58,18 +82,24 @@ export function useAuthManager() {
     }
   }, []);
 
-  // 1. 初始化讀取本地已存 Session，並監聽 Supabase 官方 Google OAuth 回調
+  // 1. 初始化讀取本地已存真實 Session (不依賴 Supabase)
   useEffect(() => {
     try {
       const savedUser = localStorage.getItem(STORAGE_KEY_USER);
       if (savedUser) {
         const parsed = JSON.parse(savedUser) as UserProfile;
-        setUser(parsed);
-        const userKey =
-          localStorage.getItem(`byok_api_key_${parsed.id}`) ||
-          localStorage.getItem(STORAGE_KEY_LEGACY_BYOK) ||
-          "";
-        setApiKeyState(userKey);
+        // 如果是舊的訪客模擬帳號，自動清理
+        if (parsed.email === "trader.guest@gmail.com") {
+          localStorage.removeItem(STORAGE_KEY_USER);
+          setUser(null);
+        } else {
+          setUser(parsed);
+          const userKey =
+            localStorage.getItem(`byok_api_key_${parsed.id}`) ||
+            localStorage.getItem(STORAGE_KEY_LEGACY_BYOK) ||
+            "";
+          setApiKeyState(userKey);
+        }
       } else {
         const guestKey = localStorage.getItem(STORAGE_KEY_LEGACY_BYOK) || "";
         setApiKeyState(guestKey);
@@ -80,49 +110,16 @@ export function useAuthManager() {
       setIsLoading(false);
     }
 
-    // 2. 監聽像藝廊專案一樣的 Supabase 官方 Google OAuth 認證回傳
-    const syncSupabaseSession = (sessionUser: any) => {
-      if (!sessionUser?.email) return;
-      const email = sessionUser.email;
-      const meta = sessionUser.user_metadata || {};
-      const name = meta.full_name || meta.name || meta.user_name || email.split("@")[0];
-      const avatar = meta.avatar_url || meta.picture || "";
-      loginWithGoogle(email, name, avatar);
-
-      // 清理瀏覽器網址列的 OAuth 回調 code 或 hash token
-      if (typeof window !== "undefined") {
-        if (window.location.hash || window.location.search.includes("code=")) {
-          const cleanUrl = window.location.origin + window.location.pathname;
-          window.history.replaceState(null, "", cleanUrl);
-        }
+    // 清除舊 URL 中遺留的 Supabase hash token 或 code
+    if (typeof window !== "undefined") {
+      if (window.location.hash.includes("access_token") || window.location.search.includes("code=")) {
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState(null, "", cleanUrl);
       }
-    };
+    }
+  }, []);
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        syncSupabaseSession(session.user);
-      }
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
-        syncSupabaseSession(session.user);
-      } else if (event === "SIGNED_OUT") {
-        setUser(null);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [loginWithGoogle]);
-
-  const logout = useCallback(async () => {
-    try {
-      await signOutSupabase();
-    } catch {}
+  const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY_USER);
     localStorage.removeItem(STORAGE_KEY_LEGACY_BYOK);
     setUser(null);
@@ -130,10 +127,6 @@ export function useAuthManager() {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("stock_auth_changed", { detail: null }));
     }
-  }, []);
-
-  const loginWithSupabaseGoogle = useCallback(async (redirectTo?: string) => {
-    await signInWithGoogleOAuth(redirectTo);
   }, []);
 
   const getApiKey = useCallback(() => {
@@ -172,7 +165,6 @@ export function useAuthManager() {
     user,
     isLoading,
     loginWithGoogle,
-    loginWithSupabaseGoogle,
     logout,
     getApiKey,
     setApiKey,

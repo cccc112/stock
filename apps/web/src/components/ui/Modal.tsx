@@ -40,7 +40,7 @@ export default function Modal({ isOpen, onClose, title, children, className }: M
           <h2 className="text-xl font-bold text-primary">{title}</h2>
           <button 
             onClick={onClose}
-            className="text-secondary hover:text-white transition-colors p-1 rounded-md hover:bg-[var(--bg-tertiary)]"
+            className="text-secondary hover:text-primary transition-colors p-1 rounded-md hover:bg-[var(--bg-tertiary)]"
           >
             <X size={20} />
           </button>

@@ -674,12 +674,21 @@ async def build_deep_research_report(symbol: str) -> Dict[str, Any]:
         else f"跌破關鍵均線且動能偏弱，上檔反壓沉重，短線以整理觀望為主。"
     )
 
+    def _eval_grade(score: int) -> str:
+        if score >= 80:
+            return "極優"
+        if score >= 60:
+            return "良好"
+        if score >= 45:
+            return "中立"
+        return "偏弱"
+
     radar_list = [
         {
             "axis": "獲利能力",
             "key": "profitability",
             "score": sc_profit,
-            "grade": "極優" if sc_profit >= 80 else "良好" if sc_profit >= 65 else "中立" if sc_profit >= 50 else "偏弱",
+            "grade": _eval_grade(sc_profit),
             "metric": f"營益率 {f'{om_val:.1f}%' if om_val is not None else '—'} · ROE {f'{roe_val:.1f}%' if roe_val is not None else '—'} · 毛利率 {f'{gm_val:.1f}%' if gm_val is not None else '—'}",
             "reason": reason_profit,
             "pros": [f"營益率 {om_val:.1f}%"] if (om_val or 0) >= 15 else [],
@@ -689,7 +698,7 @@ async def build_deep_research_report(symbol: str) -> Dict[str, Any]:
             "axis": "成長動能",
             "key": "growth",
             "score": sc_growth,
-            "grade": "極優" if sc_growth >= 75 else "良好" if sc_growth >= 60 else "中立" if sc_growth >= 48 else "偏弱",
+            "grade": _eval_grade(sc_growth),
             "metric": f"營收 YoY {f'{ry_val:+.1f}%' if ry_val is not None else '—'} · EPS YoY {f'{ey_val:+.1f}%' if ey_val is not None else '—'}",
             "reason": reason_growth,
             "pros": [f"營收 YoY +{ry_val:.1f}%"] if (ry_val or 0) >= 10 else [],
@@ -699,7 +708,7 @@ async def build_deep_research_report(symbol: str) -> Dict[str, Any]:
             "axis": "財務安全",
             "key": "safety",
             "score": sc_safety,
-            "grade": "極優" if sc_safety >= 80 else "良好" if sc_safety >= 65 else "中立" if sc_safety >= 50 else "偏弱",
+            "grade": _eval_grade(sc_safety),
             "metric": f"負債比 {f'{dr_val:.1f}%' if dr_val is not None else '—'} · 流動比 {f'{cr_val}x' if cr_val is not None else '—'} · F-Score {m_piotroski['score']}/9",
             "reason": reason_safety,
             "pros": [f"負債比 {dr_val:.1f}% 低於警戒線"] if (dr_val or 100) <= 45 else [],
@@ -709,7 +718,7 @@ async def build_deep_research_report(symbol: str) -> Dict[str, Any]:
             "axis": "估值股息",
             "key": "valuation",
             "score": sc_val,
-            "grade": "極優" if sc_val >= 75 else "良好" if sc_val >= 60 else "中立" if sc_val >= 46 else "偏弱",
+            "grade": _eval_grade(sc_val),
             "metric": f"PER {f'{per_val:.1f}x' if per_val is not None else '—'} · PBR {f'{pbr_val:.2f}x' if pbr_val is not None else '—'} · 殖利率 {f'{dy_val:.2f}%' if dy_val is not None else '—'}",
             "reason": reason_val,
             "pros": [f"殖利率 {dy_val:.1f}%"] if (dy_val or 0) >= 3.5 else [],
@@ -719,7 +728,7 @@ async def build_deep_research_report(symbol: str) -> Dict[str, Any]:
             "axis": "技術籌碼",
             "key": "momentum",
             "score": sc_mom,
-            "grade": "極優" if sc_mom >= 75 else "良好" if sc_mom >= 60 else "中立" if sc_mom >= 46 else "偏弱",
+            "grade": _eval_grade(sc_mom),
             "metric": f"20日 {tech.get('ret_20d') or 0:+.1f}% · Minervini {m_minervini['score']}/{m_minervini['max_score']} · SMC {m_smc['score']}/5",
             "reason": reason_mom,
             "pros": [f"Minervini 多頭排列 {m_minervini['score']}/8"] if m_minervini['score'] >= 5 else [],
@@ -727,14 +736,14 @@ async def build_deep_research_report(symbol: str) -> Dict[str, Any]:
         },
     ]
 
-    # 四大模型總通過率 + 五維度雷達綜合總分
+    # 四大模型總通過率 + 五維度雷達綜合總分 (標準化統一計算)
     model_pts = m_piotroski["score"] + m_canslim["score"] + m_minervini["score"] + m_smc["score"]
-    model_max = m_piotroski["max_score"] + m_canslim["max_score"] + m_minervini["max_score"] + m_smc["max_score"]  # 28
+    model_max = m_piotroski["max_score"] + m_canslim["max_score"] + m_minervini["max_score"] + m_smc["max_score"]  # 29
     model_pct = round(model_pts / max(model_max, 1) * 100)
     radar_avg = round(sum(r["score"] for r in radar_list) / len(radar_list))
     total_score = round(radar_avg * 0.55 + model_pct * 0.45)
 
-    if total_score >= 74:
+    if total_score >= 80:
         rating = "強力看多 (Strong Bullish)"
         rating_tone = "bull"
         rating_code = "STRONG_BULL"
@@ -742,7 +751,7 @@ async def build_deep_research_report(symbol: str) -> Dict[str, Any]:
         rating = "偏多佈局 (Accumulate)"
         rating_tone = "mild_bull"
         rating_code = "BULL"
-    elif total_score >= 46:
+    elif total_score >= 45:
         rating = "中性觀望 (Neutral / Hold)"
         rating_tone = "neutral"
         rating_code = "NEUTRAL"

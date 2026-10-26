@@ -66,22 +66,36 @@ export default function SnowflakeRadar({
     .join(" ");
 
   const strokeColor =
-    totalScore >= 68 ? "#10b981" : totalScore >= 48 ? "#38bdf8" : "#f59e0b";
+    totalScore >= 80 ? "#10b981" : totalScore >= 60 ? "#0284c7" : totalScore >= 45 ? "#d97706" : "#e11d48";
   const fillColor =
-    totalScore >= 68
+    totalScore >= 80
       ? "rgba(16, 185, 129, 0.22)"
-      : totalScore >= 48
-      ? "rgba(56, 189, 248, 0.20)"
-      : "rgba(245, 158, 11, 0.20)";
+      : totalScore >= 60
+      ? "rgba(2, 132, 199, 0.20)"
+      : totalScore >= 45
+      ? "rgba(217, 119, 6, 0.20)"
+      : "rgba(225, 29, 72, 0.20)";
 
   const getScoreColor = (sc: number) =>
-    sc >= 75 ? "text-emerald-400" : sc >= 60 ? "text-sky-400" : sc >= 46 ? "text-amber-400" : "text-rose-400";
+    sc >= 80
+      ? "text-emerald-600 dark:text-emerald-400"
+      : sc >= 60
+      ? "text-sky-600 dark:text-sky-400"
+      : sc >= 45
+      ? "text-amber-600 dark:text-amber-400"
+      : "text-rose-600 dark:text-rose-400";
 
   const getScoreBg = (sc: number) =>
-    sc >= 75 ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300" : sc >= 60 ? "bg-sky-500/15 border-sky-500/30 text-sky-300" : sc >= 46 ? "bg-amber-500/15 border-amber-500/30 text-amber-300" : "bg-rose-500/15 border-rose-500/30 text-rose-300";
+    sc >= 80
+      ? "bg-emerald-500/10 dark:bg-emerald-500/20 border-emerald-500/30 text-emerald-800 dark:text-emerald-300"
+      : sc >= 60
+      ? "bg-sky-500/10 dark:bg-sky-500/20 border-sky-500/30 text-sky-800 dark:text-sky-300"
+      : sc >= 45
+      ? "bg-amber-500/10 dark:bg-amber-500/20 border-amber-500/30 text-amber-900 dark:text-amber-300"
+      : "bg-rose-500/10 dark:bg-rose-500/20 border-rose-500/30 text-rose-800 dark:text-rose-300";
 
   const getProgressBarColor = (sc: number) =>
-    sc >= 75 ? "bg-emerald-500" : sc >= 60 ? "bg-sky-500" : sc >= 46 ? "bg-amber-500" : "bg-rose-500";
+    sc >= 80 ? "bg-emerald-500" : sc >= 60 ? "bg-sky-500" : sc >= 45 ? "bg-amber-500" : "bg-rose-500";
 
   return (
     <div className="flex flex-col items-center justify-center select-none w-full">
@@ -165,7 +179,7 @@ export default function SnowflakeRadar({
                 x={labelPt.x}
                 y={labelPt.y - 5}
                 textAnchor={textAnchor}
-                fill={isSelected ? "var(--color-accent)" : "var(--color-text-secondary)"}
+                fill={isSelected ? "var(--accent)" : "var(--text-secondary)"}
                 className={`text-[11px] ${isSelected ? "font-bold" : "font-medium"}`}
               >
                 {item.axis}
@@ -218,7 +232,7 @@ export default function SnowflakeRadar({
             {axes.map((item) => {
               const isTarget = selectedKey === item.key || (expandAllReasons && selectedKey === null);
               const sc = item.score || 50;
-              const grade = item.grade || (sc >= 80 ? "極優" : sc >= 65 ? "良好" : sc >= 50 ? "中立" : "偏弱");
+              const grade = item.grade || (sc >= 80 ? "極優" : sc >= 60 ? "良好" : sc >= 45 ? "中立" : "偏弱");
 
               return (
                 <div
@@ -275,18 +289,18 @@ export default function SnowflakeRadar({
                           {item.pros?.map((p, idx) => (
                             <span
                               key={idx}
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/15 border border-emerald-500/30 text-emerald-300"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-medium"
                             >
-                              <CheckCircle2 size={11} className="text-emerald-400" />
+                              <CheckCircle2 size={11} className="text-emerald-600 dark:text-emerald-400" />
                               <span>{p}</span>
                             </span>
                           ))}
                           {item.cons?.map((c, idx) => (
                             <span
                               key={idx}
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-rose-500/15 border border-rose-500/30 text-rose-300"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-rose-500/10 dark:bg-rose-500/20 border border-rose-500/30 text-rose-800 dark:text-rose-300 font-medium"
                             >
-                              <AlertTriangle size={11} className="text-rose-400" />
+                              <AlertTriangle size={11} className="text-rose-600 dark:text-rose-400" />
                               <span>{c}</span>
                             </span>
                           ))}
