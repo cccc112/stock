@@ -93,7 +93,7 @@ export default function WatchlistPanel() {
           <div className="relative">
             <input
               type="text"
-              placeholder="輸入代碼 (例: 2454, TSM)"
+              placeholder="輸入標的代碼..."
               value={quickSymbol}
               onChange={(e) => setQuickSymbol(e.target.value)}
               className="input-field text-xs py-1.5 px-3 pr-8 w-44 rounded-lg"
@@ -210,7 +210,7 @@ export default function WatchlistPanel() {
           <form onSubmit={handleCreateCategory} className="flex items-center gap-2 flex-1">
             <input
               type="text"
-              placeholder="輸入新分類名稱 (例: 高股息存股)"
+              placeholder="自訂新分類名稱..."
               value={newCatInput}
               onChange={(e) => setNewCatInput(e.target.value)}
               className="input-field text-xs py-1.5 px-3 flex-1 rounded-lg"

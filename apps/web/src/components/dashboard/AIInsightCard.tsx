@@ -139,7 +139,7 @@ export default function AIInsightCard() {
             <div className="h-3.5 w-4/6 bg-[var(--bg-tertiary)] rounded" />
           </div>
         ) : data?.summary ? (
-          <div className="prose prose-invert max-w-none text-xs sm:text-sm text-primary leading-relaxed space-y-2">
+          <div className="ai-report-prose max-w-none text-xs sm:text-sm text-primary leading-relaxed space-y-2">
             <ReactMarkdown>{data.summary}</ReactMarkdown>
             <div className="pt-2 text-[11px] text-muted text-right font-mono border-t border-[var(--border)]">
               最後診斷時間: {new Date(data.updatedAt || Date.now()).toLocaleTimeString()}

@@ -292,7 +292,7 @@ function RecommendInner() {
       {aiError && <div className="text-red-500 text-sm">{aiError}</div>}
       {rationale && (
         <Card title="AI 推薦理由（前 5 名）">
-          <div className="prose prose-invert max-w-none text-sm"><ReactMarkdown>{rationale}</ReactMarkdown></div>
+          <div className="ai-report-prose prose prose-invert max-w-none text-sm p-4 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border)]"><ReactMarkdown>{rationale}</ReactMarkdown></div>
         </Card>
       )}
 

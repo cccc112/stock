@@ -226,7 +226,7 @@ export default function QuantScreenerPage() {
                 type="text" 
                 value={customSymbols}
                 onChange={e => setCustomSymbols(e.target.value)}
-                placeholder="輸入代碼，以逗號分隔 (例: AAPL, TSLA, 2330)"
+                placeholder="輸入代碼，以逗號分隔..."
                 className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] rounded px-3 py-1.5 text-primary outline-none focus:border-accent"
               />
             </div>

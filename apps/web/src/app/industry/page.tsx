@@ -499,7 +499,7 @@ export default function IndustryPage() {
           {reportError && <div className="text-red-500 text-sm mt-4 p-3 rounded bg-red-500/10">{reportError}</div>}
           
           {report && (
-            <div className="prose prose-invert max-w-none text-xs bg-[var(--bg-tertiary)] p-5 rounded-xl border border-[var(--border)] mt-4 leading-relaxed animate-fade-in">
+            <div className="ai-report-prose prose prose-invert max-w-none text-xs bg-[var(--bg-tertiary)] p-5 rounded-xl border border-[var(--border)] mt-4 leading-relaxed animate-fade-in">
               <ReactMarkdown>{report}</ReactMarkdown>
             </div>
           )}

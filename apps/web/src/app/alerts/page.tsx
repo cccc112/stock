@@ -379,7 +379,7 @@ export default function AlertsPage() {
             <input
               type="text"
               className="input-field"
-              placeholder="e.g. 2330.TW 或 NVDA"
+              placeholder="2330.TW, NVDA..."
               value={symbol}
               onChange={(e) => setSymbol(e.target.value)}
               required
@@ -390,7 +390,7 @@ export default function AlertsPage() {
             <input
               type="text"
               className="input-field"
-              placeholder="e.g. 價格大於、成交量大於、跌破支撐"
+              placeholder="設定觸發條件名稱..."
               value={condition}
               onChange={(e) => setCondition(e.target.value)}
               required
@@ -401,7 +401,7 @@ export default function AlertsPage() {
             <input
               type="text"
               className="input-field"
-              placeholder="e.g. 1050"
+              placeholder="輸入目標數值..."
               value={value}
               onChange={(e) => setValue(e.target.value)}
             />

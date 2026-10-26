@@ -765,7 +765,7 @@ export default function InstitutionsPage() {
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="代碼 (例: 3443)"
+                      placeholder="輸入台股代碼..."
                       value={stockInput}
                       onChange={(e) => setStockInput(e.target.value)}
                       className="input-field text-xs py-1.5 px-3 pr-8 w-36 sm:w-44 rounded-lg"

@@ -357,7 +357,7 @@ export default function AISection({
         ) : error ? (
           <div className="text-danger text-sm">{error}</div>
         ) : analysisText ? (
-          <div className="prose prose-invert max-w-none text-sm leading-relaxed text-primary">
+          <div className="ai-report-prose max-w-none text-sm leading-relaxed text-primary">
             <ReactMarkdown>{analysisText}</ReactMarkdown>
           </div>
         ) : (

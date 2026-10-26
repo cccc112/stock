@@ -6,8 +6,9 @@ import Badge from "@/components/ui/Badge";
 import Link from "next/link";
 import { formatNumber, formatVolume, getChangeColorClass } from "@/lib/utils";
 import { apiStocks } from "@/lib/api";
-import { Search, Sparkles } from "lucide-react";
+import { Search, Sparkles, Flame, Layers } from "lucide-react";
 import { Term } from "@/components/ui/TermTooltip";
+import EtfCapitalFlowTracker from "@/components/dashboard/EtfCapitalFlowTracker";
 
 interface AssetQuote {
   symbol: string;
@@ -206,6 +207,7 @@ const ASSET_CATEGORIES: Record<
 const ALL_CATALOG_ITEMS = Object.values(ASSET_CATEGORIES).flatMap((cat) => cat.items);
 
 export default function EtfAndMultiAssetPage() {
+  const [mainView, setMainView] = useState<"flow" | "catalog">("flow");
   const [quotes, setQuotes] = useState<Record<string, AssetQuote>>({});
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("tw_market");
@@ -396,13 +398,44 @@ export default function EtfAndMultiAssetPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="跨分類搜尋全台美股 ETF (如 00940, 00631L, SCHD)..."
+            placeholder="跨分類搜尋全市場 ETF 與多元資產標的..."
             className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg py-2 pl-9 pr-4 text-sm focus:outline-none focus:border-accent transition-colors"
           />
         </div>
       </header>
 
-      <Card className="w-full">
+      {/* 視圖切換：每日資金流向與申贖動態 VS 全市場 250+ 標的行情檢索 */}
+      <div className="flex border-b border-[var(--border)] gap-2 pb-1">
+        <button
+          onClick={() => setMainView("flow")}
+          className={`px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all cursor-pointer ${
+            mainView === "flow" && !searchQuery.trim()
+              ? "bg-accent text-white shadow-sm"
+              : "text-secondary hover:text-primary hover:bg-[var(--bg-secondary)]"
+          }`}
+        >
+          <Flame size={16} />
+          <span>每日 ETF 資金流向與申贖動向</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded bg-red-500/30 text-white font-mono">LIVE</span>
+        </button>
+
+        <button
+          onClick={() => setMainView("catalog")}
+          className={`px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all cursor-pointer ${
+            mainView === "catalog" || searchQuery.trim()
+              ? "bg-accent text-white shadow-sm"
+              : "text-secondary hover:text-primary hover:bg-[var(--bg-secondary)]"
+          }`}
+        >
+          <Layers size={16} />
+          <span>全市場 250+ 標的即時報價總覽</span>
+        </button>
+      </div>
+
+      {mainView === "flow" && !searchQuery.trim() ? (
+        <EtfCapitalFlowTracker />
+      ) : (
+        <Card className="w-full">
         <div className="border-b border-[var(--border)] flex gap-2 overflow-x-auto hide-scrollbar pb-2 mb-4">
           {Object.entries(ASSET_CATEGORIES).map(([id, cat]) => (
             <button
@@ -466,7 +499,7 @@ export default function EtfAndMultiAssetPage() {
               {displayedItems.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-8 text-secondary">
-                    找不到符合條件的投資標的，請嘗試輸入 ETF 代號（例如 0050、00919、QQQ）
+                    找不到符合條件的投資標的，請嘗試輸入代號或名稱
                   </td>
                 </tr>
               ) : (
@@ -512,6 +545,7 @@ export default function EtfAndMultiAssetPage() {
           </table>
         </div>
       </Card>
+      )}
     </div>
   );
 }

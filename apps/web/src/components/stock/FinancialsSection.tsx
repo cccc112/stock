@@ -884,7 +884,7 @@ export default function FinancialsSection({
         </div>
         {adviceError && <div className="text-sm text-rose-400 mt-2">{adviceError}</div>}
         {advice && (
-          <div className="prose prose-invert max-w-none text-sm bg-[var(--bg-tertiary)] p-4 rounded-lg mt-3">
+          <div className="ai-report-prose prose prose-invert max-w-none text-sm bg-[var(--bg-tertiary)] p-4 rounded-lg mt-3">
             <ReactMarkdown>{advice}</ReactMarkdown>
           </div>
         )}

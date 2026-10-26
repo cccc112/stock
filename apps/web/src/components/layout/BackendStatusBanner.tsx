@@ -138,7 +138,7 @@ export default function BackendStatusBanner() {
             type="text"
             value={inputUrl}
             onChange={(e) => setInputUrl(e.target.value)}
-            placeholder="貼上後端網址 (如 https://xxxx.onrender.com)"
+            placeholder="貼上後端網址 (https://xxxx.onrender.com)..."
             className="w-full sm:max-w-md px-3 py-1.5 text-xs bg-[var(--bg-secondary)] border border-[var(--border)] rounded text-primary focus:outline-none"
           />
           <div className="flex gap-2 w-full sm:w-auto">

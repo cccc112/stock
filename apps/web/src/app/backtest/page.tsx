@@ -402,7 +402,7 @@ export default function BacktestPage() {
                 type="text"
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                placeholder="例如: 2330.TW"
+                placeholder="輸入標的代碼..."
                 className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
@@ -489,7 +489,7 @@ export default function BacktestPage() {
                 type="number"
                 value={stopLossPct}
                 onChange={(e) => setStopLossPct(e.target.value)}
-                placeholder="如 7%"
+                placeholder="7%"
                 className="w-20 px-2 py-1 text-xs bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none"
               />
             </div>

@@ -250,7 +250,7 @@ export default function StockIndexPage() {
           onFocus={() => {
             if (suggestions.length > 0) setShowDropdown(true);
           }}
-          placeholder="輸入股號、公司中文簡稱、ETF 或跨資產 (例: 2330, 台積電, 元太, 0050, 黃金, BTC, NVDA)"
+          placeholder="搜尋股號、公司中文簡稱、ETF 或跨資產標的..."
           className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl py-3.5 pl-11 pr-24 text-base focus:outline-none focus:border-accent transition-colors"
         />
         <button

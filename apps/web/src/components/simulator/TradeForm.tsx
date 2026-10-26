@@ -42,7 +42,7 @@ export default function TradeForm({ portfolioId, onTradeSuccess }: { portfolioId
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm text-secondary mb-1">股票代號</label>
-          <input type="text" className="input-field" placeholder="e.g. 2330" value={symbol} onChange={e => setSymbol(e.target.value)} required />
+          <input type="text" className="input-field" placeholder="輸入標的代號..." value={symbol} onChange={e => setSymbol(e.target.value)} required />
         </div>
         <div>
           <label className="block text-sm text-secondary mb-1">方向</label>
@@ -66,7 +66,7 @@ export default function TradeForm({ portfolioId, onTradeSuccess }: { portfolioId
         <label className="block text-sm text-secondary mb-1">交易理由 (必填，供 AI 覆盤使用)</label>
         <textarea 
           className="input-field min-h-[100px] resize-none" 
-          placeholder="例如：突破月線，外資連買三天，預期Q3營收成長..."
+          placeholder="輸入交易筆記或進場理由（選填）..."
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           required

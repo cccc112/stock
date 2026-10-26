@@ -138,7 +138,7 @@ export default function AIChartAnalyzer({ symbol, onLinesCalculated }: AIChartAn
       )}
 
       {analysis && (
-        <div className="p-5 rounded-xl bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] text-sm prose prose-invert max-w-none">
+        <div className="p-5 rounded-xl bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] text-sm ai-report-prose prose prose-invert max-w-none">
           <ReactMarkdown>{analysis}</ReactMarkdown>
         </div>
       )}
