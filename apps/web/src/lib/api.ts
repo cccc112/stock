@@ -157,6 +157,8 @@ export function apiErrorMessage(e: unknown): string {
 
 export const apiInstitutions = {
   getTw: () => api.get('/institutions/tw'),
+  getStockTw: (symbol: string, days = 25) => api.get(`/institutions/tw/stock/${encodeURIComponent(symbol)}`, { params: { days } }),
+  getRanksTw: () => api.get('/institutions/tw/ranks'),
   getUs13F: () => api.get('/institutions/us/13f'),
 };
 
