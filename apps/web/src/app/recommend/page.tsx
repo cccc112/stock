@@ -8,6 +8,7 @@ import Button from "@/components/ui/Button";
 import Tabs from "@/components/ui/Tabs";
 import QuantPage from "@/app/quant/page";
 import BacktestPage from "@/app/backtest/page";
+import LowPricePotentialScreener from "@/components/recommend/LowPricePotentialScreener";
 import { apiResearch, apiErrorMessage } from "@/lib/api";
 import { getChangeColorClass } from "@/lib/utils";
 import { Sparkles, RefreshCw, RotateCw, Layers } from "lucide-react";
@@ -70,6 +71,11 @@ export default function RecommendPage() {
             id: "ai-picks",
             label: "AI 多因子選股推薦",
             content: <RecommendInner />,
+          },
+          {
+            id: "low-price-potential",
+            label: "低價潛力股發掘",
+            content: <LowPricePotentialScreener />,
           },
           {
             id: "quant-scan",
