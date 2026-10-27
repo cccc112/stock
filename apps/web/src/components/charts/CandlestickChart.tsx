@@ -254,7 +254,7 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
     });
 
     volumeSeries.priceScale().applyOptions({
-      scaleMargins: { top: 0.8, bottom: 0 },
+      scaleMargins: { top: 0.68, bottom: 0 },
     });
 
     const maOptions = { lineWidth: 1 as const, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false };
@@ -346,7 +346,7 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
           volumeData = bars.map((bar: any) => ({
             time: Math.floor(new Date(bar.time).getTime() / 1000) as Time,
             value: bar.volume,
-            color: bar.close >= bar.open ? upColor + '80' : downColor + '80',
+            color: bar.close >= bar.open ? upColor + 'e6' : downColor + 'e6',
           }));
         } else {
           const uniqueBars = new Map();
@@ -369,7 +369,7 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
           volumeData = sortedUniqueBars.map((bar: any) => ({
             time: bar.timeStr as Time,
             value: bar.volume,
-            color: bar.close >= bar.open ? upColor + '80' : downColor + '80',
+            color: bar.close >= bar.open ? upColor + 'e6' : downColor + 'e6',
           }));
         }
 
@@ -610,9 +610,13 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
                 <span className="text-secondary">C</span>
                 <span className={tooltipData.close > tooltipData.open ? 'text-up-tw' : 'text-down-tw'}>{tooltipData.close.toFixed(2)}</span>
               </div>
-              <div className="flex flex-col border-l border-[var(--border)] pl-3 ml-1">
-                <span className="text-secondary">V</span>
-                <span className="text-primary">{(tooltipData.volume / 1000).toFixed(0)}k</span>
+              <div className="flex flex-col border-l border-[var(--border)] pl-2.5 ml-1">
+                <span className="text-secondary">成交量 (Vol)</span>
+                <span className="text-primary font-bold font-mono">
+                  {market === 'TW'
+                    ? `${Math.round(tooltipData.volume / 1000).toLocaleString()} 張`
+                    : tooltipData.volume.toLocaleString()}
+                </span>
               </div>
             </div>
           </div>

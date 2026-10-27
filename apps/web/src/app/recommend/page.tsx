@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import Card from "@/components/ui/Card";
@@ -106,6 +106,8 @@ function RecommendInner() {
   const [nonce, setNonce] = useState(0);
   const [forceNext, setForceNext] = useState(false);
   const [page, setPage] = useState(0);
+  const [sortCriteria, setSortCriteria] = useState<'score' | 'momentum' | 'chips' | 'growth' | 'shuffle'>('score');
+  const [shuffleNonce, setShuffleNonce] = useState(0);
   const PAGE_SIZE = 10;
 
   // 變更條件或手動強制刷新
@@ -114,6 +116,7 @@ function RecommendInner() {
     fn?.();
     setForceNext(forceRefresh);
     setPage(0);
+    setShuffleNonce(n => n + 1);
     setNonce(n => n + 1);
   };
 
@@ -125,7 +128,7 @@ function RecommendInner() {
     apiResearch.getRecommendations({
       market,
       style,
-      top: 30,
+      top: 40,
       universe,
       refresh: isForce,
       _t: isForce ? Date.now() : undefined,
@@ -152,7 +155,31 @@ function RecommendInner() {
     return () => { alive = false; };
   }, [market, style, universe, nonce]);
 
-  const pool = allPicks.length > 0 ? allPicks : picks;
+  const sortedPool = useMemo(() => {
+    const base = [...(allPicks.length > 0 ? allPicks : picks)];
+    if (base.length === 0) return [];
+
+    if (sortCriteria === 'momentum') {
+      return base.sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0) || (b.ret_20d || 0) - (a.ret_20d || 0));
+    }
+    if (sortCriteria === 'chips') {
+      return base.sort((a, b) => (b.scores?.chips ?? b.score) - (a.scores?.chips ?? a.score));
+    }
+    if (sortCriteria === 'growth') {
+      return base.sort((a, b) => (b.scores?.growth ?? b.score) - (a.scores?.growth ?? a.score));
+    }
+    if (sortCriteria === 'shuffle') {
+      const arr = [...base];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+    return base.sort((a, b) => b.score - a.score);
+  }, [allPicks, picks, sortCriteria, shuffleNonce]);
+
+  const pool = sortedPool;
   const totalPages = Math.max(1, Math.ceil(pool.length / PAGE_SIZE));
   const displayedPicks = pool.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const startRank = page * PAGE_SIZE;
@@ -181,17 +208,18 @@ function RecommendInner() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
-          {totalPages > 1 && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setPage(p => (p + 1) % totalPages)}
-              title="輪流探索股票池內其他高評分潛力標的"
-            >
-              <RotateCw size={14} className="mr-1" />
-              換一批 (第 {page + 1}/{totalPages} 批)
-            </Button>
-          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setShuffleNonce(n => n + 1);
+              setPage(p => (p + 1) % totalPages);
+            }}
+            title="輪流探索股票池內其他高評分潛力標的"
+          >
+            <RotateCw size={14} className="mr-1" />
+            換一批 (第 {page + 1}/{totalPages} 批)
+          </Button>
           <Button
             variant="secondary"
             size="sm"
@@ -232,6 +260,66 @@ function RecommendInner() {
             <button key={s.id} onClick={() => refetch(() => setStyle(s.id))} title={s.desc}
               className={`px-3 py-1 rounded-md border ${style === s.id ? 'border-[var(--accent)] text-accent' : 'border-[var(--border)] text-secondary'}`}>{s.label}</button>
           ))}
+        </div>
+      </div>
+
+      {/* 排序維度過濾標籤 */}
+      <div className="flex items-center gap-2 flex-wrap text-xs pt-1 border-t border-[var(--border)]">
+        <span className="text-secondary font-medium">排序方式：</span>
+        <div className="flex gap-1.5 flex-wrap">
+          <button
+            onClick={() => setSortCriteria('score')}
+            className={`px-2.5 py-1 rounded-md font-medium cursor-pointer transition-colors ${
+              sortCriteria === 'score'
+                ? 'bg-accent/15 text-accent border border-accent/30 font-bold'
+                : 'text-secondary hover:text-primary'
+            }`}
+          >
+            🏆 綜合評分榜
+          </button>
+          <button
+            onClick={() => setSortCriteria('momentum')}
+            className={`px-2.5 py-1 rounded-md font-medium cursor-pointer transition-colors ${
+              sortCriteria === 'momentum'
+                ? 'bg-red-500/15 text-red-400 border border-red-500/30 font-bold'
+                : 'text-secondary hover:text-primary'
+            }`}
+          >
+            🔥 今日動能暴衝榜
+          </button>
+          <button
+            onClick={() => setSortCriteria('chips')}
+            className={`px-2.5 py-1 rounded-md font-medium cursor-pointer transition-colors ${
+              sortCriteria === 'chips'
+                ? 'bg-accent/15 text-accent border border-accent/30 font-bold'
+                : 'text-secondary hover:text-primary'
+            }`}
+          >
+            💰 主力籌碼吸金榜
+          </button>
+          <button
+            onClick={() => setSortCriteria('growth')}
+            className={`px-2.5 py-1 rounded-md font-medium cursor-pointer transition-colors ${
+              sortCriteria === 'growth'
+                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold'
+                : 'text-secondary hover:text-primary'
+            }`}
+          >
+            📈 營收爆發成長榜
+          </button>
+          <button
+            onClick={() => {
+              setSortCriteria('shuffle');
+              setShuffleNonce(n => n + 1);
+            }}
+            className={`px-2.5 py-1 rounded-md font-medium cursor-pointer transition-colors ${
+              sortCriteria === 'shuffle'
+                ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold'
+                : 'text-secondary hover:text-primary'
+            }`}
+          >
+            🎲 換一批潛力黑馬 (隨機探索)
+          </button>
         </div>
       </div>
 

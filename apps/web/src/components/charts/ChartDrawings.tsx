@@ -13,6 +13,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { IChartApi, ISeriesApi, Logical, SeriesType } from "lightweight-charts";
 import { InfoTip } from "@/components/ui/TermTooltip";
+import {
+  Sparkles,
+  ChevronDown,
+  PenTool,
+  Magnet,
+  RotateCcw,
+  Trash2,
+  Brush,
+  Layers,
+  Activity,
+  Check,
+  MousePointer,
+  HelpCircle,
+} from "lucide-react";
 
 export type Tool = 'cursor' | 'trend' | 'ray' | 'channel' | 'hline' | 'vline' | 'fib' | 'rect';
 export interface Anchor { ts: number; price: number }
@@ -547,6 +561,7 @@ export function DrawingToolbar({
   const { tool, setTool, draft, color, setColor, selected, removeSelectedOrLast, clear, undo, magnet, setMagnet, drawings, setSelected, addMany } = api;
   const [autoDrawMode, setAutoDrawMode] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
+  const [toolsDropdownOpen, setToolsDropdownOpen] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -554,14 +569,16 @@ export function DrawingToolbar({
   };
 
   const btn = (active: boolean) =>
-    `px-2.5 py-1 text-xs rounded-md border transition-all whitespace-nowrap cursor-pointer ${
+    `px-2.5 py-1 text-xs rounded-lg border transition-all whitespace-nowrap cursor-pointer flex items-center gap-1 ${
       active
-        ? 'border-[var(--accent)] text-accent bg-[var(--accent)]/15 shadow-sm'
-        : 'border-[var(--border)] text-secondary hover:text-primary hover:border-[var(--border-hover)]'}`;
-  const current = TOOLS.find((t) => t.id === tool);
+        ? 'border-[var(--accent)] text-accent bg-[var(--accent)]/15 shadow-sm font-semibold'
+        : 'border-[var(--border)] text-secondary hover:text-primary hover:bg-[var(--bg-tertiary)]'}`;
+  
+  const currentTool = TOOLS.find((t) => t.id === tool);
   const canDelete = Boolean(selected || draft || drawings.length > 0);
 
   const handleToolClick = (t: (typeof TOOLS)[number]) => {
+    setToolsDropdownOpen(false);
     if (t.id === 'cursor') {
       setTool('cursor');
       setSelected(null);
@@ -575,7 +592,7 @@ export function DrawingToolbar({
         addMany(generated);
         setSelected(generated[0].id);
         setTool('cursor');
-        showToast(`已自動畫出${t.label}（已標記在 K 線圖，可點選拖曳微調）`);
+        showToast(`已自動畫出 ${t.label}（已標記在 K 線圖，可點選拖曳微調）`);
         return;
       }
     }
@@ -590,178 +607,242 @@ export function DrawingToolbar({
   };
 
   return (
-    <div className="mb-3">
-      <div className="flex flex-wrap items-center gap-2">
-        {/* 一鍵純淨 K 線 (清除所有輔助線只留K線) */}
-        <button
-          type="button"
-          className="px-2.5 py-1 text-xs rounded-md border border-rose-500/50 bg-rose-500/15 text-rose-400 font-semibold hover:bg-rose-500/25 transition-all whitespace-nowrap shadow-sm flex items-center gap-1 cursor-pointer"
-          onClick={() => {
-            if (onClearAllAuxiliary) {
-              onClearAllAuxiliary();
-            } else {
-              clear();
-            }
-            showToast('🧹 已清除所有輔助線，僅保留純 K 線！(可點擊均線或趨勢線按鈕隨時恢復)');
-          }}
-          title="一鍵清除所有輔助線：手動畫線、自動趨勢通道、SMC 箱體、斐波那契及均線(MA)，僅保留乾淨 K 線"
-        >
-          <span>🧹 一鍵純淨 K 線</span>
-        </button>
-
-        {onToggleMA && (
+    <div className="mb-3 space-y-1.5">
+      {/* 整合式現代交易員工具列 (Single Consolidated Toolbar) */}
+      <div className="p-1.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] flex flex-wrap items-center justify-between gap-2 shadow-sm">
+        {/* 左側：指標輔助與一鍵自動化 */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {/* 一鍵純淨 K 線 */}
           <button
             type="button"
-            title="切換 5MA / 20MA / 60MA 移動平均線顯示"
-            className={btn(Boolean(showMA))}
-            onClick={onToggleMA}
+            className="px-2.5 py-1 text-xs rounded-lg border border-rose-500/50 bg-rose-500/15 text-rose-400 font-semibold hover:bg-rose-500/25 transition-all whitespace-nowrap shadow-sm flex items-center gap-1 cursor-pointer"
+            onClick={() => {
+              if (onClearAllAuxiliary) {
+                onClearAllAuxiliary();
+              } else {
+                clear();
+              }
+              showToast('🧹 已清除所有輔助線，僅保留純 K 線！');
+            }}
+            title="一鍵清除所有輔助線：手動畫線、自動趨勢通道、SMC 箱體、斐波那契及均線(MA)"
           >
-            均線 (MA)
+            <Brush size={13} />
+            <span>一鍵純淨 K 線</span>
           </button>
-        )}
 
-        {onToggleAutoTrends && (
-          <div className="inline-flex items-center">
+          {onToggleMA && (
             <button
               type="button"
-              title="自動標記近期波段高點連線(上趨勢壓力線)與波段低點連線(下趨勢支撐線)"
+              title="切換 5MA / 20MA / 60MA 移動平均線"
+              className={btn(Boolean(showMA))}
+              onClick={onToggleMA}
+            >
+              <Activity size={13} />
+              <span>均線 (MA)</span>
+            </button>
+          )}
+
+          {onToggleAutoTrends && (
+            <button
+              type="button"
+              title="自動標記波段高點壓力線與低點支撐線"
               className={btn(showAutoTrends)}
               onClick={onToggleAutoTrends}
             >
-              自動上下趨勢線
+              <span>自動趨勢線</span>
             </button>
-            <InfoTip term="auto_trendlines" />
-          </div>
-        )}
+          )}
 
-        <span className="w-px h-5 bg-[var(--border)] mx-0.5" />
-
-        {/* 一鍵全套智能自動畫出 */}
-        <button
-          type="button"
-          className="px-2.5 py-1 text-xs rounded-md border border-amber-500/40 bg-amber-500/15 text-amber-400 font-semibold hover:bg-amber-500/25 transition-all whitespace-nowrap shadow-sm flex items-center gap-1 cursor-pointer"
-          onClick={() => {
-            if (!bars || bars.length < 5) return;
-            const all = autoGenerateAllDrawings(bars, color);
-            addMany(all);
-            showToast('⚡ 已一鍵全套自動畫出：趨勢通道、斐波那契、SMC 箱體與關鍵支撐壓力線！');
-            setTool('cursor');
-          }}
-          title="按下直接自動畫出：趨勢通道 + 斐波那契黃金分割 + SMC 盤整箱體 + 關鍵水平支撐壓力"
-        >
-          <span>⚡ 一鍵全部自動畫</span>
-        </button>
-
-        {/* 自動畫出 / 手動畫線 切換模式標籤 */}
-        <button
-          type="button"
-          className={`px-2 py-1 text-xs rounded-md border transition-all whitespace-nowrap font-medium cursor-pointer ${
-            autoDrawMode
-              ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
-              : 'border-slate-400/50 dark:border-slate-500/50 bg-slate-500/10 dark:bg-slate-500/15 text-slate-700 dark:text-slate-300'
-          }`}
-          onClick={() => {
-            const nextMode = !autoDrawMode;
-            setAutoDrawMode(nextMode);
-            showToast(nextMode ? '已切換為「按下自動畫出」模式：點選工具按鈕即自動智能繪製' : '已切換為「手動模式」：點擊工具後於圖表點擊十字線自定義繪製');
-          }}
-          title={autoDrawMode ? "目前為「按下自動畫出」模式：點選工具按鈕即可自動在 K 線畫出對應形態；點此可切換手動拉線" : "目前為「手動拉線模式」；點此可切換為按下自動畫出"}
-        >
-          {autoDrawMode ? '模式: 按下自動畫' : '模式: 手動拉線'}
-        </button>
-
-        <span className="w-px h-5 bg-[var(--border)] mx-0.5" />
-
-        {TOOLS.map(t => (
-          <div key={t.id} className="inline-flex items-center">
-            <button
-              type="button"
-              title={autoDrawMode && t.id !== 'cursor' ? `【按下自動畫出】點擊立即在 K 線圖自動畫出${t.label}` : t.hint}
-              className={btn(tool === t.id)}
-              onClick={() => handleToolClick(t)}
-            >
-              {t.label}
-            </button>
-            {t.term && <InfoTip term={t.term} />}
-          </div>
-        ))}
-        <span className="w-px h-5 bg-[var(--border)] mx-1" />
-        <div className="inline-flex items-center gap-1.5">
-          {COLORS.map(c => (
-            <button
-              key={c}
-              type="button"
-              title="點擊切換畫筆顏色（若已畫線會立即變色；若尚未手動畫線則會改變趨勢線配色）"
-              aria-label={`顏色 ${c}`}
-              onClick={() => {
-                setColor(c);
-                if (selected) {
-                  api.patch(selected, { color: c }, true);
-                } else if (drawings.length > 0) {
-                  const lastId = drawings[drawings.length - 1].id;
-                  api.patch(lastId, { color: c }, true);
-                  setSelected(lastId);
-                } else if (onApplyThemeColor) {
-                  onApplyThemeColor(c);
-                }
-              }}
-              className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 ${
-                color === c ? 'border-[var(--text-primary)] scale-110 shadow-md' : 'border-transparent opacity-80 hover:opacity-100'
-              }`}
-              style={{ background: c }}
-            />
-          ))}
-          <InfoTip term="color_tool" />
-        </div>
-        <span className="w-px h-5 bg-[var(--border)] mx-1" />
-        <div className="inline-flex items-center">
-          <button type="button" className={btn(magnet)} title="自動吸附到最近 K 棒的開高低收" onClick={() => setMagnet(!magnet)}>
-            磁吸
-          </button>
-          <InfoTip term="magnet_tool" />
-        </div>
-        {(tool !== 'cursor' || draft) && (
+          {/* 一鍵全套智能自動畫出 */}
           <button
             type="button"
-            className="px-2.5 py-1 text-xs rounded-md border border-amber-500/40 bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 transition-colors whitespace-nowrap cursor-pointer"
-            onClick={() => setTool('cursor')}
+            className="px-2.5 py-1 text-xs rounded-lg border border-amber-500/40 bg-amber-500/15 text-amber-400 font-semibold hover:bg-amber-500/25 transition-all whitespace-nowrap shadow-sm flex items-center gap-1 cursor-pointer"
+            onClick={() => {
+              if (!bars || bars.length < 5) return;
+              const all = autoGenerateAllDrawings(bars, color);
+              addMany(all);
+              showToast('⚡ 已一鍵全套自動畫出：趨勢通道、斐波那契、SMC 箱體與支撐壓力線！');
+              setTool('cursor');
+            }}
+            title="按下直接自動畫出：趨勢通道 + 斐波那契黃金分割 + SMC 箱體 + 水平支撐壓力"
           >
-            取消畫線
+            <Sparkles size={13} />
+            <span>一鍵全自動畫</span>
           </button>
-        )}
-        <button type="button" className={btn(false)} onClick={undo} title="復原上一步 (Ctrl+Z)">
-          復原
-        </button>
-        <button
-          type="button"
-          className={`${btn(false)} ${!canDelete ? 'opacity-40 cursor-not-allowed' : 'hover:border-rose-500/50 hover:text-rose-400'}`}
-          disabled={!canDelete}
-          onClick={removeSelectedOrLast}
-          title="刪除選取的線或最後一條畫線 (Delete)"
-        >
-          刪除
-        </button>
-        <button
-          type="button"
-          className={`${btn(false)} ${!canDelete ? 'opacity-40 cursor-not-allowed' : 'hover:border-rose-500/50 hover:text-rose-400'}`}
-          disabled={!canDelete}
-          onClick={clear}
-          title="一鍵清除圖上所有手動畫線"
-        >
-          清除畫線
-        </button>
+        </div>
+
+        {/* 中間：畫線工具下拉整合選單 + 模式切換 */}
+        <div className="flex items-center gap-1.5 flex-wrap relative">
+          {/* 選取模式 */}
+          <button
+            type="button"
+            className={btn(tool === 'cursor')}
+            onClick={() => {
+              setTool('cursor');
+              setSelected(null);
+            }}
+            title="選取 / 拖曳已畫的線條（雙擊可直接刪除）"
+          >
+            <MousePointer size={12} />
+            <span>選取</span>
+          </button>
+
+          {/* 畫線工具下拉選單 */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setToolsDropdownOpen((v) => !v)}
+              className={`px-2.5 py-1 text-xs rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
+                tool !== 'cursor'
+                  ? 'border-[var(--accent)] text-accent bg-[var(--accent)]/15 font-semibold'
+                  : 'border-[var(--border)] text-primary hover:bg-[var(--bg-tertiary)]'
+              }`}
+              title="點擊展開畫線工具清單 (趨勢線、射線、通道、斐波那契、箱體等)"
+            >
+              <PenTool size={12} />
+              <span>{tool === 'cursor' ? '畫線工具' : currentTool?.label || '畫線工具'}</span>
+              <ChevronDown size={12} className={`transition-transform ${toolsDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {toolsDropdownOpen && (
+              <div
+                className="absolute left-0 top-full mt-1.5 w-60 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] p-2 shadow-xl z-50 animate-scale-in"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-[10px] text-muted font-bold px-2 py-1 uppercase tracking-wider">
+                  選擇畫線工具 ({autoDrawMode ? '按下自動計算' : '手動十字線繪製'})
+                </div>
+                <div className="space-y-0.5">
+                  {TOOLS.filter((t) => t.id !== 'cursor').map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => handleToolClick(t)}
+                      className={`w-full px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors flex items-center justify-between cursor-pointer ${
+                        tool === t.id
+                          ? 'bg-accent/15 text-accent font-semibold'
+                          : 'text-secondary hover:text-primary hover:bg-[var(--bg-tertiary)]'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-medium text-primary">{t.label}</div>
+                        <div className="text-[10px] text-muted truncate">{t.hint}</div>
+                      </div>
+                      {tool === t.id && <Check size={14} className="text-accent" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 自動 / 手動模式切換 */}
+          <button
+            type="button"
+            className={`px-2 py-1 text-xs rounded-lg border transition-all whitespace-nowrap font-medium cursor-pointer ${
+              autoDrawMode
+                ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-400'
+                : 'border-slate-500/40 bg-slate-500/10 text-secondary'
+            }`}
+            onClick={() => {
+              const nextMode = !autoDrawMode;
+              setAutoDrawMode(nextMode);
+              showToast(nextMode ? '已切換為「按下自動畫」模式' : '已切換為「手動十字線拉線」模式');
+            }}
+            title={autoDrawMode ? "目前為「按下自動畫」模式：點選工具即可依近期轉折波段自動畫出；點此切換為手動" : "目前為手動拉線模式；點此切換為按下自動畫"}
+          >
+            {autoDrawMode ? '模式: 自動畫' : '模式: 手動'}
+          </button>
+        </div>
+
+        {/* 右側：顏色選單、磁吸與編輯動作 */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {/* 色彩選擇列 */}
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)]">
+            {COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                title="切換顏色"
+                onClick={() => {
+                  setColor(c);
+                  if (selected) {
+                    api.patch(selected, { color: c }, true);
+                  } else if (drawings.length > 0) {
+                    const lastId = drawings[drawings.length - 1].id;
+                    api.patch(lastId, { color: c }, true);
+                    setSelected(lastId);
+                  } else if (onApplyThemeColor) {
+                    onApplyThemeColor(c);
+                  }
+                }}
+                className={`w-4 h-4 rounded-full border transition-transform hover:scale-115 ${
+                  color === c ? 'border-white scale-110 shadow-sm' : 'border-transparent opacity-75 hover:opacity-100'
+                }`}
+                style={{ background: c }}
+              />
+            ))}
+          </div>
+
+          {/* 磁吸 */}
+          <button
+            type="button"
+            className={btn(magnet)}
+            title="自動吸附到最近 K 棒的開高低收"
+            onClick={() => setMagnet(!magnet)}
+          >
+            <Magnet size={12} />
+            <span>磁吸</span>
+          </button>
+
+          {/* 復原 */}
+          <button
+            type="button"
+            className="p-1.5 rounded-lg border border-[var(--border)] text-secondary hover:text-primary hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
+            onClick={undo}
+            title="復原上一步 (Ctrl+Z)"
+          >
+            <RotateCcw size={13} />
+          </button>
+
+          {/* 刪除 */}
+          <button
+            type="button"
+            className={`p-1.5 rounded-lg border border-[var(--border)] transition-colors cursor-pointer ${
+              !canDelete ? 'opacity-30 cursor-not-allowed text-muted' : 'text-secondary hover:text-rose-400 hover:border-rose-500/40 hover:bg-rose-500/10'
+            }`}
+            disabled={!canDelete}
+            onClick={removeSelectedOrLast}
+            title="刪除選取的畫線 (Delete)"
+          >
+            <Trash2 size={13} />
+          </button>
+
+          {/* 清除全部 */}
+          <button
+            type="button"
+            className={`px-2 py-1 text-xs rounded-lg border border-[var(--border)] transition-colors cursor-pointer ${
+              !canDelete ? 'opacity-30 cursor-not-allowed text-muted' : 'text-secondary hover:text-rose-400 hover:border-rose-500/40 hover:bg-rose-500/10'
+            }`}
+            disabled={!canDelete}
+            onClick={clear}
+            title="一鍵清除圖上所有手動畫線"
+          >
+            清除
+          </button>
+        </div>
       </div>
 
       {toast && (
-        <div className="mt-2 px-3 py-1.5 text-xs rounded-md bg-accent/15 border border-accent/30 text-accent font-medium flex items-center gap-1.5 shadow-sm">
+        <div className="px-3 py-1.5 text-xs rounded-lg bg-accent/15 border border-accent/30 text-accent font-medium flex items-center gap-1.5 shadow-sm animate-fade-in">
           <span>✨</span>
           <span>{toast}</span>
         </div>
       )}
 
-      {tool !== 'cursor' && current && (
+      {tool !== 'cursor' && currentTool && (
         <div className="text-xs text-accent mt-1.5 flex items-center gap-2">
-          <span>{current.hint}（再點一次按鈕、按右鍵或點「取消畫線」即可退出；畫完可點「刪除」或「全部清除」消掉）。</span>
+          <span>{currentTool.hint}（再點一次按鈕或按右鍵即可退出畫線；畫完可點「刪除」消掉）。</span>
         </div>
       )}
     </div>
