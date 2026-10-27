@@ -20,7 +20,7 @@ export default function CapitalFlowPage() {
         tabs={[
           {
             id: "etf-flow",
-            label: "🔥 ETF 資金流向與申贖動向",
+            label: "ETF 資金流向與申贖動向",
             content: <EtfCapitalFlowTracker />,
           },
           {

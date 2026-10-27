@@ -164,7 +164,7 @@ export default function AISection({
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-                    🚀 樂觀情境 (Bull Case)
+                    樂觀情境 (Bull Case)
                   </span>
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 font-mono font-bold">
                     機率 25%
@@ -195,7 +195,7 @@ export default function AISection({
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs font-bold text-accent flex items-center gap-1">
-                    ⚖️ 基準情境 (Base Case)
+                    基準情境 (Base Case)
                   </span>
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/20 text-accent font-mono font-bold">
                     機率 50%
@@ -226,7 +226,7 @@ export default function AISection({
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs font-bold text-rose-700 dark:text-rose-400 flex items-center gap-1">
-                    🛡️ 悲觀情境 (Bear Case)
+                    悲觀情境 (Bear Case)
                   </span>
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-800 dark:text-rose-300 font-mono font-bold">
                     機率 25%

@@ -71,18 +71,18 @@ export default function AIInsightCard() {
       const fxStatus = fx.change_pct > 0.1 ? "台幣走貶，留意熱錢流出" : fx.change_pct < -0.1 ? "台幣走升，外資被動買盤可期" : "匯率持平穩定";
 
       const fallbackSummary = `
-### 📊 全球宏觀與台美股即時趨勢診斷
+### 全球總經與台美股即時趨勢診斷
 
-- 🇹🇼 **台股盤勢 (${twTrend})**：
+- **台股盤勢 (${twTrend})**：
   加權指數最新點位 **${twii.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}** (${twii.change_pct >= 0 ? "+" : ""}${twii.change_pct.toFixed(2)}%)。受半導體權值與月線支撐影響，位階呈現${twTrend}，短線聚焦外資期現貨籌碼與 20MA 防守。
 
-- 🇺🇸 **美股科技股動能 (${usTechTrend})**：
+- **美股科技股動能 (${usTechTrend})**：
   費城半導體報 **${sox.price.toFixed(2)}** (${sox.change_pct >= 0 ? "+" : ""}${sox.change_pct.toFixed(2)}%)、那斯達克報 **${nasdaq.price.toFixed(2)}** (${nasdaq.change_pct >= 0 ? "+" : ""}${nasdaq.change_pct.toFixed(2)}%)，S&P 500 **${sp500.price.toFixed(2)}**。AI 算力鏈與大型 CSP 資本支出維持長期支撐。
 
-- 💵 **資金利率與匯率指標**：
+- **資金利率與匯率指標**：
   美元/台幣匯率報 **${fx.price.toFixed(3)}**（${fxStatus}）；美債 10 年期殖利率位於 **${tnx.price.toFixed(2)}%**。高利率黏滯性仍在，建議維持中性偏多、分批佈局策略。
 
-- 🛡️ **關鍵風控重點**：
+- **關鍵風控重點**：
   盤勢進入財報與重大數據定價期，逢高避免追價未具實質獲利之純題材股，恪守 6%~8% 嚴格停損紀律。
       `.trim();
 

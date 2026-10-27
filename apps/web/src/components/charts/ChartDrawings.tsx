@@ -622,7 +622,7 @@ export function DrawingToolbar({
               } else {
                 clear();
               }
-              showToast('🧹 已清除所有輔助線，僅保留純 K 線！');
+              showToast('已清除所有輔助線，僅保留純 K 線');
             }}
             title="一鍵清除所有輔助線：手動畫線、自動趨勢通道、SMC 箱體、斐波那契及均線(MA)"
           >

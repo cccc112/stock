@@ -233,7 +233,7 @@ export default function StockEtfExposure({ symbol, currentPrice = 0 }: StockEtfE
             <div className="text-sm font-extrabold flex items-center gap-1 mt-1">
               {stats.totalSharesChange > 1000 ? (
                 <span className="text-red-400 flex items-center gap-1">
-                  <ArrowUpRight size={16} /> 強力被動吸金
+                  <ArrowUpRight size={16} /> 強力被動買超
                 </span>
               ) : stats.totalSharesChange > 0 ? (
                 <span className="text-accent flex items-center gap-1">
@@ -405,7 +405,7 @@ export default function StockEtfExposure({ symbol, currentPrice = 0 }: StockEtfE
           <span>什麼是「ETF 成分股被動買賣盤」？如何影響個股走勢？</span>
         </div>
         <p className="leading-relaxed">
-          當投資人大量申購某檔 ETF（例如 0050 或 00878）時，投信發行商必須依據指數規範在集中市場「按權重比例實體買入」其成分股，形成強大且持續的客觀被動買盤；反之，當投資人贖回或季審踢出成分股時，將產生無可避免的被動調節賣壓。追蹤此表可提前洞悉市場被動資金的聚寶盆效應。
+          當投資人大量申購某檔 ETF（例如 0050 或 00878）時，投信發行商必須依據指數規範在集中市場「按權重比例實體買入」其成分股，形成客觀被動買盤；反之，當投資人贖回或季審踢出成分股時，將產生被動調節賣壓。追蹤此表可提前掌握市場被動資金集中效應。
         </p>
       </div>
     </div>

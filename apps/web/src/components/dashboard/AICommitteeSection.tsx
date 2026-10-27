@@ -325,7 +325,7 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
                 </p>
                 {alloc?.reasoning && (
                   <p className="text-xs text-accent mt-2 pt-2 border-t border-[var(--border)]">
-                    💡 <strong>資金管理守則</strong>：{alloc.reasoning}
+                    <strong>資金管理守則</strong>：{alloc.reasoning}
                   </p>
                 )}
               </div>
@@ -544,7 +544,7 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
                       <strong>觸發條件</strong>：{pb.trigger}
                     </div>
                     <div className="text-xs text-primary leading-relaxed pt-2 border-t border-[var(--border)]">
-                      👉 <strong>因應動作</strong>：{pb.action}
+                      <strong>因應動作</strong>：{pb.action}
                     </div>
                   </div>
                 ))}

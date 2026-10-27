@@ -838,7 +838,7 @@ export default function EtfCapitalFlowTracker({
                       market === "TW" ? "bg-[var(--bg-tertiary)] text-accent font-bold" : "text-muted hover:text-secondary"
                     }`}
                   >
-                    🇹🇼 台股 ETF
+                    台股 ETF
                   </button>
                   <button
                     onClick={() => setMarket("US")}
@@ -846,7 +846,7 @@ export default function EtfCapitalFlowTracker({
                       market === "US" ? "bg-[var(--bg-tertiary)] text-indigo-400 font-bold" : "text-muted hover:text-secondary"
                     }`}
                   >
-                    🇺🇸 美股 ETF
+                    美股 ETF
                   </button>
                 </div>
               </div>

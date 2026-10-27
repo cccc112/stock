@@ -275,7 +275,7 @@ function RecommendInner() {
                 : 'text-secondary hover:text-primary'
             }`}
           >
-            🏆 綜合評分榜
+            綜合評分榜
           </button>
           <button
             onClick={() => setSortCriteria('momentum')}
@@ -285,7 +285,7 @@ function RecommendInner() {
                 : 'text-secondary hover:text-primary'
             }`}
           >
-            🔥 今日動能暴衝榜
+            強勢動能榜
           </button>
           <button
             onClick={() => setSortCriteria('chips')}
@@ -295,7 +295,7 @@ function RecommendInner() {
                 : 'text-secondary hover:text-primary'
             }`}
           >
-            💰 主力籌碼吸金榜
+            主力籌碼集中榜
           </button>
           <button
             onClick={() => setSortCriteria('growth')}
@@ -305,7 +305,7 @@ function RecommendInner() {
                 : 'text-secondary hover:text-primary'
             }`}
           >
-            📈 營收爆發成長榜
+            營收成長榜
           </button>
           <button
             onClick={() => {
@@ -318,7 +318,7 @@ function RecommendInner() {
                 : 'text-secondary hover:text-primary'
             }`}
           >
-            🎲 換一批潛力黑馬 (隨機探索)
+            隨機探索標的
           </button>
         </div>
       </div>

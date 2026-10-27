@@ -514,7 +514,7 @@ export default function InstitutionsPage() {
                   : 'text-secondary hover:text-primary hover:bg-[var(--bg-tertiary)]'
               }`}
             >
-              🏛️ 全市場大盤法人動向
+              全市場大盤法人動向
             </button>
             <button
               onClick={() => setTwView('STOCK')}
@@ -524,7 +524,7 @@ export default function InstitutionsPage() {
                   : 'text-secondary hover:text-primary hover:bg-[var(--bg-tertiary)]'
               }`}
             >
-              🔍 個股三大法人籌碼診斷 ({selectedStock})
+              個股三大法人籌碼診斷 ({selectedStock})
             </button>
           </div>
 
@@ -688,7 +688,7 @@ export default function InstitutionsPage() {
               {/* 右側 1 欄：熱門法人焦點股 (點擊直接切入該個股視圖) */}
               <div>
                 <Card 
-                  title="🔥 今日法人強勢焦點 (點擊切換)" 
+                  title="今日法人強勢焦點 (點擊切換)" 
                   className="border border-[var(--border)]"
                 >
                   <p className="text-[11px] text-secondary mb-3">
@@ -1222,7 +1222,7 @@ export default function InstitutionsPage() {
             activeMainTab === 'TW' ? 'text-accent font-semibold' : 'text-secondary hover:text-primary'
           }`}
         >
-          🏛️ 台股三大法人 (大盤 & 個股)
+          台股三大法人 (大盤 & 個股)
           {activeMainTab === 'TW' && (
             <div className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-[var(--accent)] rounded-t-full shadow-md shadow-accent/50" />
           )}
@@ -1234,7 +1234,7 @@ export default function InstitutionsPage() {
             activeMainTab === 'US_13F' ? 'text-accent font-semibold' : 'text-secondary hover:text-primary'
           }`}
         >
-          🇺🇸 華爾街 13F 機構深度報告
+          華爾街 13F 機構深度報告
           {activeMainTab === 'US_13F' && (
             <div className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-[var(--accent)] rounded-t-full shadow-md shadow-accent/50" />
           )}
