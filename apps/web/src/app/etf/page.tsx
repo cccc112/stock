@@ -6,7 +6,7 @@ import Badge from "@/components/ui/Badge";
 import Link from "next/link";
 import { formatNumber, formatVolume, getChangeColorClass } from "@/lib/utils";
 import { apiStocks } from "@/lib/api";
-import { Search, Sparkles, Flame, Layers } from "lucide-react";
+import { Search, Sparkles, Flame, Layers, ShoppingBag } from "lucide-react";
 import { Term } from "@/components/ui/TermTooltip";
 import EtfCapitalFlowTracker from "@/components/dashboard/EtfCapitalFlowTracker";
 
@@ -207,7 +207,7 @@ const ASSET_CATEGORIES: Record<
 const ALL_CATALOG_ITEMS = Object.values(ASSET_CATEGORIES).flatMap((cat) => cat.items);
 
 export default function EtfAndMultiAssetPage() {
-  const [mainView, setMainView] = useState<"flow" | "catalog">("flow");
+  const [mainView, setMainView] = useState<"flow" | "holdings" | "catalog">("flow");
   const [quotes, setQuotes] = useState<Record<string, AssetQuote>>({});
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("tw_market");
@@ -404,11 +404,11 @@ export default function EtfAndMultiAssetPage() {
         </div>
       </header>
 
-      {/* 視圖切換：每日資金流向與申贖動態 VS 全市場 250+ 標的行情檢索 */}
-      <div className="flex border-b border-[var(--border)] gap-2 pb-1">
+      {/* 視圖切換：每日資金流向與申贖動態 VS 每日成分股持股穿透 VS 全市場 250+ 標的行情檢索 */}
+      <div className="flex border-b border-[var(--border)] gap-2 pb-1 overflow-x-auto hide-scrollbar">
         <button
           onClick={() => setMainView("flow")}
-          className={`px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all cursor-pointer ${
+          className={`px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             mainView === "flow" && !searchQuery.trim()
               ? "bg-accent text-white shadow-sm"
               : "text-secondary hover:text-primary hover:bg-[var(--bg-secondary)]"
@@ -420,8 +420,21 @@ export default function EtfAndMultiAssetPage() {
         </button>
 
         <button
+          onClick={() => setMainView("holdings")}
+          className={`px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+            mainView === "holdings" && !searchQuery.trim()
+              ? "bg-accent text-white shadow-sm"
+              : "text-secondary hover:text-primary hover:bg-[var(--bg-secondary)]"
+          }`}
+        >
+          <ShoppingBag size={16} />
+          <span>每日追蹤 ETF 成分股持股與增減</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/30 text-amber-200 font-mono">持股穿透</span>
+        </button>
+
+        <button
           onClick={() => setMainView("catalog")}
-          className={`px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all cursor-pointer ${
+          className={`px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             mainView === "catalog" || searchQuery.trim()
               ? "bg-accent text-white shadow-sm"
               : "text-secondary hover:text-primary hover:bg-[var(--bg-secondary)]"
@@ -433,7 +446,9 @@ export default function EtfAndMultiAssetPage() {
       </div>
 
       {mainView === "flow" && !searchQuery.trim() ? (
-        <EtfCapitalFlowTracker />
+        <EtfCapitalFlowTracker defaultSubView="flow" />
+      ) : mainView === "holdings" && !searchQuery.trim() ? (
+        <EtfCapitalFlowTracker defaultSubView="holdings" />
       ) : (
         <Card className="w-full">
         <div className="border-b border-[var(--border)] flex gap-2 overflow-x-auto hide-scrollbar pb-2 mb-4">

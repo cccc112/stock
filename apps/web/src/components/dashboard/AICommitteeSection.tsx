@@ -81,9 +81,7 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
     }
   }, [symbol]);
 
-  useEffect(() => {
-    handleRunCommittee();
-  }, [symbol, handleRunCommittee]);
+  // 依據使用者規則：所有 AI 功能需由使用者點擊按鈕觸發，不再於載入時自動執行
 
   const getActionColor = (action: string) => {
     switch (action) {
@@ -154,6 +152,30 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
         <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-sm flex items-center gap-2">
           <ShieldAlert size={18} />
           {error}
+        </div>
+      )}
+
+      {/* 待命待觸發狀態 (依據規則：需使用者主動點擊按鈕觸發) */}
+      {!data && !loading && !error && (
+        <div className="p-8 rounded-2xl bg-gradient-to-br from-[var(--bg-secondary)] via-[var(--bg-tertiary)] to-indigo-500/10 border border-[var(--border)] text-center space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-500/15 text-indigo-400 mx-auto flex items-center justify-center">
+            <Users size={32} />
+          </div>
+          <div className="max-w-lg mx-auto">
+            <h3 className="text-base font-bold text-primary">點擊召開 {symbol} 閉門決策室會議</h3>
+            <p className="text-xs text-secondary mt-1.5 leading-relaxed">
+              集結四大傳奇投資派系（價值派、總經全天候、量化動能、反身風控）進行多回合激烈攻防，並由首席投資官 (CIO) 簽署配置上限、階梯限價掛單與應變守則。
+            </p>
+          </div>
+          <Button
+            size="lg"
+            variant="primary"
+            onClick={handleRunCommittee}
+            className="px-6 py-2.5 font-bold shadow-lg shadow-indigo-500/20 hover-lift"
+          >
+            <Users size={16} className="mr-2" />
+            召開 AI 投資委員會會議
+          </Button>
         </div>
       )}
 

@@ -15,7 +15,8 @@ interface MarketDiagnosticData {
 }
 
 export default function AIInsightCard() {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [hasRun, setHasRun] = useState(false);
   const [data, setData] = useState<MarketDiagnosticData | null>(null);
 
   const fetchLiveDiagnostics = useCallback(async () => {
@@ -38,6 +39,7 @@ export default function AIInsightCard() {
           updatedAt: res.data.generated_at || Date.now(),
           source: "gemini",
         });
+        setHasRun(true);
         return;
       }
 
@@ -91,6 +93,7 @@ export default function AIInsightCard() {
         updatedAt: Date.now(),
         source: "quant",
       });
+      setHasRun(true);
     } catch (err) {
       console.error("Failed to load market diagnostics:", err);
     } finally {
@@ -98,9 +101,7 @@ export default function AIInsightCard() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchLiveDiagnostics();
-  }, [fetchLiveDiagnostics]);
+  // 遵循使用者規則：所有 AI 功能需由使用者點擊按鈕觸發，不再於載入時自動執行
 
   return (
     <Card
@@ -128,7 +129,28 @@ export default function AIInsightCard() {
       }
     >
       <div className="text-sm text-secondary">
-        {loading && !data ? (
+        {!hasRun && !loading && !data ? (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl bg-gradient-to-r from-[var(--bg-tertiary)] to-accent/5 border border-[var(--border)]">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-accent/15 text-accent flex items-center justify-center flex-shrink-0">
+                <Sparkles size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-primary">點擊生成全球宏觀與台美股即時趨勢診斷</h4>
+                <p className="text-xs text-secondary mt-0.5">
+                  整合台股加權指數、費城半導體、那斯達克、美債殖利率與台幣匯率即時多空判讀
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={fetchLiveDiagnostics}
+              className="px-4 py-2 rounded-lg bg-accent text-white text-xs font-bold hover:bg-accent/90 transition-all cursor-pointer shadow-md flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 hover-lift"
+            >
+              <Sparkles size={14} />
+              <span>啟動 AI 盤勢診斷</span>
+            </button>
+          </div>
+        ) : loading && !data ? (
           <div className="space-y-3 py-2 animate-pulse">
             <div className="flex items-center gap-2 text-xs text-accent">
               <Cpu size={14} className="animate-spin" />

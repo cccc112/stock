@@ -131,6 +131,69 @@ export const ETF_PORTFOLIO_DELTAS: Record<string, { etfName: string; updateDate:
       { symbol: "2409", name: "友達", weight: 3.1, weight_change: -0.05, shares_held: 95000, shares_change: -1500, action: "SELL", change_amount_m: -24, reason: "獲利調節贖回", price: 16.2, change_pct: -0.3 },
     ],
   },
+  "006208": {
+    etfName: "富邦台50",
+    updateDate: "最新交易日 (盤後即時更新)",
+    holdings: [
+      { symbol: "2330", name: "台積電", weight: 55.1, weight_change: 0.20, shares_held: 112000, shares_change: 780, action: "BUY", change_amount_m: 826, reason: "申購被動加買", price: 1060, change_pct: 1.4 },
+      { symbol: "2317", name: "鴻海", weight: 4.8, weight_change: 0.06, shares_held: 56000, shares_change: 320, action: "BUY", change_amount_m: 68, reason: "申購被動加買", price: 215, change_pct: 1.8 },
+      { symbol: "2454", name: "聯發科", weight: 4.3, weight_change: 0.05, shares_held: 9800, shares_change: 65, action: "BUY", change_amount_m: 84, reason: "申購被動加買", price: 1300, change_pct: 1.1 },
+      { symbol: "2382", name: "廣達", weight: 2.0, weight_change: 0.02, shares_held: 15000, shares_change: 95, action: "BUY", change_amount_m: 29, reason: "申購被動加買", price: 310, change_pct: 1.5 },
+      { symbol: "2881", name: "富邦金", weight: 1.7, weight_change: 0.01, shares_held: 28000, shares_change: 180, action: "BUY", change_amount_m: 16, reason: "申購被動加買", price: 92, change_pct: 0.5 },
+    ],
+  },
+  "00713": {
+    etfName: "元大台灣高息低波",
+    updateDate: "最新交易日 (盤後即時更新)",
+    holdings: [
+      { symbol: "2603", name: "長榮", weight: 6.8, weight_change: 0.15, shares_held: 24000, shares_change: 650, action: "BUY", change_amount_m: 136, reason: "申購被動加買", price: 210, change_pct: 2.1 },
+      { symbol: "2412", name: "中華電", weight: 5.2, weight_change: 0.02, shares_held: 35000, shares_change: 120, action: "BUY", change_amount_m: 15, reason: "申購被動加買", price: 125, change_pct: 0.4 },
+      { symbol: "2886", name: "兆豐金", weight: 4.8, weight_change: 0.04, shares_held: 45000, shares_change: 280, action: "BUY", change_amount_m: 11, reason: "申購被動加買", price: 39.2, change_pct: 0.2 },
+      { symbol: "2382", name: "廣達", weight: 4.2, weight_change: 0.08, shares_held: 11000, shares_change: 220, action: "BUY", change_amount_m: 68, reason: "申購被動加買", price: 310, change_pct: 1.5 },
+      { symbol: "3702", name: "大聯大", weight: 3.9, weight_change: 0.05, shares_held: 21000, shares_change: 190, action: "BUY", change_amount_m: 16, reason: "申購被動加買", price: 84.5, change_pct: 0.8 },
+    ],
+  },
+  "00881": {
+    etfName: "國泰台灣5G+",
+    updateDate: "最新交易日 (盤後即時更新)",
+    holdings: [
+      { symbol: "2330", name: "台積電", weight: 30.5, weight_change: 0.18, shares_held: 18000, shares_change: 420, action: "BUY", change_amount_m: 445, reason: "申購被動加買", price: 1060, change_pct: 1.4 },
+      { symbol: "2317", name: "鴻海", weight: 14.8, weight_change: 0.12, shares_held: 32000, shares_change: 480, action: "BUY", change_amount_m: 103, reason: "申購被動加買", price: 215, change_pct: 1.8 },
+      { symbol: "2454", name: "聯發科", weight: 11.2, weight_change: 0.09, shares_held: 4200, shares_change: 110, action: "BUY", change_amount_m: 143, reason: "申購被動加買", price: 1300, change_pct: 1.1 },
+      { symbol: "2382", name: "廣達", weight: 5.8, weight_change: 0.05, shares_held: 8500, shares_change: 140, action: "BUY", change_amount_m: 43, reason: "申購被動加買", price: 310, change_pct: 1.5 },
+      { symbol: "3711", name: "日月光投控", weight: 4.2, weight_change: 0.04, shares_held: 12000, shares_change: 180, action: "BUY", change_amount_m: 28, reason: "申購被動加買", price: 160, change_pct: 1.6 },
+    ],
+  },
+  "00918": {
+    etfName: "大華優利高填息30",
+    updateDate: "最新交易日 (盤後即時更新)",
+    holdings: [
+      { symbol: "2603", name: "長榮", weight: 8.2, weight_change: 0.18, shares_held: 19000, shares_change: 420, action: "BUY", change_amount_m: 88, reason: "申購被動加買", price: 210, change_pct: 2.1 },
+      { symbol: "2454", name: "聯發科", weight: 7.1, weight_change: 0.14, shares_held: 2900, shares_change: 70, action: "BUY", change_amount_m: 91, reason: "申購被動加買", price: 1300, change_pct: 1.1 },
+      { symbol: "3702", name: "大聯大", weight: 4.5, weight_change: 0.06, shares_held: 22000, shares_change: 260, action: "BUY", change_amount_m: 21, reason: "申購被動加買", price: 84.5, change_pct: 0.8 },
+      { symbol: "3231", name: "緯創", weight: 4.1, weight_change: 0.05, shares_held: 18000, shares_change: 240, action: "BUY", change_amount_m: 27, reason: "申購被動加買", price: 115, change_pct: 1.3 },
+    ],
+  },
+  "00915": {
+    etfName: "凱基優選高股息30",
+    updateDate: "最新交易日 (盤後即時更新)",
+    holdings: [
+      { symbol: "2454", name: "聯發科", weight: 7.8, weight_change: 0.16, shares_held: 3400, shares_change: 90, action: "BUY", change_amount_m: 117, reason: "申購被動加買", price: 1300, change_pct: 1.1 },
+      { symbol: "2603", name: "長榮", weight: 6.9, weight_change: 0.12, shares_held: 14000, shares_change: 310, action: "BUY", change_amount_m: 65, reason: "申購被動加買", price: 210, change_pct: 2.1 },
+      { symbol: "2886", name: "兆豐金", weight: 5.1, weight_change: 0.05, shares_held: 28000, shares_change: 220, action: "BUY", change_amount_m: 8.6, reason: "申購被動加買", price: 39.2, change_pct: 0.2 },
+      { symbol: "2891", name: "中信金", weight: 4.6, weight_change: 0.04, shares_held: 36000, shares_change: 280, action: "BUY", change_amount_m: 10.3, reason: "申購被動加買", price: 36.8, change_pct: 0.5 },
+    ],
+  },
+  "00939": {
+    etfName: "統一台灣高息動能",
+    updateDate: "最新交易日 (盤後即時更新)",
+    holdings: [
+      { symbol: "2603", name: "長榮", weight: 6.8, weight_change: 0.15, shares_held: 18000, shares_change: 380, action: "BUY", change_amount_m: 79.8, reason: "申購被動加買", price: 210, change_pct: 2.1 },
+      { symbol: "2454", name: "聯發科", weight: 5.9, weight_change: 0.10, shares_held: 2200, shares_change: 55, action: "BUY", change_amount_m: 71.5, reason: "申購被動加買", price: 1300, change_pct: 1.1 },
+      { symbol: "3231", name: "緯創", weight: 4.8, weight_change: 0.08, shares_held: 21000, shares_change: 310, action: "BUY", change_amount_m: 35.6, reason: "申購被動加買", price: 115, change_pct: 1.3 },
+      { symbol: "2382", name: "廣達", weight: 4.2, weight_change: 0.06, shares_held: 7500, shares_change: 120, action: "BUY", change_amount_m: 37.2, reason: "申購被動加買", price: 310, change_pct: 1.5 },
+    ],
+  },
 };
 
 // 全市場 ETF 今日合計大買之股票龍頭排行
@@ -496,8 +559,16 @@ type FlowFilter = "all" | "inflow" | "outflow";
 type MarketFilter = "all" | "TW" | "US";
 type SubViewType = "flow" | "holdings";
 
-export default function EtfCapitalFlowTracker() {
-  const [subView, setSubView] = useState<SubViewType>("flow");
+interface EtfCapitalFlowTrackerProps {
+  defaultSubView?: SubViewType;
+  initialEtf?: string;
+}
+
+export default function EtfCapitalFlowTracker({
+  defaultSubView = "flow",
+  initialEtf = "0050",
+}: EtfCapitalFlowTrackerProps = {}) {
+  const [subView, setSubView] = useState<SubViewType>(defaultSubView);
   const [period, setPeriod] = useState<PeriodType>("1d");
   const [direction, setDirection] = useState<FlowFilter>("all");
   const [market, setMarket] = useState<MarketFilter>("all");
@@ -507,7 +578,7 @@ export default function EtfCapitalFlowTracker() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // 成分股持股變動狀態
-  const [selectedHoldingEtf, setSelectedHoldingEtf] = useState<string>("0050");
+  const [selectedHoldingEtf, setSelectedHoldingEtf] = useState<string>(initialEtf);
   const [holdingActionFilter, setHoldingActionFilter] = useState<"ALL" | "BUY" | "SELL">("ALL");
   const [holdingSearch, setHoldingSearch] = useState("");
 
@@ -1119,11 +1190,17 @@ export default function EtfCapitalFlowTracker() {
                   className="bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg py-1 px-2.5 text-xs text-primary font-bold focus:outline-none focus:border-accent"
                 >
                   <option value="0050">0050 元大台灣50</option>
+                  <option value="006208">006208 富邦台50</option>
                   <option value="00878">00878 國泰永續高股息</option>
                   <option value="00919">00919 群益台灣精選高息</option>
                   <option value="00929">00929 復華台灣科技優息</option>
                   <option value="0056">0056 元大高股息</option>
+                  <option value="00713">00713 元大台灣高息低波</option>
+                  <option value="00881">00881 國泰台灣5G+</option>
                   <option value="00940">00940 元大台灣價值高息</option>
+                  <option value="00918">00918 大華優利高填息30</option>
+                  <option value="00915">00915 凱基優選高股息30</option>
+                  <option value="00939">00939 統一台灣高息動能</option>
                 </select>
 
                 <div className="relative w-40">

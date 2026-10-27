@@ -25,12 +25,13 @@ import {
 
 export default function AISection({
   symbol,
-  autoRun = true,
+  autoRun = false,
 }: {
   symbol: string;
   autoRun?: boolean;
 }) {
   const [loading, setLoading] = useState(false);
+  const [hasRun, setHasRun] = useState(false);
   const [researchData, setResearchData] = useState<EquityResearchData | null>(null);
   const [analysisText, setAnalysisText] = useState<string>("");
   const [sourceLabel, setSourceLabel] = useState<string>("");
@@ -40,6 +41,7 @@ export default function AISection({
 
   const analyze = useCallback(async () => {
     setLoading(true);
+    setHasRun(true);
     setError("");
     try {
       // 1. 立即啟動本地法人基本面與情境估值研報引擎（0.5~3 秒內必出結果）
@@ -123,6 +125,25 @@ export default function AISection({
           )}
         </Button>
       </div>
+
+      {/* 待命待觸發狀態 (依據規則：需使用者主動點擊按鈕觸發) */}
+      {!hasRun && !loading && !analysisText && !error && (
+        <div className="p-8 rounded-2xl bg-gradient-to-br from-[var(--bg-secondary)] via-[var(--bg-tertiary)] to-accent/10 border border-[var(--border)] text-center space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-accent/15 text-accent mx-auto flex items-center justify-center">
+            <FileSpreadsheet size={32} />
+          </div>
+          <div className="max-w-md mx-auto">
+            <h3 className="text-base font-bold text-primary">點擊生成 {symbol} AI 法人深度研報</h3>
+            <p className="text-xs text-secondary mt-1.5 leading-relaxed">
+              即時運算情境估值矩陣 (樂觀 / 基準 / 悲觀目標價與隱含本益比)、三表財務健康體檢、商業模式護城河與未來催化劑。
+            </p>
+          </div>
+          <Button size="lg" variant="primary" onClick={analyze} className="px-6 py-2.5 font-bold shadow-lg hover-lift">
+            <FileSpreadsheet size={16} className="mr-2" />
+            啟動 AI 法人研報分析
+          </Button>
+        </div>
+      )}
 
       {/* 1. 三種情境估值目標價矩陣看板 (Three Scenario Valuation Models) */}
       {sc && (

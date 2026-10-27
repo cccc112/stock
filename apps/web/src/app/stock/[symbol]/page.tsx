@@ -18,6 +18,7 @@ import AISection from "@/components/dashboard/AISection";
 import AIChartAnalyzer from "@/components/charts/AIChartAnalyzer";
 import FinancialsSection from "@/components/stock/FinancialsSection";
 import ETFInfoSection from "@/components/stock/ETFInfoSection";
+import StockEtfExposure from "@/components/stock/StockEtfExposure";
 import AICommitteeSection from "@/components/dashboard/AICommitteeSection";
 import { Term, InfoTip } from "@/components/ui/TermTooltip";
 import {
@@ -237,10 +238,17 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                           content: <InstitutionalSection symbol={canonical} />
                         }]
                       : []),
+                    ...(assetType === 'STOCK'
+                      ? [{
+                          id: 'etf-exposure',
+                          label: '被各大 ETF 納入追蹤',
+                          content: <StockEtfExposure symbol={canonical} currentPrice={stock.price} />
+                        }]
+                      : []),
                     {
                       id: 'ai-analysis',
                       label: 'AI 深度分析',
-                      content: <AISection symbol={canonical} autoRun={true} />
+                      content: <AISection symbol={canonical} autoRun={false} />
                     },
                     {
                       id: 'ai-committee',

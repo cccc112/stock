@@ -73,9 +73,7 @@ export default function AIChartAnalyzer({ symbol, onLinesCalculated }: AIChartAn
     }
   }, [symbol, onLinesCalculated]);
 
-  useEffect(() => {
-    handleAnalyze();
-  }, [handleAnalyze]);
+  // 依據使用者要求：AI 分析皆需由使用者手動點擊觸發，不於載入時自動執行
 
   return (
     <div className="mt-6 border-t border-[var(--color-border)] pt-6 space-y-4">
@@ -93,6 +91,15 @@ export default function AIChartAnalyzer({ symbol, onLinesCalculated }: AIChartAn
           {loading ? "計算支撐壓力與推理中..." : "執行 AI 畫線分析"}
         </Button>
       </div>
+
+      {!analysis && !loading && !error && (
+        <div className="p-4 rounded-xl bg-[var(--bg-tertiary)]/70 border border-[var(--border)] text-xs text-secondary flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Sparkles size={16} className="text-accent flex-shrink-0" />
+            <span>點擊右上角「執行 AI 畫線分析」，即時計算 K 線頸線支撐、密集套牢壓力區並輸出深度形態診斷。</span>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="p-4 rounded-md bg-red-500/10 border border-red-500/50 text-red-500 text-sm">
