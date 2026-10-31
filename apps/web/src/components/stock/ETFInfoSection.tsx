@@ -2,11 +2,11 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { apiResearch, apiStocks } from "@/lib/api";
+import { apiResearch, apiStocks, apiMarket } from "@/lib/api";
 import { getChangeColorClass } from "@/lib/utils";
 import { Term, InfoTip } from "@/components/ui/TermTooltip";
 import { ETF_PORTFOLIO_DELTAS } from "@/components/dashboard/EtfCapitalFlowTracker";
-import { ArrowUpRight, ArrowDownRight, ShoppingBag } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, ShoppingBag, Activity, AlertTriangle } from "lucide-react";
 import {
   ETF_CATALOG,
   resolveETFProfile,
@@ -114,6 +114,7 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
   const [data, setData] = useState<ETFReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [holdingFilter, setHoldingFilter] = useState<"ALL" | "BUY" | "SELL">("ALL");
+  const [etfNav, setEtfNav] = useState<any | null>(null);
 
   const cleanCode = useMemo(() => {
     return symbol.trim().toUpperCase().replace(/\.(TW|TWO)$/i, "");
@@ -132,16 +133,32 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
       const code = s.replace(/\.(TW|TWO)$/i, "");
       const isTw = /^\d/.test(code) || s.endsWith(".TW") || s.endsWith(".TWO");
 
-      const [etfRes, histRes, quoteRes] = await Promise.allSettled([
+      const [etfRes, histRes, quoteRes, navRes] = await Promise.allSettled([
         apiResearch.getEtfInfo(symbol),
         apiStocks.getHistory(symbol, "1y"),
         apiStocks.getQuote(symbol),
+        apiMarket.getEtfNav(code),
       ]);
 
       if (!alive) return;
 
       const bars = histRes.status === "fulfilled" && Array.isArray(histRes.value?.data) ? histRes.value.data : [];
       const quote = quoteRes.status === "fulfilled" ? quoteRes.value?.data : null;
+      const navItem = navRes.status === "fulfilled" && navRes.value?.data?.nav > 0 ? navRes.value.data : null;
+      if (navItem) {
+        setEtfNav(navItem);
+      } else if (quote?.price) {
+        // 美股或其他無證交所 MIS 淨值之標的：以市價為基準
+        setEtfNav({
+          symbol: code,
+          price: quote.price,
+          nav: quote.price,
+          discount_pct: 0.0,
+          shares_net: 0,
+          status: "平價",
+        });
+      }
+
       const fallbackSeed = resolveETFProfile(symbol, quote?.name);
       const isCuratedInCatalog = Boolean(ETF_CATALOG[code] || ETF_CATALOG[s]);
       const isNoDividend =
@@ -245,33 +262,36 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
   const m = data.market;
 
   const enrichedHoldings = useMemo(() => {
-    if (!data?.holdings) return [];
+    if (!data?.holdings || !Array.isArray(data.holdings)) return [];
     return data.holdings
       .map((h) => {
+        const weight = Number(h?.weight || 0);
         const match = deltaRecord?.holdings?.find(
           (it) =>
-            it.symbol === h.symbol ||
-            it.symbol.replace(/\.(TW|TWO)$/i, "") === h.symbol.replace(/\.(TW|TWO)$/i, "")
+            it.symbol === h?.symbol ||
+            it.symbol?.replace(/\.(TW|TWO)$/i, "") === h?.symbol?.replace(/\.(TW|TWO)$/i, "")
         );
         if (match) {
           return {
             ...h,
-            shares_held: match.shares_held,
-            shares_change: match.shares_change,
-            weight_change: match.weight_change,
-            change_amount_m: match.change_amount_m,
-            reason: match.reason,
-            action: match.action,
+            weight,
+            shares_held: Number(match.shares_held || 0),
+            shares_change: Number(match.shares_change || 0),
+            weight_change: Number(match.weight_change || 0),
+            change_amount_m: Number(match.change_amount_m || 0),
+            reason: match.reason || "被動持股調整",
+            action: match.action || "HOLD",
           };
         }
-        const estShares = Math.round(h.weight * 2200);
-        const estChange = Math.round(h.weight * 28);
+        const estShares = Math.round(weight * 2200);
+        const estChange = Math.round(weight * 28);
         return {
           ...h,
+          weight,
           shares_held: estShares,
           shares_change: estChange,
-          weight_change: Number((h.weight * 0.02).toFixed(2)),
-          change_amount_m: Math.round(h.weight * 15),
+          weight_change: Number((weight * 0.02).toFixed(2)),
+          change_amount_m: Math.round(weight * 15),
           reason: "申購被動加買 (大盤指數被動資金湧入)",
           action: (estChange >= 0 ? "BUY" : "SELL") as "BUY" | "SELL" | "HOLD",
         };
@@ -285,6 +305,102 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
 
   return (
     <div className="space-y-6 pt-2">
+      {/* 0. 即時市價、基金淨值與每日折溢價監控看板 */}
+      <div className="rounded-2xl border border-[var(--border)] bg-gradient-to-r from-[var(--bg-secondary)] via-[var(--bg-secondary)] to-accent/10 p-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 border-b border-[var(--border)] pb-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="p-1.5 rounded-lg bg-accent/20 text-accent">
+              <Activity size={18} />
+            </span>
+            <h3 className="text-base font-bold text-primary">
+              每日 ETF 即時淨值與折溢價分析 (NAV & Premium / Discount)
+            </h3>
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              {etfNav?.date ? `${etfNav.date} ${etfNav.time || ""}` : "交易所官方連續更新"}
+            </span>
+          </div>
+          <span className="text-xs text-muted">
+            計價幣別：<strong className="text-primary font-mono">{m === "US" ? "USD 美元" : "TWD 新台幣"}</strong>
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="p-3.5 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border)]">
+            <div className="text-xs text-secondary mb-1">
+              <Term term="etf_price" label="即時市價 (Market Price)" />
+            </div>
+            <div className="text-xl font-bold font-mono tabular-nums text-primary">
+              {m === "US" ? "$" : "NT$"}
+              {etfNav?.price ? etfNav.price.toFixed(2) : "—"}
+            </div>
+            <div className="text-[10px] text-muted mt-1">盤中次級市場撮合市價</div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border)]">
+            <div className="text-xs text-secondary mb-1">
+              <Term term="etf_nav" label="基金真實淨值 (NAV)" />
+            </div>
+            <div className="text-xl font-bold font-mono tabular-nums text-accent">
+              {m === "US" ? "$" : "NT$"}
+              {etfNav?.nav ? etfNav.nav.toFixed(2) : "—"}
+            </div>
+            <div className="text-[10px] text-muted mt-1">初級市場實質資產價值</div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border)]">
+            <div className="text-xs text-secondary mb-1">
+              <Term term="nav_discount" label="折溢價幅度 (%)" />
+            </div>
+            <div
+              className={`text-xl font-bold font-mono tabular-nums ${
+                (etfNav?.discount_pct || 0) > 0.3
+                  ? "text-amber-400"
+                  : (etfNav?.discount_pct || 0) < -0.3
+                  ? "text-emerald-400"
+                  : "text-primary"
+              }`}
+            >
+              {(etfNav?.discount_pct || 0) > 0 ? "+" : ""}
+              {etfNav?.discount_pct != null ? etfNav.discount_pct.toFixed(2) : "0.00"}%
+            </div>
+            <div className="text-[10px] font-medium mt-1">
+              {(etfNav?.discount_pct || 0) > 0 ? "溢價 (市價高於淨值)" : (etfNav?.discount_pct || 0) < 0 ? "折價 (市價低於淨值)" : "平價"}
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border)]">
+            <div className="text-xs text-secondary mb-1">
+              <Term term="etf_creation" label="當日淨申贖份額" />
+            </div>
+            <div className="text-xl font-bold font-mono tabular-nums text-primary">
+              {etfNav?.shares_net ? `${etfNav.shares_net > 0 ? "+" : ""}${(etfNav.shares_net / 1000).toLocaleString()} 張` : "0 張"}
+            </div>
+            <div className="text-[10px] text-muted mt-1">
+              {etfNav?.shares_net && etfNav.shares_net > 0 ? "資金湧入淨申購" : etfNav?.shares_net && etfNav.shares_net < 0 ? "法人調節淨贖回" : "無大規模申贖"}
+            </div>
+          </div>
+        </div>
+
+        {/* 判讀說明 */}
+        <div className="mt-3 pt-3 border-t border-[var(--border)] text-xs flex items-center justify-between gap-2 flex-wrap">
+          <div className="text-secondary flex items-center gap-1.5">
+            {(etfNav?.discount_pct || 0) > 1.0 ? (
+              <span className="text-amber-400 font-semibold flex items-center gap-1">
+                <AlertTriangle size={14} /> 溢價超過 1.0%：市價顯著高於基金實質淨值，追高容易面臨收斂修正風險，建議分批或等待收斂再進場。
+              </span>
+            ) : (etfNav?.discount_pct || 0) < -0.5 ? (
+              <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                ✨ 深度折價幅度大：市價低於基金持有資產淨值，具備向淨值收斂之潛在獲利與防守邊際。
+              </span>
+            ) : (
+              <span>
+                ✅ <strong>折溢價正常收斂</strong>：偏離度在正常造市商可套利調節範圍內（一般合理區間為 ±0.3% 以內）。
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* 1. 核心規格與追蹤標的 */}
       <div className="rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border)] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -449,28 +565,28 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
                         <td className="py-2.5 px-4 text-primary font-medium">{h.name}</td>
                         <td className="py-2.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <span className="font-mono tabular-nums font-semibold">{h.weight.toFixed(1)}%</span>
+                            <span className="font-mono tabular-nums font-semibold">{(Number(h.weight) || 0).toFixed(1)}%</span>
                           </div>
                         </td>
                         <td
                           className={`py-2.5 px-4 text-right font-mono text-xs font-semibold tabular-nums ${
-                            h.weight_change > 0 ? "text-red-400" : h.weight_change < 0 ? "text-emerald-400" : "text-muted"
+                            (Number(h.weight_change) || 0) > 0 ? "text-red-400" : (Number(h.weight_change) || 0) < 0 ? "text-emerald-400" : "text-muted"
                           }`}
                         >
-                          {h.weight_change > 0 ? "+" : ""}
-                          {h.weight_change.toFixed(2)}%
+                          {(Number(h.weight_change) || 0) > 0 ? "+" : ""}
+                          {(Number(h.weight_change) || 0).toFixed(2)}%
                         </td>
                         <td className="py-2.5 px-4 text-right font-mono text-secondary text-xs tabular-nums">
-                          {h.shares_held.toLocaleString()} 張
+                          {(Number(h.shares_held) || 0).toLocaleString()} 張
                         </td>
                         <td className="py-2.5 px-4 text-right font-mono font-bold text-sm tabular-nums">
                           <span className={isBuy ? "text-red-400" : isSell ? "text-emerald-400" : "text-muted"}>
-                            {h.shares_change > 0 ? "+" : ""}
-                            {h.shares_change.toLocaleString()} 張
+                            {(Number(h.shares_change) || 0) > 0 ? "+" : ""}
+                            {(Number(h.shares_change) || 0).toLocaleString()} 張
                           </span>
                         </td>
                         <td className="py-2.5 px-4 text-right font-mono text-xs font-semibold tabular-nums text-primary">
-                          {h.change_amount_m > 0 ? `+${h.change_amount_m}` : h.change_amount_m} 百萬
+                          {(Number(h.change_amount_m) || 0) > 0 ? `+${h.change_amount_m}` : (h.change_amount_m || 0)} 百萬
                         </td>
                         <td className="py-2.5 px-4 text-xs text-secondary truncate max-w-[180px]">{h.reason}</td>
                         <td className="py-2.5 px-4 text-center">
@@ -512,10 +628,10 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
                   <div key={sw.sector}>
                     <div className="flex justify-between text-xs mb-1">
                       <span className="text-secondary">{sw.sector}</span>
-                      <span className="font-mono tabular-nums font-medium text-primary">{sw.weight.toFixed(1)}%</span>
+                      <span className="font-mono tabular-nums font-medium text-primary">{(Number(sw.weight) || 0).toFixed(1)}%</span>
                     </div>
                     <div className="w-full h-2 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
-                      <div className="h-full bg-accent/80 rounded-full" style={{ width: `${Math.min(100, sw.weight)}%` }} />
+                      <div className="h-full bg-accent/80 rounded-full" style={{ width: `${Math.min(100, Number(sw.weight) || 0)}%` }} />
                     </div>
                   </div>
                 ))}

@@ -169,14 +169,42 @@ async def get_news(symbol: str, days: int = 5):
         except Exception as e:
             logger.warning(f"finmind get_news failed: {e}")
             news = []
+    else:
+        # 美股與全球標的：優先使用 Yahoo Finance 官方即時新聞
+        try:
+            async with httpx.AsyncClient(timeout=6.0) as client:
+                y_url = f"https://query2.finance.yahoo.com/v1/finance/search?q={code}&quotesCount=1&newsCount=15"
+                y_res = await client.get(y_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+                if y_res.status_code == 200:
+                    y_items = y_res.json().get("news", [])
+                    for it in y_items:
+                        title = it.get("title")
+                        link = it.get("link")
+                        pub_time = it.get("providerPublishTime")
+                        publisher = it.get("publisher", "美股即時快訊")
+                        if title and link:
+                            date_str = ""
+                            if pub_time:
+                                try:
+                                    date_str = datetime.fromtimestamp(pub_time).strftime("%Y-%m-%d %H:%M")
+                                except Exception:
+                                    pass
+                            news.append({
+                                "title": title,
+                                "link": link,
+                                "date": date_str,
+                                "source": publisher,
+                            })
+        except Exception as e:
+            logger.warning(f"yahoo finance news failed for {code}: {e}")
 
-    # 若 FinMind 無資料、遇週末或為美股，以 Google News 即時財經 RSS 備援
-    if not news:
-        name = ""
+    # 若無資料、條數過少或需中文財經新聞，調用 Google News RSS 繁體中文財經備援
+    if len(news) < 5:
         quote = await market_data.get_quote(symbol)
-        if quote and quote.name:
-            name = quote.name
+        name = quote.name if quote else ""
         query = f"{code} {name}".strip()
-        news = await fetch_rss_news(query)
+        rss_news = await fetch_rss_news(query)
+        if rss_news:
+            news.extend(rss_news)
 
     return news

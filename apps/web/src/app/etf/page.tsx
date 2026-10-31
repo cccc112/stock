@@ -540,7 +540,16 @@ export default function EtfAndMultiAssetPage() {
                       </span>
                     </td>
                     <td className="text-right font-mono tabular-nums font-semibold">
-                      {item.price > 0 ? formatNumber(item.price, item.price < 10 ? 3 : 2) : "載入中..."}
+                      {item.price > 0 ? (
+                        <span>
+                          <span className="text-xs text-muted mr-1 font-normal">
+                            {item.market === "US" ? "USD $" : "NT$"}
+                          </span>
+                          {formatNumber(item.price, item.price < 10 ? 3 : 2)}
+                        </span>
+                      ) : (
+                        "載入中..."
+                      )}
                     </td>
                     <td className={`text-right font-mono tabular-nums ${getChangeColorClass(item.change, item.market)}`}>
                       {item.price > 0 ? `${item.change > 0 ? "+" : ""}${item.change.toFixed(2)}` : "—"}

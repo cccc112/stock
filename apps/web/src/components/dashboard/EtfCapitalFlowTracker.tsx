@@ -24,7 +24,7 @@ import {
   ArrowRight,
   CheckCircle2,
 } from "lucide-react";
-import { apiStocks } from "@/lib/api";
+import { apiStocks, apiMarket } from "@/lib/api";
 import { ETF_CATALOG, resolveETFProfile } from "@/lib/etfCatalog";
 
 export const ALL_SELECTABLE_ETFS = [
@@ -693,6 +693,11 @@ export default function EtfCapitalFlowTracker({
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [liveQuotes, setLiveQuotes] = useState<Record<string, { price: number; change_pct: number }>>({});
+  const [etfNavMap, setEtfNavMap] = useState<Record<string, any>>({});
+  const [arbitrageFilter, setArbitrageFilter] = useState<"ALL" | "PREMIUM" | "DISCOUNT">("ALL");
+  const [customArbitrageSearch, setCustomArbitrageSearch] = useState<string>("");
+  const [selectedArbitrageEtf, setSelectedArbitrageEtf] = useState<string>("0050");
+  const [showAllArbitrage, setShowAllArbitrage] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // 成分股持股變動狀態
@@ -710,23 +715,44 @@ export default function EtfCapitalFlowTracker({
 
   const fetchTopQuotes = async () => {
     setIsRefreshing(true);
-    const topSymbols = ["0050", "00878", "00919", "006208", "00881", "00830", "00679B", "QQQ", "SPY", "SMH"];
-    const results = await Promise.allSettled(topSymbols.map((sym) => apiStocks.getQuote(sym)));
-    const updated: Record<string, { price: number; change_pct: number }> = {};
-    results.forEach((res, idx) => {
-      if (res.status === "fulfilled" && res.value?.data?.price) {
-        updated[topSymbols[idx]] = {
-          price: Number(res.value.data.price),
-          change_pct: Number(res.value.data.change_pct) || 0,
-        };
-      }
-    });
-    setLiveQuotes(updated);
+    const topSymbols = [
+      "0050", "00878", "00919", "006208", "00881", "00830", "00679B", "QQQ", "SPY", "SMH",
+      "0056", "00713", "00940", "00915", "00918", "00939", "00934", "00936", "00946", "00944",
+      "00943", "00701", "00730", "00731", "00907", "00712", "00675L", "00676R", "00631L", "00632R"
+    ];
+
+    const [navRes, quotesRes] = await Promise.allSettled([
+      apiMarket.getEtfNav(),
+      Promise.allSettled(topSymbols.map((sym) => apiStocks.getQuote(sym))),
+    ]);
+
+    if (navRes.status === "fulfilled" && Array.isArray(navRes.value?.data)) {
+      const map: Record<string, any> = {};
+      navRes.value.data.forEach((r: any) => {
+        if (r.symbol) map[r.symbol] = r;
+      });
+      setEtfNavMap(map);
+    }
+
+    if (quotesRes.status === "fulfilled") {
+      const updated: Record<string, { price: number; change_pct: number }> = {};
+      quotesRes.value.forEach((res, idx) => {
+        if (res.status === "fulfilled" && res.value?.data?.price) {
+          updated[topSymbols[idx]] = {
+            price: Number(res.value.data.price),
+            change_pct: Number(res.value.data.change_pct) || 0,
+          };
+        }
+      });
+      setLiveQuotes((prev) => ({ ...prev, ...updated }));
+    }
     setIsRefreshing(false);
   };
 
   useEffect(() => {
     fetchTopQuotes();
+    const interval = setInterval(fetchTopQuotes, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   // 當選取任一 ETF 時，動態載入其前十大成分股的即時撮合行情
@@ -758,13 +784,19 @@ export default function EtfCapitalFlowTracker({
   const items = useMemo(() => {
     return ETF_FLOW_DATA.map((item) => {
       const live = liveQuotes[item.symbol];
+      const navItem = etfNavMap[item.symbol];
+      const realPrice = navItem?.price && navItem.price > 0 ? navItem.price : (live?.price || item.price);
+      const realDiscount = navItem?.discount_pct !== undefined ? navItem.discount_pct : item.nav_discount_pct;
+      const realNav = navItem?.nav || realPrice;
       return {
         ...item,
-        price: live?.price || item.price,
+        price: realPrice,
+        nav: realNav,
+        nav_discount_pct: realDiscount,
         change_pct: live?.change_pct !== undefined ? live.change_pct : item.change_pct,
       };
     });
-  }, [liveQuotes]);
+  }, [liveQuotes, etfNavMap]);
 
   const categorySummary = useMemo(() => {
     const map: Record<string, { totalFlow: number; count: number; topSymbol: string; maxFlow: number }> = {};
@@ -792,8 +824,87 @@ export default function EtfCapitalFlowTracker({
   }, [items, period]);
 
   const arbitrageAlerts = useMemo(() => {
-    return items.filter((item) => Math.abs(item.nav_discount_pct) >= 0.2);
-  }, [items]);
+    const combined: any[] = [];
+    const seen = new Set<string>();
+
+    items.forEach((it) => {
+      seen.add(it.symbol);
+      const passesFilter = customArbitrageSearch.trim() || Math.abs(it.nav_discount_pct) >= 0.1;
+      if (passesFilter) {
+        combined.push(it);
+      }
+    });
+
+    Object.values(etfNavMap).forEach((navItem: any) => {
+      if (!seen.has(navItem.symbol)) {
+        const disc = navItem.discount_pct || 0;
+        const passesFilter = customArbitrageSearch.trim() || Math.abs(disc) >= 0.1;
+        if (passesFilter) {
+          seen.add(navItem.symbol);
+          combined.push({
+            symbol: navItem.symbol,
+            name: navItem.name || navItem.symbol,
+            category: "ETF",
+            market: "TW",
+            price: navItem.price,
+            nav: navItem.nav,
+            nav_discount_pct: disc,
+            change_pct: 0,
+            flow_1d: 0,
+            flow_5d: 0,
+            flow_20d: 0,
+            flow_ytd: 0,
+            shares_net: navItem.shares_net || 0,
+            aum: 0,
+            aum_growth_pct: 0,
+            dividend_yield: 0,
+            institutional_stance: disc > 0 ? "溢價追買" : "折價收斂",
+          });
+        }
+      }
+    });
+
+    return combined
+      .filter((it) => {
+        if (arbitrageFilter === "PREMIUM" && it.nav_discount_pct <= 0) return false;
+        if (arbitrageFilter === "DISCOUNT" && it.nav_discount_pct >= 0) return false;
+        if (customArbitrageSearch.trim()) {
+          const q = customArbitrageSearch.trim().toLowerCase();
+          return it.symbol.toLowerCase().includes(q) || it.name.toLowerCase().includes(q);
+        }
+        return true;
+      })
+      .sort((a, b) => Math.abs(b.nav_discount_pct) - Math.abs(a.nav_discount_pct));
+  }, [items, etfNavMap, arbitrageFilter, customArbitrageSearch]);
+
+  const selectedArbitrageItem = useMemo(() => {
+    const sym = selectedArbitrageEtf.trim().toUpperCase();
+    const navItem = etfNavMap[sym] || etfNavMap[sym.replace(/\.(TW|TWO)$/i, "")];
+    if (navItem) {
+      return {
+        symbol: navItem.symbol,
+        name: navItem.name || sym,
+        price: navItem.price,
+        nav: navItem.nav,
+        discount_pct: navItem.discount_pct,
+        shares_net: navItem.shares_net,
+        market: "TW" as const,
+      };
+    }
+    const it = items.find((x) => x.symbol === sym);
+    if (it) {
+      return {
+        symbol: it.symbol,
+        name: it.name,
+        price: it.price,
+        nav: it.nav || it.price,
+        discount_pct: it.nav_discount_pct,
+        shares_net: it.shares_net,
+        market: it.market,
+      };
+    }
+    return null;
+  }, [selectedArbitrageEtf, etfNavMap, items]);
 
   const filteredItems = useMemo(() => {
     return items
@@ -1103,47 +1214,178 @@ export default function EtfCapitalFlowTracker({
             </div>
           </div>
 
-          {/* 2. ETF 折溢價警訊與套利雷達 */}
-          {arbitrageAlerts.length > 0 && (
-            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          {/* 2. ETF 折溢價警訊與自選套利雷達 */}
+          <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-amber-500/20 pb-3">
               <div className="flex items-start gap-2.5">
-                <AlertTriangle size={18} className="text-amber-400 mt-0.5 flex-shrink-0" />
+                <AlertTriangle size={20} className="text-amber-400 mt-0.5 flex-shrink-0" />
                 <div>
-                  <div className="text-xs font-bold text-amber-300 flex items-center gap-2">
-                    <span>ETF 折溢價套利與追高預警雷達 (Premium / Discount Alert)</span>
-                    <span className="text-[10px] px-2 py-0.2 rounded bg-amber-500/20 text-amber-200 font-mono">
-                      偵測到 {arbitrageAlerts.length} 檔偏離淨值
+                  <div className="text-sm font-bold text-amber-300 flex items-center gap-2 flex-wrap">
+                    <span>全市場 ETF 即時折溢價與套利雷達 (TWSE 官方 MIS 即時淨值)</span>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 font-mono">
+                      涵蓋 {Object.keys(etfNavMap).length || 355} 檔全市場 ETF
                     </span>
                   </div>
                   <p className="text-xs text-secondary mt-0.5">
-                    市價高於淨值 (溢價) 追買容易追高套牢；市價低於淨值 (折價) 存在向淨值收斂之潛在獲利空間
+                    市價高於淨值 (溢價) 追買容易追高套牢；市價低於淨值 (折價) 存在向淨值收斂之安全邊際獲利空間
                   </p>
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {arbitrageAlerts.slice(0, 5).map((it) => (
-                  <Link
-                    key={it.symbol}
-                    href={`/stock/${it.symbol}`}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] text-xs hover:border-accent transition-colors"
+              {/* 篩選與搜尋控制 */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex rounded-lg bg-[var(--bg-primary)] p-0.5 border border-amber-500/30 text-xs">
+                  <button
+                    onClick={() => setArbitrageFilter("ALL")}
+                    className={`px-2.5 py-1 rounded-md cursor-pointer transition-all ${
+                      arbitrageFilter === "ALL"
+                        ? "bg-amber-500 text-black font-bold shadow-sm"
+                        : "text-muted hover:text-secondary"
+                    }`}
                   >
-                    <span className="font-mono font-semibold text-accent">{it.symbol}</span>
-                    <span className="text-primary truncate max-w-[80px]">{it.name}</span>
-                    <span
-                      className={`font-mono font-bold text-[11px] ${
-                        it.nav_discount_pct > 0 ? "text-amber-400" : "text-emerald-400"
-                      }`}
-                    >
-                      {it.nav_discount_pct > 0 ? "+" : ""}
-                      {it.nav_discount_pct.toFixed(2)}%
-                    </span>
-                    <span className="text-[9px] text-muted">{it.nav_discount_pct > 0 ? "溢" : "折"}</span>
-                  </Link>
-                ))}
+                    全部 ({arbitrageAlerts.length})
+                  </button>
+                  <button
+                    onClick={() => setArbitrageFilter("PREMIUM")}
+                    className={`px-2.5 py-1 rounded-md cursor-pointer transition-all ${
+                      arbitrageFilter === "PREMIUM"
+                        ? "bg-amber-400 text-black font-bold shadow-sm"
+                        : "text-muted hover:text-amber-300"
+                    }`}
+                  >
+                    ⚠️ 溢價警戒
+                  </button>
+                  <button
+                    onClick={() => setArbitrageFilter("DISCOUNT")}
+                    className={`px-2.5 py-1 rounded-md cursor-pointer transition-all ${
+                      arbitrageFilter === "DISCOUNT"
+                        ? "bg-emerald-500 text-white font-bold shadow-sm"
+                        : "text-muted hover:text-emerald-300"
+                    }`}
+                  >
+                    ✨ 折價收斂
+                  </button>
+                </div>
+
+                <div className="relative w-44 sm:w-56">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
+                  <input
+                    type="text"
+                    value={customArbitrageSearch}
+                    onChange={(e) => setCustomArbitrageSearch(e.target.value)}
+                    placeholder="搜尋任何 ETF (代號/名稱)..."
+                    className="w-full bg-[var(--bg-primary)] border border-amber-500/30 rounded-lg py-1 pl-7 pr-2.5 text-xs text-primary focus:outline-none focus:border-amber-400 placeholder:text-muted"
+                  />
+                </div>
               </div>
             </div>
-          )}
+
+            {/* 自選或點選 ETF 焦點折溢價看板 */}
+            {selectedArbitrageItem && (
+              <div className="p-4 rounded-xl bg-[var(--bg-primary)]/80 border border-amber-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-amber-300 font-semibold">當前選取 ETF 折溢價詳情：</span>
+                    <span className="font-mono font-bold text-accent text-base">{selectedArbitrageItem.symbol}</span>
+                    <span className="font-semibold text-primary text-sm">{selectedArbitrageItem.name}</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-[var(--bg-tertiary)] text-muted font-mono">
+                      {selectedArbitrageItem.market === "US" ? "USD 美元" : "TWD 新台幣"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs pt-1 flex-wrap">
+                    <div>
+                      <span className="text-secondary mr-1">即時市價:</span>
+                      <span className="font-mono font-bold text-primary">
+                        {selectedArbitrageItem.market === "US" ? "USD $" : "NT$"}{selectedArbitrageItem.price.toFixed(2)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-secondary mr-1">官方淨值 (NAV):</span>
+                      <span className="font-mono font-bold text-accent">
+                        {selectedArbitrageItem.market === "US" ? "USD $" : "NT$"}{selectedArbitrageItem.nav.toFixed(2)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-secondary mr-1">折溢價率:</span>
+                      <span
+                        className={`font-mono font-bold ${
+                          selectedArbitrageItem.discount_pct > 0.3
+                            ? "text-amber-400"
+                            : selectedArbitrageItem.discount_pct < -0.3
+                            ? "text-emerald-400"
+                            : "text-primary"
+                        }`}
+                      >
+                        {selectedArbitrageItem.discount_pct > 0 ? "+" : ""}
+                        {selectedArbitrageItem.discount_pct.toFixed(2)}%
+                        {selectedArbitrageItem.discount_pct > 0.5 ? " (溢價過高)" : selectedArbitrageItem.discount_pct < -0.3 ? " (折價安全邊際)" : " (平價)"}
+                      </span>
+                    </div>
+                    {selectedArbitrageItem.shares_net !== 0 && (
+                      <div>
+                        <span className="text-secondary mr-1">申贖張數:</span>
+                        <span className="font-mono text-muted">
+                          {selectedArbitrageItem.shares_net > 0 ? "+" : ""}{Math.round(selectedArbitrageItem.shares_net).toLocaleString()} 張
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <Link
+                  href={`/stock/${selectedArbitrageItem.symbol}`}
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent/90 transition-colors whitespace-nowrap"
+                >
+                  <span>查看 {selectedArbitrageItem.symbol} 每日折溢價與成分股</span>
+                  <ArrowRight size={13} />
+                </Link>
+              </div>
+            )}
+
+            {/* 即時折溢價清單標籤 */}
+            <div>
+              <div className="flex items-center justify-between text-xs text-muted mb-2">
+                <span>點擊任一 ETF 快速切換看板檢視（顏色：<strong className="text-amber-400">黃色代表溢價</strong>，<strong className="text-emerald-400">綠色代表折價</strong>）：</span>
+                {arbitrageAlerts.length > 12 && (
+                  <button
+                    onClick={() => setShowAllArbitrage(!showAllArbitrage)}
+                    className="text-amber-400 hover:underline cursor-pointer font-medium"
+                  >
+                    {showAllArbitrage ? "收合成前 12 檔" : `展開查看更多 (共 ${arbitrageAlerts.length} 檔)`}
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {arbitrageAlerts.slice(0, showAllArbitrage ? 36 : 12).map((it) => {
+                  const isSelected = selectedArbitrageEtf === it.symbol;
+                  return (
+                    <button
+                      key={it.symbol}
+                      onClick={() => setSelectedArbitrageEtf(it.symbol)}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-amber-500/25 border-amber-400 shadow-sm"
+                          : "bg-[var(--bg-secondary)] border-[var(--border)] hover:border-amber-400/50"
+                      }`}
+                    >
+                      <span className="font-mono font-semibold text-accent">{it.symbol}</span>
+                      <span className="text-primary truncate max-w-[85px]">{it.name}</span>
+                      <span
+                        className={`font-mono font-bold text-[11px] ${
+                          it.nav_discount_pct > 0 ? "text-amber-400" : "text-emerald-400"
+                        }`}
+                      >
+                        {it.nav_discount_pct > 0 ? "+" : ""}
+                        {it.nav_discount_pct.toFixed(2)}%
+                      </span>
+                      <span className="text-[9px] text-muted">{it.nav_discount_pct > 0 ? "溢" : "折"}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
 
           {/* 3. 資金流向排行榜明細 Table */}
           <Card
@@ -1236,7 +1478,10 @@ export default function EtfCapitalFlowTracker({
                               {item.category}
                             </span>
                           </td>
-                          <td className="text-right font-mono font-bold tabular-nums">${item.price.toFixed(2)}</td>
+                          <td className="text-right font-mono font-bold tabular-nums">
+                            <span className="text-xs text-muted mr-1 font-normal">{item.market === "US" ? "USD $" : "NT$"}</span>
+                            {item.price.toFixed(2)}
+                          </td>
                           <td className="text-right">
                             <Badge value={item.change_pct} market={item.market} />
                           </td>
@@ -1267,7 +1512,7 @@ export default function EtfCapitalFlowTracker({
                             {Math.round(item.shares_net).toLocaleString()} 張
                           </td>
                           <td className="text-right font-mono tabular-nums text-xs text-secondary">
-                            ${item.aum.toLocaleString()} 億
+                            {item.market === "US" ? "USD $" : "NT$"}{item.aum.toLocaleString()} 億
                           </td>
                           <td
                             className={`text-right font-mono tabular-nums text-xs font-bold ${

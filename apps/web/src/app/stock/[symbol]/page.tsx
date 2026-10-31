@@ -151,10 +151,15 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-3xl font-bold font-mono tracking-tight">{stock.symbol}</h1>
             <span className="text-lg text-secondary font-medium">{stock.name}</span>
-            <span className="text-xs px-2.5 py-0.5 rounded bg-[var(--bg-tertiary)] border border-[var(--border)] text-secondary font-mono">{market}</span>
+            <span className={`text-xs px-2.5 py-0.5 rounded font-mono font-medium ${market === 'US' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'}`}>
+              {market === 'US' ? '美股 (USD 美元計價)' : '台股 (TWD 新台幣)'}
+            </span>
           </div>
           <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-bold font-mono tabular-nums">{formatNumber(stock.price, 2)}</span>
+            <span className="text-3xl font-bold font-mono tabular-nums">
+              <span className="text-xl text-secondary mr-1 font-semibold">{market === 'US' ? 'USD $' : 'NT$'}</span>
+              {formatNumber(stock.price, 2)}
+            </span>
             <span className={`text-base font-mono tabular-nums font-medium ${getChangeColorClass(stock.change, market)}`}>
               {stock.change > 0 ? '+' : ''}{stock.change.toFixed(2)} ({stock.change_pct > 0 ? '+' : ''}{stock.change_pct.toFixed(2)}%)
             </span>
@@ -434,12 +439,12 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
             </Card>
           )}
 
-          <Card title="今日行情明細">
+          <Card title={`今日行情明細 (${market === 'US' ? 'USD 美元' : 'TWD 新台幣'})`}>
             <div className="divide-y divide-[var(--border)] text-sm">
-              <div className="flex justify-between py-2.5"><span className="text-secondary">開盤價</span><span className="font-mono tabular-nums font-medium">{formatNumber(stock.open, 2)}</span></div>
-              <div className="flex justify-between py-2.5"><span className="text-secondary">最高價</span><span className="font-mono tabular-nums font-medium">{formatNumber(stock.high, 2)}</span></div>
-              <div className="flex justify-between py-2.5"><span className="text-secondary">最低價</span><span className="font-mono tabular-nums font-medium">{formatNumber(stock.low, 2)}</span></div>
-              <div className="flex justify-between py-2.5"><span className="text-secondary">昨收價</span><span className="font-mono tabular-nums font-medium">{formatNumber(stock.prev_close, 2)}</span></div>
+              <div className="flex justify-between py-2.5"><span className="text-secondary">開盤價</span><span className="font-mono tabular-nums font-medium">{market === 'US' ? '$' : 'NT$'}{formatNumber(stock.open, 2)}</span></div>
+              <div className="flex justify-between py-2.5"><span className="text-secondary">最高價</span><span className="font-mono tabular-nums font-medium">{market === 'US' ? '$' : 'NT$'}{formatNumber(stock.high, 2)}</span></div>
+              <div className="flex justify-between py-2.5"><span className="text-secondary">最低價</span><span className="font-mono tabular-nums font-medium">{market === 'US' ? '$' : 'NT$'}{formatNumber(stock.low, 2)}</span></div>
+              <div className="flex justify-between py-2.5"><span className="text-secondary">昨收價</span><span className="font-mono tabular-nums font-medium">{market === 'US' ? '$' : 'NT$'}{formatNumber(stock.prev_close, 2)}</span></div>
               <div className="flex justify-between py-2.5"><span className="text-secondary">成交量</span><span className="font-mono tabular-nums font-medium">{formatVolume(stock.volume)}</span></div>
             </div>
           </Card>

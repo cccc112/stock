@@ -328,3 +328,41 @@ async def get_multi_assets():
     if valid:
         await cache_service.set(cache_key, json.dumps(valid), ttl=120)
     return valid
+
+
+@router.get("/etf-nav")
+async def get_etf_nav(symbol: str = ""):
+    """從證交所 MIS 抓取全市場 350+ 檔 ETF 即時市價、基金淨值、折溢價率與申贖動向"""
+    cache_key = "market:etf-nav-all"
+    cached = await cache_service.get(cache_key)
+    records = []
+    if cached:
+        try:
+            records = json.loads(cached)
+        except Exception:
+            records = []
+
+    if not records:
+        from app.services.twse import twse_service
+        records = await twse_service.fetch_etf_nav_records()
+        if records:
+            await cache_service.set(cache_key, json.dumps(records), ttl=30)
+
+    if symbol:
+        clean = symbol.strip().upper().replace(".TW", "").replace(".TWO", "")
+        for r in records:
+            if r.get("symbol") == clean:
+                return r
+        # 若未找到，回傳基礎結構
+        return {
+            "symbol": clean,
+            "name": clean,
+            "price": 0.0,
+            "nav": 0.0,
+            "discount_pct": 0.0,
+            "status": "平價",
+            "date": "",
+            "time": "",
+        }
+
+    return records

@@ -78,10 +78,11 @@ export default function TrendingPanel() {
   });
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string>("");
 
   const fetchRankings = useCallback(async (isManual = false) => {
     if (isManual) setIsRefreshing(true);
-    else setLoading(true);
+    else if (!lastUpdated) setLoading(true);
 
     try {
       // 1. 優先嘗試後端真實全市場 OpenAPI rankings 端點
@@ -119,9 +120,9 @@ export default function TrendingPanel() {
         }
       }
 
-      // 3. 並行向即時行情池動態請求上市熱門股 (涵蓋半導體、AI、散熱、航運等 24 檔)
-      if (twseList.length === 0 || twseList.every((s) => !s.price || s.price === 0) || isManual) {
-        const poolToFetch = isManual ? [...TWSE_POOLS].sort(() => 0.5 - Math.random()).slice(0, 16) : TWSE_POOLS.slice(0, 16);
+      // 3. 自動同步上市熱門股即時撮合價 (無論手動或定時自動輪詢皆更新)
+      if (twseList.length === 0 || twseList.every((s) => !s.price || s.price === 0)) {
+        const poolToFetch = TWSE_POOLS.slice(0, 16);
         const quotes = await Promise.allSettled(
           poolToFetch.map((sym) => apiStocks.getQuote(sym))
         );
@@ -147,9 +148,9 @@ export default function TrendingPanel() {
         }
       }
 
-      // 4. 對 TPEx (上櫃) 並行向主機請求即時報價池 (涵蓋矽智財、散熱、半導體設備等 18 檔)
-      if (tpexList.length === 0 || tpexList.every((s) => !s.price || s.price === 0) || isManual) {
-        const tpexPoolToFetch = isManual ? [...TPEX_POOLS].sort(() => 0.5 - Math.random()).slice(0, 14) : TPEX_POOLS.slice(0, 14);
+      // 4. 對 TPEx (上櫃) 並行同步即時報價池
+      if (tpexList.length === 0 || tpexList.every((s) => !s.price || s.price === 0)) {
+        const tpexPoolToFetch = TPEX_POOLS.slice(0, 14);
         const tpexQuotes = await Promise.allSettled(
           tpexPoolToFetch.map((sym) => apiStocks.getQuote(sym))
         );
@@ -189,17 +190,26 @@ export default function TrendingPanel() {
         twse: twseList.length ? twseList : DEFAULT_TWSE,
         tpex: tpexList.length ? tpexList : DEFAULT_TPEX,
       });
+      setLastUpdated(
+        new Date().toLocaleTimeString("zh-TW", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        })
+      );
     } catch (err) {
       console.error("Failed to load market rankings:", err);
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [sortType]);
+  }, [sortType, lastUpdated]);
 
   useEffect(() => {
     fetchRankings();
-    const interval = setInterval(() => fetchRankings(), 30000);
+    // 盤中每 15 秒自動輪詢最新成交量價與排行
+    const interval = setInterval(() => fetchRankings(false), 15000);
     return () => clearInterval(interval);
   }, [fetchRankings]);
 
@@ -222,6 +232,11 @@ export default function TrendingPanel() {
       subtitle="即時連線證交所與櫃買中心成交動態，支援成交量、成交值與強勢榜切換"
       headerAction={
         <div className="flex items-center gap-2">
+          {lastUpdated && (
+            <span className="text-[11px] font-mono text-accent/80 hidden sm:inline">
+              15秒自動同步 ({lastUpdated})
+            </span>
+          )}
           <button
             onClick={() => fetchRankings(true)}
             disabled={isRefreshing}
@@ -338,7 +353,14 @@ export default function TrendingPanel() {
                       </div>
                     </td>
                     <td className="text-right font-mono font-semibold">
-                      {stock.price > 0 ? formatNumber(stock.price, 2) : "-"}
+                      {stock.price > 0 ? (
+                        <span>
+                          <span className="text-xs text-muted mr-1 font-normal">NT$</span>
+                          {formatNumber(stock.price, 2)}
+                        </span>
+                      ) : (
+                        "-"
+                      )}
                     </td>
                     <td
                       className={`text-right font-mono ${getChangeColorClass(

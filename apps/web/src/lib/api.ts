@@ -133,6 +133,7 @@ export const apiMarket = {
   getPopularETFs: () => api.get('/market/etfs'),
   getCapitalFlow: () => api.get('/market/capital-flow'),
   getMultiAssets: () => api.get('/market/multi-assets'),
+  getEtfNav: (symbol?: string) => api.get('/market/etf-nav', { params: symbol ? { symbol } : {} }),
 };
 
 export const apiResearch = {

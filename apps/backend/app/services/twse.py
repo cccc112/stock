@@ -123,4 +123,51 @@ class TWSEService:
         quotes = [res for res in results if isinstance(res, StockQuote)]
         return quotes
 
+    async def fetch_etf_nav_records(self) -> List[dict]:
+        """從證交所 MIS 抓取全市場 350+ 檔 ETF 即時市價、淨值、折溢價率與申贖動向"""
+        ts_now = int(time.time() * 1000)
+        url = f"https://mis.twse.com.tw/stock/data/all_etf.txt?_={ts_now}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": "https://mis.twse.com.tw/stock/etf_nav.jsp",
+        }
+        try:
+            r = await self.session.get(url, headers=headers)
+            if r.status_code != 200:
+                return []
+            data = r.json()
+            records = []
+            for key in data:
+                for group in data[key]:
+                    if isinstance(group, dict) and "msgArray" in group:
+                        for it in group["msgArray"]:
+                            code = str(it.get("a", "")).strip()
+                            if not code:
+                                continue
+                            try:
+                                price = float(str(it.get("e", 0)).replace(",", ""))
+                                nav = float(str(it.get("f", 0)).replace(",", ""))
+                                disc = float(str(it.get("g", 0)).replace(",", ""))
+                                prev_nav = float(str(it.get("h", 0)).replace(",", "")) if it.get("h") else nav
+                                shares_net = float(str(it.get("d", 0)).replace(",", ""))
+                                aum_units = float(str(it.get("c", 0)).replace(",", ""))
+                                records.append({
+                                    "symbol": code,
+                                    "name": str(it.get("b", code)).strip(),
+                                    "price": price,
+                                    "nav": nav,
+                                    "discount_pct": disc,
+                                    "prev_nav": prev_nav,
+                                    "shares_net": shares_net,
+                                    "aum_units": aum_units,
+                                    "date": str(it.get("i", "")),
+                                    "time": str(it.get("j", "")),
+                                    "status": "溢價" if disc > 0 else "折價" if disc < 0 else "平價",
+                                })
+                            except Exception:
+                                pass
+            return records
+        except Exception:
+            return []
+
 twse_service = TWSEService()
