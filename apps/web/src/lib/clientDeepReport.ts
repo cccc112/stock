@@ -1412,7 +1412,7 @@ export async function generateSmartAICommittee(symbol: string): Promise<any> {
     },
   ];
 
-  // 4. 三方專家即時交鋒互駁辯論 (Live Multi-Agent Debate)
+  // 4. 三方專家即時交鋒互駁辯論 (Multi-Agent Debate)
   let debate: any;
   if (isEtf && deep.etf_profile) {
     const ep = deep.etf_profile;

@@ -621,40 +621,55 @@ export default function LowPricePotentialScreener() {
     }
   };
 
-  // 即時報價同步
+  // 即時報價同步 (涵蓋資料庫所有 24+ 檔低價潛力股票)
+  const [lastUpdated, setLastUpdated] = useState<string>("");
+
   const fetchLiveQuotes = async () => {
     setIsRefreshing(true);
-    const topSymbols = LOW_PRICE_POTENTIAL_SEEDS.slice(0, 15).map((s) => s.symbol);
-    const results = await Promise.allSettled(topSymbols.map((sym) => apiStocks.getQuote(sym)));
+    const allSymbols = LOW_PRICE_POTENTIAL_SEEDS.map((s) => s.symbol);
+    const results = await Promise.allSettled(allSymbols.map((sym) => apiStocks.getQuote(sym)));
     const updated: Record<string, { price: number; change_pct: number }> = {};
     results.forEach((res, idx) => {
       if (res.status === "fulfilled" && res.value?.data?.price) {
-        updated[topSymbols[idx]] = {
+        updated[allSymbols[idx]] = {
           price: Number(res.value.data.price),
           change_pct: Number(res.value.data.change_pct) || 0,
         };
       }
     });
-    setLivePrices(updated);
+    setLivePrices((prev) => ({ ...prev, ...updated }));
+    setLastUpdated(new Date().toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }));
     setIsRefreshing(false);
   };
 
   useEffect(() => {
     fetchLiveQuotes();
+    const timer = setInterval(fetchLiveQuotes, 20000); // 每 20 秒自動同步最新盤中撮合價
+    return () => clearInterval(timer);
   }, []);
 
-  // 結合最新報價與過濾計算
+  // 結合最新即時報價與過濾計算
   const filteredAndSortedList = useMemo(() => {
     return LOW_PRICE_POTENTIAL_SEEDS.map((item) => {
       const live = livePrices[item.symbol];
-      const currentPrice = live?.price || item.price;
+      const currentPrice = live?.price && live.price > 0 ? live.price : item.price;
       const currentChangePct = live?.change_pct !== undefined ? live.change_pct : item.change_pct;
-      const upside = Number((((item.target_price - currentPrice) / currentPrice) * 100).toFixed(1));
+
+      // 依即時行情動態調校進場區間、停損與上檔目標空間
+      const ratio = item.price > 0 ? currentPrice / item.price : 1;
+      const targetPrice = Number((item.target_price * ratio).toFixed(1));
+      const stopLoss = Number((item.stop_loss * ratio).toFixed(1));
+      const entryLow = Number((item.entry_zone[0] * ratio).toFixed(1));
+      const entryHigh = Number((item.entry_zone[1] * ratio).toFixed(1));
+      const upside = Number((((targetPrice - currentPrice) / currentPrice) * 100).toFixed(1));
 
       return {
         ...item,
         price: currentPrice,
         change_pct: currentChangePct,
+        entry_zone: [entryLow, entryHigh] as [number, number],
+        stop_loss: stopLoss,
+        target_price: targetPrice,
         upside_pct: upside > 0 ? upside : item.upside_pct,
       };
     })
@@ -716,6 +731,7 @@ export default function LowPricePotentialScreener() {
             </div>
             <p className="text-xs text-secondary">
               聚焦 10~60 元銅板與中低價區間，鎖定底部爆量長紅突破、均線多頭發散、單季營運轉虧為盈與低股價淨值比安全邊際
+              {lastUpdated && <span className="ml-2 text-xs font-mono text-accent">⚡ 最新撮合報價：{lastUpdated}</span>}
             </p>
           </div>
 

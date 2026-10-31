@@ -129,7 +129,7 @@ export const apiSimulator = {
 
 export const apiMarket = {
   getTrending: () => api.get('/market/trending'),
-  getRankings: (limit: number = 10) => api.get('/market/rankings', { params: { limit } }),
+  getRankings: (limit: number = 10, sort_by: string = 'volume') => api.get('/market/rankings', { params: { limit, sort_by } }),
   getPopularETFs: () => api.get('/market/etfs'),
   getCapitalFlow: () => api.get('/market/capital-flow'),
   getMultiAssets: () => api.get('/market/multi-assets'),

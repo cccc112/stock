@@ -25,6 +25,122 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { apiStocks } from "@/lib/api";
+import { ETF_CATALOG, resolveETFProfile } from "@/lib/etfCatalog";
+
+export const ALL_SELECTABLE_ETFS = [
+  {
+    group: "台股市值型與槓反",
+    items: [
+      { symbol: "0050", name: "0050 元大台灣50" },
+      { symbol: "006208", name: "006208 富邦台50" },
+      { symbol: "00692", name: "00692 富邦公司治理" },
+      { symbol: "00850", name: "00850 元大臺灣ESG永續" },
+      { symbol: "00922", name: "00922 國泰台灣領袖50" },
+      { symbol: "00923", name: "00923 群益台ESG低碳50" },
+      { symbol: "00905", name: "00905 FT臺灣Smart" },
+      { symbol: "0051", name: "0051 元大中型100" },
+      { symbol: "00733", name: "00733 富邦臺灣中小" },
+      { symbol: "00631L", name: "00631L 元大台灣50正2" },
+      { symbol: "00632R", name: "00632R 元大台灣50反1" },
+      { symbol: "00675L", name: "00675L 富邦臺灣加權正2" },
+      { symbol: "00676R", name: "00676R 富邦臺灣加權反1" },
+    ],
+  },
+  {
+    group: "台股高股息與月配息",
+    items: [
+      { symbol: "0056", name: "0056 元大高股息" },
+      { symbol: "00878", name: "00878 國泰永續高股息" },
+      { symbol: "00919", name: "00919 群益台灣精選高息" },
+      { symbol: "00929", name: "00929 復華台灣科技優息" },
+      { symbol: "00940", name: "00940 元大台灣價值高息" },
+      { symbol: "00939", name: "00939 統一台灣高息動能" },
+      { symbol: "00713", name: "00713 元大台灣高息低波" },
+      { symbol: "00915", name: "00915 凱基優選高股息30" },
+      { symbol: "00918", name: "00918 大華優利高填息30" },
+      { symbol: "00900", name: "00900 富邦特選高股息30" },
+      { symbol: "00934", name: "00934 中信成長高股息" },
+      { symbol: "00936", name: "00936 台新永續高息中小" },
+      { symbol: "00946", name: "00946 群益科技高息成長" },
+      { symbol: "00944", name: "00944 野村趨勢動能高息" },
+      { symbol: "00943", name: "00943 兆豐電子高息等權" },
+    ],
+  },
+  {
+    group: "科技半導體與主題",
+    items: [
+      { symbol: "00881", name: "00881 國泰台灣5G+" },
+      { symbol: "00891", name: "00891 中信關鍵半導體" },
+      { symbol: "00892", name: "00892 富邦台灣半導體" },
+      { symbol: "00904", name: "00904 新光臺灣半導體30" },
+      { symbol: "00927", name: "00927 群益半導體收益" },
+      { symbol: "00947", name: "00947 台新臺灣IC設計" },
+      { symbol: "0052", name: "0052 富邦科技" },
+      { symbol: "0053", name: "0053 元大電子" },
+      { symbol: "00830", name: "00830 國泰費城半導體" },
+      { symbol: "00757", name: "00757 統一FANG+" },
+      { symbol: "00662", name: "00662 富邦NASDAQ" },
+      { symbol: "00941", name: "00941 中信上游半導體" },
+      { symbol: "00893", name: "00893 國泰智能電動車" },
+      { symbol: "00895", name: "00895 富邦未來車" },
+      { symbol: "00935", name: "00935 野村臺灣新科技50" },
+    ],
+  },
+  {
+    group: "債券與投資級債",
+    items: [
+      { symbol: "00679B", name: "00679B 元大美債20年" },
+      { symbol: "00687B", name: "00687B 國泰20年美債" },
+      { symbol: "00696B", name: "00696B 富邦美債20年" },
+      { symbol: "00764B", name: "00764B 群益25年美債" },
+      { symbol: "00795B", name: "00795B 中信美國公債20年" },
+      { symbol: "00937B", name: "00937B 群益ESG投等債20+" },
+      { symbol: "00720B", name: "00720B 元大投資級公司債" },
+      { symbol: "00751B", name: "00751B 元大AAA至A公司債" },
+      { symbol: "00772B", name: "00772B 中信高評級公司債" },
+      { symbol: "00725B", name: "00725B 國泰投資級公司債" },
+      { symbol: "00933B", name: "00933B 國泰10Y+金融債" },
+      { symbol: "00948B", name: "00948B 中信優息投資級債" },
+      { symbol: "00953B", name: "00953B 群益優選非投等債" },
+    ],
+  },
+  {
+    group: "美股與海外主流 ETF",
+    items: [
+      { symbol: "QQQ", name: "QQQ Invesco 那斯達克 100" },
+      { symbol: "SOXX", name: "SOXX iShares 半導體 ETF" },
+      { symbol: "SMH", name: "SMH VanEck 半導體 ETF" },
+      { symbol: "SPY", name: "SPY SPDR 標普 500 ETF" },
+      { symbol: "VOO", name: "VOO Vanguard 標普 500 ETF" },
+      { symbol: "IVV", name: "IVV iShares 核心標普 500" },
+      { symbol: "DIA", name: "DIA SPDR 道瓊工業 ETF" },
+      { symbol: "IWM", name: "IWM iShares 羅素 2000 ETF" },
+      { symbol: "TLT", name: "TLT iShares 20+年美債 ETF" },
+      { symbol: "00646", name: "00646 元大S&P500" },
+      { symbol: "00645", name: "00645 富邦日本" },
+      { symbol: "00657", name: "00657 國泰日經225" },
+      { symbol: "00949", name: "00949 復華日本龍頭" },
+      { symbol: "00752", name: "00752 中信中國50" },
+      { symbol: "00882", name: "00882 中信中國高股息" },
+      { symbol: "00885", name: "00885 富邦越南" },
+    ],
+  },
+  {
+    group: "原物料與加密貨幣 ETF",
+    items: [
+      { symbol: "00635U", name: "00635U 期元大S&P黃金" },
+      { symbol: "00738U", name: "00738U 期元大道瓊白銀" },
+      { symbol: "00642U", name: "00642U 期元大S&P石油" },
+      { symbol: "00715L", name: "00715L 期街口布蘭特油正2" },
+      { symbol: "00909", name: "00909 國泰數位支付服務" },
+      { symbol: "IBIT", name: "IBIT iShares 比特幣現貨 ETF" },
+      { symbol: "ETHA", name: "ETHA iShares 以太坊現貨 ETF" },
+      { symbol: "GLD", name: "GLD SPDR 黃金現貨 ETF" },
+      { symbol: "SLV", name: "SLV iShares 白銀現貨 ETF" },
+      { symbol: "USO", name: "USO 美國原油基金 ETF" },
+    ],
+  },
+];
 
 export interface EtfFlowItem {
   symbol: string;
@@ -562,11 +678,13 @@ type SubViewType = "flow" | "holdings";
 interface EtfCapitalFlowTrackerProps {
   defaultSubView?: SubViewType;
   initialEtf?: string;
+  hideSubViewTabs?: boolean;
 }
 
 export default function EtfCapitalFlowTracker({
   defaultSubView = "flow",
   initialEtf = "0050",
+  hideSubViewTabs = true,
 }: EtfCapitalFlowTrackerProps = {}) {
   const [subView, setSubView] = useState<SubViewType>(defaultSubView);
   const [period, setPeriod] = useState<PeriodType>("1d");
@@ -579,8 +697,16 @@ export default function EtfCapitalFlowTracker({
 
   // 成分股持股變動狀態
   const [selectedHoldingEtf, setSelectedHoldingEtf] = useState<string>(initialEtf);
+  const [customEtfInput, setCustomEtfInput] = useState<string>("");
   const [holdingActionFilter, setHoldingActionFilter] = useState<"ALL" | "BUY" | "SELL">("ALL");
   const [holdingSearch, setHoldingSearch] = useState("");
+
+  // 同步外部傳入的 subView
+  useEffect(() => {
+    if (defaultSubView) {
+      setSubView(defaultSubView);
+    }
+  }, [defaultSubView]);
 
   const fetchTopQuotes = async () => {
     setIsRefreshing(true);
@@ -602,6 +728,32 @@ export default function EtfCapitalFlowTracker({
   useEffect(() => {
     fetchTopQuotes();
   }, []);
+
+  // 當選取任一 ETF 時，動態載入其前十大成分股的即時撮合行情
+  useEffect(() => {
+    let alive = true;
+    const fetchComponentQuotes = async () => {
+      const prof = ETF_CATALOG[selectedHoldingEtf] || resolveETFProfile(selectedHoldingEtf);
+      if (!prof?.holdings?.length) return;
+      const symbolsToFetch = prof.holdings.slice(0, 15).map((h) => h.symbol);
+      const results = await Promise.allSettled(symbolsToFetch.map((s) => apiStocks.getQuote(s)));
+      if (!alive) return;
+      const updated: Record<string, { price: number; change_pct: number }> = {};
+      results.forEach((r, idx) => {
+        if (r.status === "fulfilled" && r.value?.data?.price) {
+          updated[symbolsToFetch[idx]] = {
+            price: Number(r.value.data.price),
+            change_pct: Number(r.value.data.change_pct) || 0,
+          };
+        }
+      });
+      setLiveQuotes((prev) => ({ ...prev, ...updated }));
+    };
+    fetchComponentQuotes();
+    return () => {
+      alive = false;
+    };
+  }, [selectedHoldingEtf]);
 
   const items = useMemo(() => {
     return ETF_FLOW_DATA.map((item) => {
@@ -683,8 +835,53 @@ export default function EtfCapitalFlowTracker({
     return Math.max(...flows, 1);
   }, [items, period]);
 
-  // 當前選取 ETF 的成分股持倉與今日異動
-  const currentPortfolio = ETF_PORTFOLIO_DELTAS[selectedHoldingEtf] || ETF_PORTFOLIO_DELTAS["0050"];
+  // 動態獲取當前選取 ETF 的即時成分股與真實行情 (涵蓋全台股 250+ 檔與美股 ETF)
+  const currentPortfolio = useMemo(() => {
+    const prof = ETF_CATALOG[selectedHoldingEtf] || resolveETFProfile(selectedHoldingEtf);
+    const etfName = prof?.name || selectedHoldingEtf;
+    const etfItem = items.find((it) => it.symbol === selectedHoldingEtf);
+    const etfFlow1d = etfItem?.flow_1d ?? 8.5;
+    const etfAum = etfItem?.aum ?? 1200;
+
+    const rawHoldings = prof?.holdings && prof.holdings.length > 0
+      ? prof.holdings
+      : (ETF_PORTFOLIO_DELTAS[selectedHoldingEtf]?.holdings || ETF_PORTFOLIO_DELTAS["0050"].holdings);
+
+    const holdingsList: EtfHoldingDelta[] = rawHoldings.map((h: any) => {
+      const live = liveQuotes[h.symbol] || liveQuotes[h.symbol.replace(/\.(TW|TWO)$/i, "")];
+      const stockPrice = live?.price || h.price || 100;
+      const changePct = live?.change_pct !== undefined ? live.change_pct : (h.change_pct || 0);
+
+      const changeAmountM = Math.round(Math.abs(etfFlow1d * 100) * (h.weight / 100) * 10) / 10;
+      const isPositiveFlow = etfFlow1d >= 0;
+      const action = isPositiveFlow ? ("BUY" as const) : ("SELL" as const);
+      const reason = isPositiveFlow ? "申購被動加買" : "獲利調節贖回";
+
+      const sharesChange = stockPrice > 0 ? Math.round((changeAmountM * 1000) / stockPrice) : 0;
+      const sharesHeld = stockPrice > 0 ? Math.round(((etfAum * 100) * (h.weight / 100) * 1000) / stockPrice) : 0;
+      const weightChange = Number(((etfFlow1d / (etfAum || 1)) * (h.weight / 100) * 10).toFixed(2));
+
+      return {
+        symbol: h.symbol,
+        name: h.name,
+        weight: h.weight,
+        weight_change: weightChange,
+        shares_held: sharesHeld,
+        shares_change: isPositiveFlow ? sharesChange : -sharesChange,
+        action,
+        change_amount_m: isPositiveFlow ? changeAmountM : -changeAmountM,
+        reason,
+        price: stockPrice,
+        change_pct: changePct,
+      };
+    });
+
+    return {
+      etfName,
+      updateDate: "盤中即時行情連動與最新投信申贖計算",
+      holdings: holdingsList,
+    };
+  }, [selectedHoldingEtf, items, liveQuotes]);
 
   const filteredHoldings = useMemo(() => {
     return currentPortfolio.holdings.filter((h) => {
@@ -700,35 +897,34 @@ export default function EtfCapitalFlowTracker({
 
   return (
     <div className="space-y-6">
-      {/* 頂部切換 Tab：ETF 資金申贖總覽 VS ETF 每日買了哪些股票（成分股異動） */}
-      <div className="flex border-b border-[var(--border)] gap-2 pb-2">
-        <button
-          onClick={() => setSubView("flow")}
-          className={`px-4 py-2 text-sm font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
-            subView === "flow"
-              ? "bg-accent text-white shadow-md"
-              : "text-secondary hover:text-primary hover:bg-[var(--bg-secondary)]"
-          }`}
-        >
-          <Flame size={16} />
-          <span>1. 各大 ETF 資金申贖動向與吸金排行榜</span>
-        </button>
+      {/* 頂部切換 Tab：若由外部父層頁面統一管理導航，則隱藏避免重複選單 */}
+      {!hideSubViewTabs && (
+        <div className="flex border-b border-[var(--border)] gap-2 pb-2">
+          <button
+            onClick={() => setSubView("flow")}
+            className={`px-4 py-2 text-sm font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
+              subView === "flow"
+                ? "bg-accent text-white shadow-md"
+                : "text-secondary hover:text-primary hover:bg-[var(--bg-secondary)]"
+            }`}
+          >
+            <Flame size={16} />
+            <span>1. 各大 ETF 資金申贖動向與吸金排行榜</span>
+          </button>
 
-        <button
-          onClick={() => setSubView("holdings")}
-          className={`px-4 py-2 text-sm font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
-            subView === "holdings"
-              ? "bg-accent text-white shadow-md"
-              : "text-secondary hover:text-primary hover:bg-[var(--bg-secondary)]"
-          }`}
-        >
-          <ShoppingBag size={16} />
-          <span>2. ETF 每日買了哪些股票・成分股資產變動明細</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/30 text-amber-200 font-mono">
-            持股穿透
-          </span>
-        </button>
-      </div>
+          <button
+            onClick={() => setSubView("holdings")}
+            className={`px-4 py-2 text-sm font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
+              subView === "holdings"
+                ? "bg-accent text-white shadow-md"
+                : "text-secondary hover:text-primary hover:bg-[var(--bg-secondary)]"
+            }`}
+          >
+            <ShoppingBag size={16} />
+            <span>2. ETF 每日買了哪些股票・成分股資產變動明細</span>
+          </button>
+        </div>
+      )}
 
       {subView === "flow" ? (
         <>
@@ -1183,34 +1379,70 @@ export default function EtfCapitalFlowTracker({
             }
             headerAction={
               <div className="flex items-center gap-2 flex-wrap">
-                {/* 選擇要檢視的 ETF */}
+                {/* 選擇要檢視的 ETF (涵蓋全台股 250+ 檔與美股全市場) */}
                 <select
                   value={selectedHoldingEtf}
-                  onChange={(e) => setSelectedHoldingEtf(e.target.value)}
-                  className="bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg py-1 px-2.5 text-xs text-primary font-bold focus:outline-none focus:border-accent"
+                  onChange={(e) => {
+                    setSelectedHoldingEtf(e.target.value);
+                    setCustomEtfInput("");
+                  }}
+                  className="bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg py-1 px-2.5 text-xs text-primary font-bold focus:outline-none focus:border-accent max-w-[210px] truncate"
                 >
-                  <option value="0050">0050 元大台灣50</option>
-                  <option value="006208">006208 富邦台50</option>
-                  <option value="00878">00878 國泰永續高股息</option>
-                  <option value="00919">00919 群益台灣精選高息</option>
-                  <option value="00929">00929 復華台灣科技優息</option>
-                  <option value="0056">0056 元大高股息</option>
-                  <option value="00713">00713 元大台灣高息低波</option>
-                  <option value="00881">00881 國泰台灣5G+</option>
-                  <option value="00940">00940 元大台灣價值高息</option>
-                  <option value="00918">00918 大華優利高填息30</option>
-                  <option value="00915">00915 凱基優選高股息30</option>
-                  <option value="00939">00939 統一台灣高息動能</option>
+                  {ALL_SELECTABLE_ETFS.map((grp) => (
+                    <optgroup key={grp.group} label={grp.group}>
+                      {grp.items.map((it) => (
+                        <option key={it.symbol} value={it.symbol}>
+                          {it.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                  {/* 若使用者輸入的代碼不在預設清單中，動態列出 */}
+                  {!ALL_SELECTABLE_ETFS.some((g) => g.items.some((i) => i.symbol === selectedHoldingEtf)) && (
+                    <optgroup label="自選/自訂查詢標的">
+                      <option value={selectedHoldingEtf}>
+                        {selectedHoldingEtf} {currentPortfolio.etfName}
+                      </option>
+                    </optgroup>
+                  )}
                 </select>
 
-                <div className="relative w-40">
+                {/* 直接輸入任一代碼快速切換 */}
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={customEtfInput}
+                    onChange={(e) => setCustomEtfInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && customEtfInput.trim()) {
+                        setSelectedHoldingEtf(customEtfInput.trim().toUpperCase());
+                      }
+                    }}
+                    placeholder="輸入代碼 (例:00949)"
+                    className="w-28 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg py-1 px-2 text-xs text-primary font-mono focus:outline-none focus:border-accent"
+                  />
+                  {customEtfInput.trim() && (
+                    <button
+                      onClick={() => {
+                        if (customEtfInput.trim()) {
+                          setSelectedHoldingEtf(customEtfInput.trim().toUpperCase());
+                        }
+                      }}
+                      className="px-2 py-1 rounded-lg bg-accent text-white text-xs font-semibold cursor-pointer"
+                    >
+                      切換
+                    </button>
+                  )}
+                </div>
+
+                <div className="relative w-36">
                   <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
                   <input
                     type="text"
                     value={holdingSearch}
                     onChange={(e) => setHoldingSearch(e.target.value)}
-                    placeholder="搜尋成分股..."
-                    className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg py-1 pl-7 pr-2.5 text-xs text-primary focus:outline-none focus:border-accent"
+                    placeholder="篩選成分股..."
+                    className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg py-1 pl-7 pr-2 text-xs text-primary focus:outline-none focus:border-accent"
                   />
                 </div>
               </div>

@@ -113,7 +113,7 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
               AI 避險基金投資委員會閉門決策室 ({symbol})
             </h2>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 font-medium">
-              Multi-Agent Live Debate & Execution
+              Multi-Agent 閉門決策與操盤執行
             </span>
             <div
               className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 select-none"
@@ -349,14 +349,14 @@ export default function AICommitteeSection({ symbol }: AICommitteeProps) {
             </Card>
           )}
 
-          {/* 2. 避險基金閉門決策：三方專家即時多空攻防辯論 (Live Multi-Agent Debate) */}
+          {/* 2. 避險基金閉門決策：三方專家即時多空攻防辯論 (Multi-Agent Debate) */}
           {debate && (
             <div className="p-5 rounded-xl bg-gradient-to-br from-[var(--bg-secondary)] to-[var(--bg-tertiary)] border border-accent/40 space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
                 <div className="flex items-center gap-2">
                   <Flame size={18} className="text-amber-400" />
                   <h3 className="text-sm font-bold text-primary">
-                    避險基金專家閉門會議：實戰多空交鋒辯論 (Live Debate)
+                    避險基金專家閉門會議：實戰多空交鋒辯論
                   </h3>
                 </div>
                 <span className="text-[11px] font-mono px-2.5 py-0.5 rounded bg-accent/15 text-accent border border-accent/30 font-semibold">

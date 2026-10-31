@@ -175,6 +175,26 @@ async def growth_metrics(code: str) -> Optional[Dict[str, Any]]:
             "signals": sig}
 
 
+US_NAMES: Dict[str, str] = {
+    "NVDA": "輝達", "MSFT": "微軟", "AAPL": "蘋果", "GOOGL": "谷歌",
+    "AMZN": "亞馬遜", "META": "Meta臉書", "AVGO": "博通", "TSM": "台積電ADR",
+    "AMD": "超微", "INTC": "英特爾", "QCOM": "高通", "MU": "美光",
+    "ASML": "艾司摩爾", "AMAT": "應用材料", "ARM": "安謀", "MRVL": "邁威爾",
+    "TSLA": "特斯拉", "PLTR": "Palantir", "SMH": "費半ETF", "SOXX": "半導體ETF",
+    "QQQ": "那指ETF", "SPY": "標普500ETF",
+}
+
+
+def _make_ssl_context():
+    import ssl
+    ctx = ssl.create_default_context()
+    try:
+        ctx.set_ciphers('DEFAULT@SECLEVEL=1')
+    except Exception:
+        pass
+    return ctx
+
+
 # ---------------------------------------------------------------- 單檔評估
 def _industry_of(symbol: str) -> str:
     for name, syms in SECTORS.items():
@@ -193,7 +213,7 @@ async def hot_universe(n: int = 60) -> List[str]:
             pass
     rows: List[tuple] = []  # (成交值, 代碼)
     import httpx
-    async with httpx.AsyncClient(timeout=20, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True) as c:
+    async with httpx.AsyncClient(timeout=15, headers={"User-Agent": "Mozilla/5.0"}, verify=_make_ssl_context(), follow_redirects=True) as c:
         async def grab(url: str, code_k: str, val_k: str, px_k: str):
             try:
                 for r in (await c.get(url)).json():
@@ -229,10 +249,14 @@ async def evaluate(symbol: str, with_chips: bool = True, with_growth: bool = Tru
                 chips = await chips_metrics(code, t["close"], float(df["volume"].tail(5).sum()))
             if with_growth:
                 growth = await growth_metrics(code)
-        name = (await market_data.tw_name_map()).get(code, code) if kind == "TW" else code
+            name = (await market_data.tw_name_map()).get(code) or code
+            ind = _industry_of(code) or (await market_data.tw_industry_map()).get(code, "")
+        else:
+            global_info = market_data.GLOBAL_ASSET_MAP.get(code.upper(), {})
+            name = US_NAMES.get(code.upper()) or global_info.get("name") or code
+            ind = _industry_of(code) or global_info.get("industry", "美股科技")
     return {"symbol": symbol, "code": code, "name": name, "market": "TW" if kind == "TW" else "US",
-            "industry": _industry_of(code) or (await market_data.tw_industry_map()).get(code, "") if kind == "TW" else "",
-            "tech": t, "chips": chips, "growth": growth}
+            "industry": ind, "tech": t, "chips": chips, "growth": growth}
 
 
 def composite(ev: Dict[str, Any], style: str = "balanced") -> Dict[str, Any]:

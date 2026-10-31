@@ -416,7 +416,6 @@ export default function EtfAndMultiAssetPage() {
         >
           <Flame size={16} />
           <span>每日 ETF 資金流向與申贖動向</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded bg-red-500/30 text-white font-mono">LIVE</span>
         </button>
 
         <button
@@ -429,7 +428,6 @@ export default function EtfAndMultiAssetPage() {
         >
           <ShoppingBag size={16} />
           <span>每日追蹤 ETF 成分股持股與增減</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/30 text-amber-200 font-mono">持股穿透</span>
         </button>
 
         <button
@@ -446,9 +444,9 @@ export default function EtfAndMultiAssetPage() {
       </div>
 
       {mainView === "flow" && !searchQuery.trim() ? (
-        <EtfCapitalFlowTracker defaultSubView="flow" />
+        <EtfCapitalFlowTracker key="flow" defaultSubView="flow" hideSubViewTabs={true} />
       ) : mainView === "holdings" && !searchQuery.trim() ? (
-        <EtfCapitalFlowTracker defaultSubView="holdings" />
+        <EtfCapitalFlowTracker key="holdings" defaultSubView="holdings" hideSubViewTabs={true} />
       ) : (
         <Card className="w-full">
         <div className="border-b border-[var(--border)] flex gap-2 overflow-x-auto hide-scrollbar pb-2 mb-4">

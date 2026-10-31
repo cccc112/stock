@@ -32,6 +32,42 @@ interface Pick {
   volatility_pct: number;
 }
 
+const CHINESE_NAME_FALLBACK: Record<string, string> = {
+  // 台股重要權值與代表股
+  "2330": "台積電", "2317": "鴻海", "2454": "聯發科", "2382": "廣達", "3231": "緯創",
+  "2308": "台達電", "2881": "富邦金", "2882": "國泰金", "2891": "中信金", "2303": "聯電",
+  "3711": "日月光投控", "2412": "中華電", "2603": "長榮", "2609": "陽明", "2615": "萬海",
+  "3037": "欣興", "2357": "華碩", "3017": "奇鋐", "2376": "技嘉", "6669": "緯穎",
+  "2356": "英業達", "2383": "台光電", "1519": "華城", "1503": "士電", "1513": "中興電",
+  "1514": "亞力", "1609": "大亞", "6806": "森崴能源", "3045": "台灣大", "4904": "遠傳",
+  "2345": "智邦", "5388": "中磊", "3450": "聯鈞", "4977": "眾達-KY", "2886": "兆豐金",
+  "2884": "玉山金", "2892": "第一金", "2880": "華南金", "5880": "合庫金", "2618": "長榮航",
+  "2610": "華航", "1301": "台塑", "1303": "南亞", "1326": "台化", "2002": "中鋼",
+  "1101": "台泥", "1216": "統一", "2207": "和泰車", "2201": "裕隆", "1590": "亞德客-KY",
+  "2049": "上銀", "2359": "所羅門", "4583": "台灣精銳", "6446": "藥華藥", "4743": "合一",
+  "1760": "寶齡富錦", "4128": "中天", "6547": "高端疫苗", "3443": "創意", "3661": "世芯-KY",
+  "3035": "智原", "6488": "環球晶", "2379": "瑞昱", "3034": "聯詠", "8069": "元太",
+  "3293": "鈊象", "5347": "世界", "3324": "雙鴻", "8299": "群聯", "6223": "旺矽",
+  "3529": "力旺", "6187": "萬潤", "5483": "中美晶", "3105": "穩懋", "3680": "家登",
+  "3131": "弘塑", "6274": "台燿", "8358": "金居", "2409": "友達", "3481": "群創",
+  "6116": "彩晶", "2449": "京元電子", "2344": "華邦電", "2388": "威盛", "2458": "義隆",
+  // 美股科技與主流股 (一律顯示正體中文)
+  "NVDA": "輝達", "MSFT": "微軟", "AAPL": "蘋果", "GOOGL": "Alphabet (谷歌)", "GOOG": "谷歌",
+  "AMZN": "亞馬遜", "META": "Meta (臉書)", "AVGO": "博通", "TSM": "台積電 ADR",
+  "AMD": "超微", "INTC": "英特爾", "QCOM": "高通", "MU": "美光", "ASML": "艾司摩爾",
+  "AMAT": "應用材料", "ARM": "安謀", "MRVL": "邁威爾", "TSLA": "特斯拉", "PLTR": "Palantir",
+  "SMH": "費半 ETF", "SOXX": "半導體 ETF", "QQQ": "那斯達克 ETF", "SPY": "標普500 ETF",
+};
+
+function getDisplayName(symbol: string, rawName?: string): string {
+  const code = symbol.replace(/\.(TW|TWO)$/i, "").toUpperCase();
+  if (rawName && rawName !== symbol && rawName !== code) {
+    if (CHINESE_NAME_FALLBACK[code]) return CHINESE_NAME_FALLBACK[code];
+    return rawName;
+  }
+  return CHINESE_NAME_FALLBACK[code] || CHINESE_NAME_FALLBACK[symbol] || rawName || symbol;
+}
+
 const STYLES = [
   { id: 'balanced', label: '均衡多因子', desc: '技術35% 籌碼35% 成長30% 均衡篩選' },
   { id: 'momentum', label: '強勢動能', desc: '偏重創高突破、均線多頭、RSI動能與價量齊揚' },
@@ -341,7 +377,7 @@ function RecommendInner() {
                   <div className="flex items-center gap-2">
                     <span className="text-secondary text-sm">#{startRank + i + 1}</span>
                     <Link href={`/stock/${p.symbol}`} className="text-lg font-bold hover:text-accent">{p.symbol}</Link>
-                    <span className="text-secondary">{p.name !== p.symbol ? p.name : ''}</span>
+                    <span className="text-secondary font-medium">{getDisplayName(p.symbol, p.name)}</span>
                     {p.industry && <span style={{ fontSize: 10 }} className="px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)]">{p.industry}</span>}
                   </div>
                   <div className="text-sm mt-1">
@@ -395,7 +431,7 @@ function RecommendInner() {
           <div className="flex flex-wrap gap-3 text-sm">
             {avoid.map(p => (
               <Link key={p.symbol} href={`/stock/${p.symbol}`} className="px-3 py-1 rounded-md bg-[var(--bg-tertiary)]">
-                {p.symbol} {p.name !== p.symbol ? p.name : ''} <span className="text-secondary">({p.score})</span>
+                {p.symbol} {getDisplayName(p.symbol, p.name)} <span className="text-secondary">({p.score})</span>
               </Link>
             ))}
           </div>

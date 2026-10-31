@@ -1,9 +1,19 @@
 import httpx
 import json
 import asyncio
+import ssl
+import time
 from datetime import datetime
 from typing import List, Optional
 from app.models.schemas import StockQuote, OrderBook, OrderBookEntry, MarketType
+
+def _make_twse_ssl_context():
+    ctx = ssl.create_default_context()
+    try:
+        ctx.set_ciphers('DEFAULT@SECLEVEL=1')
+    except Exception:
+        pass
+    return ctx
 
 class TWSEService:
     def __init__(self):
@@ -11,9 +21,9 @@ class TWSEService:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "application/json, text/javascript, */*; q=0.01",
-            "Accept-Language": "en-US,en;q=0.9,zh-TW;q=0.8,zh;q=0.7",
+            "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
         }
-        self.session = httpx.AsyncClient(timeout=8.0, headers=headers)
+        self.session = httpx.AsyncClient(timeout=6.0, headers=headers, verify=_make_twse_ssl_context())
 
     def _safe_float(self, val: str, default: float = 0.0) -> float:
         """Parse TWSE price string safely (handles '-' for no data)."""
@@ -27,7 +37,8 @@ class TWSEService:
     async def fetch_realtime_quote(self, symbol: str) -> Optional[StockQuote]:
         clean_symbol = symbol.replace('.TW', '').replace('.TWO', '').replace('.tw', '')
         prefix = "otc" if symbol.endswith('.TWO') else "tse"
-        url = f"{self.base_url}/getStockInfo.jsp?ex_ch={prefix}_{clean_symbol}.tw"
+        ts_now = int(time.time() * 1000)
+        url = f"{self.base_url}/getStockInfo.jsp?ex_ch={prefix}_{clean_symbol}.tw&json=1&delay=0&_={ts_now}"
         try:
             response = await self.session.get(url)
             data = response.json()
@@ -70,7 +81,8 @@ class TWSEService:
     async def fetch_orderbook(self, symbol: str) -> Optional[OrderBook]:
         clean_symbol = symbol.replace('.TW', '').replace('.TWO', '').replace('.tw', '')
         prefix = "otc" if symbol.endswith('.TWO') else "tse"
-        url = f"{self.base_url}/getStockInfo.jsp?ex_ch={prefix}_{clean_symbol}.tw"
+        ts_now = int(time.time() * 1000)
+        url = f"{self.base_url}/getStockInfo.jsp?ex_ch={prefix}_{clean_symbol}.tw&json=1&delay=0&_={ts_now}"
         try:
             response = await self.session.get(url)
             data = response.json()

@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, useCallback, use } from "react";
 import dynamic from 'next/dynamic';
 import Tabs from "@/components/ui/Tabs";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { formatNumber, formatVolume, getChangeColorClass } from "@/lib/utils";
-import { Sparkles, Plus, Check, Layers } from "lucide-react";
+import { Sparkles, Plus, Check, Layers, RefreshCw } from "lucide-react";
 import { apiStocks, apiResearch } from "@/lib/api";
 import { fetchOrBuildDeepReport } from "@/lib/clientDeepReport";
 import QuantDashboard from "@/components/dashboard/QuantDashboard";
@@ -73,6 +73,23 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   const [priceLines, setPriceLines] = useState<{ price: number; color: string; title: string }[]>([]);
   const [deepSummary, setDeepSummary] = useState<any | null>(null);
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<string>("");
+
+  const fetchQuote = useCallback(async (manual = false) => {
+    if (manual) setIsRefreshing(true);
+    try {
+      const res = await apiStocks.getQuote(symbol);
+      setStock(res.data);
+      setLastUpdate(new Date().toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }));
+    } catch (e) {
+      console.error("Failed to fetch quote", e);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [symbol]);
+
   useEffect(() => {
     setInWatchlist(isSymbolInWatchlist(symbol));
     setDeepSummary(null);
@@ -84,27 +101,19 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
     window.addEventListener("watchlist_changed", handleSync);
     window.addEventListener("stock_auth_changed", handleSync);
 
-    const fetchQuote = async () => {
-      try {
-        const res = await apiStocks.getQuote(symbol);
-        setStock(res.data);
-      } catch (e) {
-        console.error("Failed to fetch quote", e);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchQuote();
     fetchOrBuildDeepReport(symbol)
       .then((resData) => setDeepSummary(resData))
       .catch(() => {});
-    const timer = setInterval(fetchQuote, 30000);
+
+    // 盤中 10 秒自動輪詢最新撮合價
+    const timer = setInterval(() => fetchQuote(), 10000);
     return () => {
       window.removeEventListener("watchlist_changed", handleSync);
       window.removeEventListener("stock_auth_changed", handleSync);
       clearInterval(timer);
     };
-  }, [symbol]);
+  }, [symbol, fetchQuote]);
 
   const toggleWatchlist = () => {
     if (inWatchlist) {
@@ -150,16 +159,28 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
               {stock.change > 0 ? '+' : ''}{stock.change.toFixed(2)} ({stock.change_pct > 0 ? '+' : ''}{stock.change_pct.toFixed(2)}%)
             </span>
           </div>
-          {(stock.stale || stock.source) && (
-            <div className="mt-2 flex items-center gap-2 text-xs text-muted">
-              <span>資料來源：{stock.source || '—'}</span>
-              {stock.stale && (
-                <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                  非即時報價（休市或收盤最後成交價）
-                </span>
-              )}
-            </div>
-          )}
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted flex-wrap">
+            <button
+              onClick={() => fetchQuote(true)}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)] text-xs text-secondary hover:text-primary transition-all cursor-pointer"
+              title="立即同步最新盤中撮合價"
+            >
+              <RefreshCw size={12} className={isRefreshing ? "animate-spin text-accent" : ""} />
+              <span>{isRefreshing ? "更新中..." : "即時更新"}</span>
+            </button>
+            {lastUpdate && (
+              <span className="font-mono text-xs text-accent">
+                ⚡ 最新撮合：{lastUpdate}
+              </span>
+            )}
+            <span>資料來源：{stock.source === 'twse' ? 'TWSE 臺灣證券交易所 (0秒即時)' : (stock.source || '—')}</span>
+            {stock.stale && (
+              <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                非即時報價（休市或收盤最後成交價）
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex gap-2.5">
           <Button 

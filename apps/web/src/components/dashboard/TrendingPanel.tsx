@@ -84,8 +84,8 @@ export default function TrendingPanel() {
     else setLoading(true);
 
     try {
-      // 1. 優先嘗試後端標準 rankings 端點
-      const res = await apiMarket.getRankings(12).catch(() => null);
+      // 1. 優先嘗試後端真實全市場 OpenAPI rankings 端點
+      const res = await apiMarket.getRankings(16, sortType).catch(() => null);
       const data = res?.data;
       let twseList: RankedStock[] =
         data?.twse && Array.isArray(data.twse) && data.twse.length > 0 ? data.twse : [];
@@ -195,11 +195,11 @@ export default function TrendingPanel() {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [sortType]);
 
   useEffect(() => {
     fetchRankings();
-    const interval = setInterval(() => fetchRankings(), 60000);
+    const interval = setInterval(() => fetchRankings(), 30000);
     return () => clearInterval(interval);
   }, [fetchRankings]);
 

@@ -41,8 +41,19 @@ PERIOD_DAYS = {"1d": 5, "5d": 10, "1mo": 35, "3mo": 100, "6mo": 190, "1y": 370,
                "2y": 740, "3y": 1100, "5y": 1830, "10y": 3660}
 
 _client: Optional[httpx.AsyncClient] = None
+_twse_client: Optional[httpx.AsyncClient] = None
 # 代碼 -> 'tse' | 'otc'
 _exch_cache: Dict[str, str] = {}
+
+
+def _make_twse_ssl_context():
+    import ssl
+    ctx = ssl.create_default_context()
+    try:
+        ctx.set_ciphers('DEFAULT@SECLEVEL=1')
+    except Exception:
+        pass
+    return ctx
 
 
 def _http() -> httpx.AsyncClient:
@@ -53,17 +64,30 @@ def _http() -> httpx.AsyncClient:
     return _client
 
 
+def _twse_http() -> httpx.AsyncClient:
+    global _twse_client
+    if _twse_client is None or _twse_client.is_closed:
+        _twse_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(6.0, connect=3.0),
+            headers=_UA,
+            verify=_make_twse_ssl_context(),
+            follow_redirects=True,
+        )
+    return _twse_client
+
+
 async def _get_json(url: str, params: Optional[dict] = None, retries: int = 2) -> Optional[Any]:
+    client = _twse_http() if ("twse.com.tw" in url or "tpex.org.tw" in url) else _http()
     for attempt in range(retries):
         try:
-            r = await _http().get(url, params=params)
+            r = await client.get(url, params=params)
             if r.status_code == 200:
                 return r.json()
             if r.status_code in (404, 422):
                 return None
         except Exception as e:
             logger.debug("GET %s failed (%s)", url, e)
-        await asyncio.sleep(0.4 * (attempt + 1))
+        await asyncio.sleep(0.3 * (attempt + 1))
     return None
 
 
@@ -110,6 +134,29 @@ GLOBAL_ASSETS: List[Dict[str, Any]] = [
     {"symbol": "USO", "name": "United States 原油 ETF", "market": "US", "industry": "商品 ETF", "aliases": ["USO", "原油ETF"]},
     {"symbol": "IBIT", "name": "iShares 比特幣現貨 ETF", "market": "US", "industry": "加密貨幣 ETF", "aliases": ["IBIT", "比特幣ETF"]},
     {"symbol": "VNQ", "name": "Vanguard 不動產 REITs ETF", "market": "US", "industry": "REITs 不動產", "aliases": ["VNQ", "REITS", "不動產", "房地產"]},
+    # 主流美股科技與龍頭股 (US Tech Leaders)
+    {"symbol": "NVDA", "name": "輝達 (NVIDIA)", "market": "US", "industry": "AI 晶片", "aliases": ["NVDA", "輝達", "NVIDIA"]},
+    {"symbol": "AAPL", "name": "蘋果 (Apple)", "market": "US", "industry": "消費電子", "aliases": ["AAPL", "蘋果", "APPLE"]},
+    {"symbol": "MSFT", "name": "微軟 (Microsoft)", "market": "US", "industry": "軟體雲端", "aliases": ["MSFT", "微軟", "MICROSOFT"]},
+    {"symbol": "TSLA", "name": "特斯拉 (Tesla)", "market": "US", "industry": "電動車 AI", "aliases": ["TSLA", "特斯拉", "TESLA"]},
+    {"symbol": "GOOGL", "name": "Alphabet (谷歌)", "market": "US", "industry": "網路搜尋", "aliases": ["GOOGL", "GOOG", "谷歌", "GOOGLE"]},
+    {"symbol": "AMZN", "name": "亞馬遜 (Amazon)", "market": "US", "industry": "電商雲端", "aliases": ["AMZN", "亞馬遜", "AMAZON"]},
+    {"symbol": "META", "name": "Meta (臉書)", "market": "US", "industry": "社群媒體", "aliases": ["META", "臉書", "FB"]},
+    {"symbol": "AMD", "name": "超微 (AMD)", "market": "US", "industry": "半導體", "aliases": ["AMD", "超微"]},
+    {"symbol": "INTC", "name": "英特爾 (Intel)", "market": "US", "industry": "半導體", "aliases": ["INTC", "英特爾", "INTEL"]},
+    {"symbol": "TSM", "name": "台積電 ADR", "market": "US", "industry": "晶圓代工", "aliases": ["TSM", "台積電ADR"]},
+    {"symbol": "AVGO", "name": "博通 (Broadcom)", "market": "US", "industry": "網通半導體", "aliases": ["AVGO", "博通"]},
+    {"symbol": "QCOM", "name": "高通 (Qualcomm)", "market": "US", "industry": "手機晶片", "aliases": ["QCOM", "高通"]},
+    {"symbol": "MU", "name": "美光 (Micron)", "market": "US", "industry": "記憶體", "aliases": ["MU", "美光"]},
+    {"symbol": "ASML", "name": "艾司摩爾 (ASML)", "market": "US", "industry": "半導體設備", "aliases": ["ASML", "艾司摩爾"]},
+    {"symbol": "AMAT", "name": "應用材料 (AMAT)", "market": "US", "industry": "半導體設備", "aliases": ["AMAT", "應材"]},
+    {"symbol": "ARM", "name": "安謀 (ARM)", "market": "US", "industry": "矽智財架構", "aliases": ["ARM", "安謀"]},
+    {"symbol": "MRVL", "name": "邁威爾 (Marvell)", "market": "US", "industry": "網通 IC", "aliases": ["MRVL", "邁威爾"]},
+    {"symbol": "PLTR", "name": "Palantir (帕蘭提爾)", "market": "US", "industry": "AI 數據分析", "aliases": ["PLTR", "PALANTIR"]},
+    {"symbol": "SMH", "name": "VanEck 半導體 ETF", "market": "US", "industry": "美股 ETF", "aliases": ["SMH", "費半ETF"]},
+    {"symbol": "SOXX", "name": "iShares 半導體 ETF", "market": "US", "industry": "美股 ETF", "aliases": ["SOXX"]},
+    {"symbol": "QQQ", "name": "Invesco 那斯達克 100 ETF", "market": "US", "industry": "美股 ETF", "aliases": ["QQQ"]},
+    {"symbol": "SPY", "name": "SPDR 標普 500 ETF", "market": "US", "industry": "美股 ETF", "aliases": ["SPY"]},
 ]
 
 GLOBAL_ASSET_MAP: Dict[str, Dict[str, Any]] = {a["symbol"].upper(): a for a in GLOBAL_ASSETS}
@@ -177,8 +224,9 @@ def _parse_mis(info: dict, symbol: str) -> Optional[StockQuote]:
 async def _mis_quote(code: str, hint: Optional[str], symbol: str) -> Optional[StockQuote]:
     order = [hint or _exch_cache.get(code)] if (hint or code in _exch_cache) else ["tse", "otc"]
     order = [o for o in order if o] + [o for o in ("tse", "otc") if o not in order]
+    ts_now = int(time.time() * 1000)
     for exch in order:
-        data = await _get_json(MIS_URL, {"ex_ch": f"{exch}_{code}.tw", "json": "1", "delay": "0"}, retries=2)
+        data = await _get_json(MIS_URL, {"ex_ch": f"{exch}_{code}.tw", "json": "1", "delay": "0", "_": str(ts_now)}, retries=2)
         arr = (data or {}).get("msgArray") or []
         if not arr or not arr[0].get("n"):
             continue
@@ -239,22 +287,21 @@ def _chart_to_bars(res: dict, daily: bool = False) -> List[KlineBar]:
 
 
 async def _yahoo_quote(ysym: str, symbol: str, market: MarketType) -> Optional[StockQuote]:
-    res = await _yahoo_chart(ysym, "5d", "1d")
+    res = await _yahoo_chart(ysym, "1d", "1m") or await _yahoo_chart(ysym, "5d", "1d")
     if not res:
         return None
     meta = res.get("meta") or {}
-    bars = _chart_to_bars(res, daily=True)
+    bars = _chart_to_bars(res, daily=False)
+    if not bars:
+        bars = _chart_to_bars(res, daily=True)
     if not bars:
         return None
     price = _safe_float(meta.get("regularMarketPrice")) or bars[-1].close
+    prev_close = _safe_float(meta.get("chartPreviousClose")) or _safe_float(meta.get("previousClose"))
+    if not prev_close or prev_close <= 0:
+        prev_close = bars[0].open if len(bars) > 1 else price
     last_day = datetime.fromtimestamp(
-        (meta.get("regularMarketTime") or 0) + int(meta.get("gmtoffset") or 0), tz=timezone.utc).date()
-    # 日線最後一根若是今天(盤中)，昨收是倒數第二根；否則最後一根就是昨收
-    if bars[-1].time.date() >= last_day and len(bars) > 1:
-        prev_close = bars[-2].close
-    else:
-        prev_close = bars[-1].close if bars[-1].time.date() < last_day else (
-            _safe_float(meta.get("chartPreviousClose")) or bars[-1].close)
+        (meta.get("regularMarketTime") or 0) + int(meta.get("gmtoffset") or 0), tz=timezone.utc).date() if meta.get("regularMarketTime") else bars[-1].time.date()
     today = bars[-1] if bars[-1].time.date() >= last_day else None
     change = price - prev_close
     return StockQuote(

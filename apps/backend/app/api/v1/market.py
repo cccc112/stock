@@ -1,21 +1,34 @@
 import asyncio
 import json
+import logging
 import httpx
+import ssl
 from fastapi import APIRouter
 from typing import List
 from app.models.schemas import StockQuote
 from app.services import market_data
 from app.services.cache import cache_service
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# 中文名稱以 FinMind TaiwanStockInfo 為主；以下僅作為美股與備援
+def _make_ssl_context():
+    ctx = ssl.create_default_context()
+    try:
+        ctx.set_ciphers('DEFAULT@SECLEVEL=1')
+    except Exception:
+        pass
+    return ctx
+
+# 中文名稱以 FinMind TaiwanStockInfo 為主；以下作為美股與備援，一律確保正體中文
 STOCK_NAMES = {
     "2330.TW": "台積電", "2317.TW": "鴻海", "2454.TW": "聯發科",
     "3231.TW": "緯創", "2382.TW": "廣達", "0050.TW": "元大台灣50",
     "0056.TW": "元大高股息", "00878.TW": "國泰永續高股息", "00929.TW": "復華台灣科技優息",
-    "NVDA": "NVIDIA", "TSLA": "Tesla", "AAPL": "Apple",
-    "MSFT": "Microsoft", "AMD": "AMD", "SPY": "S&P 500 ETF", "QQQ": "Nasdaq ETF",
+    "NVDA": "輝達", "TSLA": "特斯拉", "AAPL": "蘋果",
+    "MSFT": "微軟", "AMD": "超微", "GOOGL": "谷歌", "AMZN": "亞馬遜",
+    "META": "臉書", "AVGO": "博通", "TSM": "台積電ADR",
+    "SPY": "標普500 ETF", "QQQ": "那斯達克 ETF",
 }
 
 # 上市 (TWSE) 與上櫃 (TPEx) 高流動性代表股池（當證交所/櫃買中心全市場 OpenAPI 逾時時，即時拉取現價與真實成交量動態排序）
@@ -42,13 +55,18 @@ async def fetch_single_quote(symbol: str) -> StockQuote | None:
     return quote
 
 
-async def _fetch_twse_openapi_top(limit: int = 10) -> list[dict]:
-    """從證交所 STOCK_DAY_ALL 抓取真實上市成交值/量排行"""
-    async with httpx.AsyncClient(timeout=4.0, verify=False) as client:
-        r = await client.get("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL")
-        if r.status_code != 200:
-            return []
-        rows = r.json()
+async def _fetch_twse_openapi_top(limit: int = 15, sort_by: str = "volume") -> list[dict]:
+    """從證交所 STOCK_DAY_ALL 抓取真實上市全市場 1300+ 檔即時成交排行"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0, verify=_make_ssl_context()) as client:
+            r = await client.get("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL")
+            if r.status_code != 200:
+                return []
+            rows = r.json()
+    except Exception as e:
+        logger.warning(f"_fetch_twse_openapi_top failed: {e}")
+        return []
+
     items = []
     for row in rows:
         code = str(row.get("Code", "")).strip()
@@ -73,17 +91,27 @@ async def _fetch_twse_openapi_top(limit: int = 10) -> list[dict]:
             "turnover_b": round(val_ntd / 1e8, 2),
             "stale": False,
         })
-    items.sort(key=lambda x: (x["turnover_b"], x["volume"]), reverse=True)
+    if sort_by == "turnover":
+        items.sort(key=lambda x: (x["turnover_b"], x["volume"]), reverse=True)
+    elif sort_by == "gainers":
+        items.sort(key=lambda x: (x["change_pct"], x["volume"]), reverse=True)
+    else:
+        items.sort(key=lambda x: (x["volume"], x["turnover_b"]), reverse=True)
     return items[:limit]
 
 
-async def _fetch_tpex_openapi_top(limit: int = 10) -> list[dict]:
-    """從櫃買中心 OpenAPI 抓取真實上櫃成交值/量排行"""
-    async with httpx.AsyncClient(timeout=4.0, verify=False) as client:
-        r = await client.get("https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes")
-        if r.status_code != 200:
-            return []
-        rows = r.json()
+async def _fetch_tpex_openapi_top(limit: int = 15, sort_by: str = "volume") -> list[dict]:
+    """從櫃買中心 OpenAPI 抓取真實上櫃全市場即時成交排行"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0, verify=_make_ssl_context()) as client:
+            r = await client.get("https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes")
+            if r.status_code != 200:
+                return []
+            rows = r.json()
+    except Exception as e:
+        logger.warning(f"_fetch_tpex_openapi_top failed: {e}")
+        return []
+
     items = []
     for row in rows:
         code = str(row.get("SecuritiesCompanyCode", "")).strip()
@@ -108,11 +136,16 @@ async def _fetch_tpex_openapi_top(limit: int = 10) -> list[dict]:
             "turnover_b": round(val_ntd / 1e8, 2),
             "stale": False,
         })
-    items.sort(key=lambda x: (x["turnover_b"], x["volume"]), reverse=True)
+    if sort_by == "turnover":
+        items.sort(key=lambda x: (x["turnover_b"], x["volume"]), reverse=True)
+    elif sort_by == "gainers":
+        items.sort(key=lambda x: (x["change_pct"], x["volume"]), reverse=True)
+    else:
+        items.sort(key=lambda x: (x["volume"], x["turnover_b"]), reverse=True)
     return items[:limit]
 
 
-async def _fallback_pool_rankings(pool: list[str], market_label: str, limit: int = 10) -> list[dict]:
+async def _fallback_pool_rankings(pool: list[str], market_label: str, limit: int = 10, sort_by: str = "volume") -> list[dict]:
     quotes = await asyncio.gather(*[fetch_single_quote(s) for s in pool], return_exceptions=True)
     items = []
     for q in quotes:
@@ -131,14 +164,19 @@ async def _fallback_pool_rankings(pool: list[str], market_label: str, limit: int
                 "turnover_b": turnover_b,
                 "stale": q.stale,
             })
-    items.sort(key=lambda x: (x["volume"], x["turnover_b"]), reverse=True)
+    if sort_by == "turnover":
+        items.sort(key=lambda x: (x["turnover_b"], x["volume"]), reverse=True)
+    elif sort_by == "gainers":
+        items.sort(key=lambda x: (x["change_pct"], x["volume"]), reverse=True)
+    else:
+        items.sort(key=lambda x: (x["volume"], x["turnover_b"]), reverse=True)
     return items[:limit]
 
 
 @router.get("/rankings")
-async def get_market_rankings(limit: int = 10):
-    """真實台股上市 (TWSE) 與上櫃 (TPEx) 熱門成交排行（依真實成交量/成交值動態排序）"""
-    cache_key = f"market:rankings:v2:{limit}"
+async def get_market_rankings(limit: int = 10, sort_by: str = "volume"):
+    """真實台股上市 (TWSE) 與上櫃 (TPEx) 熱門成交排行（依真實成交量/成交值/漲幅動態排序）"""
+    cache_key = f"market:rankings:v3:{limit}:{sort_by}"
     cached = await cache_service.get(cache_key)
     if cached:
         try:
@@ -149,28 +187,28 @@ async def get_market_rankings(limit: int = 10):
     twse_list, tpex_list = [], []
     try:
         twse_res, tpex_res = await asyncio.gather(
-            _fetch_twse_openapi_top(limit),
-            _fetch_tpex_openapi_top(limit),
+            _fetch_twse_openapi_top(limit, sort_by),
+            _fetch_tpex_openapi_top(limit, sort_by),
             return_exceptions=True,
         )
-        if isinstance(twse_res, list) and len(twse_res) >= 5:
+        if isinstance(twse_res, list) and len(twse_res) >= 3:
             twse_list = twse_res
-        if isinstance(tpex_res, list) and len(tpex_res) >= 5:
+        if isinstance(tpex_res, list) and len(tpex_res) >= 3:
             tpex_list = tpex_res
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"get_market_rankings gather error: {e}")
 
     if not twse_list:
-        twse_list = await _fallback_pool_rankings(TWSE_LIQUID_POOL, "TWSE", limit)
+        twse_list = await _fallback_pool_rankings(TWSE_LIQUID_POOL, "TWSE", limit, sort_by)
     if not tpex_list:
-        tpex_list = await _fallback_pool_rankings(TPEX_LIQUID_POOL, "TPEx", limit)
+        tpex_list = await _fallback_pool_rankings(TPEX_LIQUID_POOL, "TPEx", limit, sort_by)
 
     data = {
         "twse": twse_list,
         "tpex": tpex_list,
     }
     if twse_list or tpex_list:
-        await cache_service.set(cache_key, json.dumps(data), ttl=600)
+        await cache_service.set(cache_key, json.dumps(data), ttl=120)
     return data
 
 
