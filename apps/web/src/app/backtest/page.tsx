@@ -669,19 +669,20 @@ export default function BacktestPage() {
           </div>
 
           {/* 策略資產累積曲線 (Equity Curve) */}
-          <Card title={<Term term="equity_curve" label="資產淨值走勢 (策略 vs 買入持有基準)" />} className="p-5">
-            <div className="h-[380px] w-full mt-2">
+          <Card title={<Term term="equity_curve" label="資產淨值走勢 (策略 vs 買入持有基準)" />}>
+            <div className="h-[300px] sm:h-[380px] w-full mt-1">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={result.equity_curve} margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
+                <LineChart data={result.equity_curve} margin={{ top: 10, right: 10, bottom: 5, left: -8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.4} />
                   <XAxis
                     dataKey="date"
-                    tick={{ fill: "var(--color-secondary)", fontSize: 11 }}
+                    tick={{ fill: "var(--color-secondary)", fontSize: 10 }}
                     tickLine={false}
                   />
                   <YAxis
+                    width={46}
                     domain={["auto", "auto"]}
-                    tick={{ fill: "var(--color-secondary)", fontSize: 11 }}
+                    tick={{ fill: "var(--color-secondary)", fontSize: 10 }}
                     tickFormatter={(val) => `$${(val / 10000).toFixed(0)}萬`}
                   />
                   <Tooltip
@@ -723,19 +724,20 @@ export default function BacktestPage() {
           </Card>
 
           {/* 回撤水下圖 (Underwater Drawdown Chart) */}
-          <Card title={<Term term="underwater_dd" label="回撤風險走勢 (Underwater Drawdown %)" />} className="p-5">
-            <div className="h-[200px] w-full mt-2">
+          <Card title={<Term term="underwater_dd" label="回撤風險走勢 (Underwater Drawdown %)" />}>
+            <div className="h-[180px] sm:h-[200px] w-full mt-1">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={result.equity_curve} margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
+                <AreaChart data={result.equity_curve} margin={{ top: 10, right: 10, bottom: 5, left: -8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.4} />
                   <XAxis
                     dataKey="date"
-                    tick={{ fill: "var(--color-secondary)", fontSize: 11 }}
+                    tick={{ fill: "var(--color-secondary)", fontSize: 10 }}
                     tickLine={false}
                   />
                   <YAxis
+                    width={42}
                     domain={[-30, 0]}
-                    tick={{ fill: "var(--color-secondary)", fontSize: 11 }}
+                    tick={{ fill: "var(--color-secondary)", fontSize: 10 }}
                     tickFormatter={(val) => `${val}%`}
                   />
                   <Tooltip

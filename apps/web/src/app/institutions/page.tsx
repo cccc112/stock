@@ -79,7 +79,7 @@ interface StockInstData {
 }
 
 const PRESET_STOCKS = [
-  { symbol: "2330", name: "台積電", price: 1085 },
+  { symbol: "2330", name: "台積電", price: 2370 },
   { symbol: "2317", name: "鴻海", price: 218.5 },
   { symbol: "3231", name: "緯創", price: 118.0 },
   { symbol: "2603", name: "長榮", price: 204.5 },
@@ -131,7 +131,7 @@ function getRealisticTwData(): TwInstData[] {
 function getRealisticRanks() {
   return {
     foreign_buys: [
-      { symbol: "2330", name: "台積電", price: 1085, change_pct: 2.36, shares: 28450 },
+      { symbol: "2330", name: "台積電", price: 2370, change_pct: 2.36, shares: 28450 },
       { symbol: "2317", name: "鴻海", price: 218.5, change_pct: 1.63, shares: 19230 },
       { symbol: "3231", name: "緯創", price: 118.0, change_pct: 3.51, shares: 14800 },
       { symbol: "2603", name: "長榮", price: 204.5, change_pct: 4.07, shares: 11300 },
@@ -616,24 +616,25 @@ export default function InstitutionsPage() {
             </div>
 
             {/* 三大法人買賣超長條圖 */}
-            <Card title="全市場三大法人每日買賣超動向 (單位: 億台幣)" className="h-[360px] sm:h-[440px] border border-[var(--border)] shadow-md hover-lift">
-              <div className="h-full pb-8">
+            <Card title="全市場三大法人每日買賣超動向 (單位: 億台幣)" className="border border-[var(--border)] shadow-md hover-lift">
+              <div className="h-[300px] sm:h-[380px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={twData}
-                    margin={{ top: 20, right: 15, left: -5, bottom: 5 }}
+                    margin={{ top: 12, right: 8, left: -12, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                     <XAxis 
                       dataKey="date" 
                       stroke="var(--text-secondary)" 
-                      fontSize={11} 
+                      fontSize={10} 
                       tickLine={false}
                       axisLine={{ stroke: 'var(--border)' }}
                     />
                     <YAxis 
+                      width={46}
                       stroke="var(--text-secondary)" 
-                      fontSize={11} 
+                      fontSize={10} 
                       tickFormatter={(value) => `${value}億`}
                       tickLine={false}
                       axisLine={{ stroke: 'var(--border)' }}
@@ -862,40 +863,42 @@ export default function InstitutionsPage() {
                 {/* 個股雙軸圖：股價折線 + 法人買賣超長條圖 */}
                 <Card 
                   title={`${stockData.symbol} ${stockData.name} - 三大法人每日買賣超 (張) 與股價疊圖`} 
-                  className="h-[360px] sm:h-[450px] border border-[var(--border)] shadow-md hover-lift"
+                  className="border border-[var(--border)] shadow-md hover-lift"
                   headerAction={
-                    <Link href={`/stock/${stockData.symbol}`} className="text-xs text-accent hover:underline flex items-center gap-1">
+                    <Link href={`/stock/${stockData.symbol}`} className="text-xs text-accent hover:underline flex items-center gap-1 whitespace-nowrap">
                       前往個股完整分析 <ChevronRight size={13} />
                     </Link>
                   }
                 >
-                  <div className="h-full pb-8">
+                  <div className="h-[310px] sm:h-[390px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart
                         data={stockData.history}
-                        margin={{ top: 20, right: 15, left: -5, bottom: 5 }}
+                        margin={{ top: 12, right: 4, left: -8, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                         <XAxis 
                           dataKey="date" 
                           stroke="var(--text-secondary)" 
-                          fontSize={11} 
+                          fontSize={10} 
                           tickLine={false}
                           axisLine={{ stroke: 'var(--border)' }}
                         />
                         <YAxis 
                           yAxisId="shares"
+                          width={46}
                           stroke="var(--text-secondary)" 
-                          fontSize={11} 
-                          tickFormatter={(value) => `${value}張`}
+                          fontSize={10} 
+                          tickFormatter={(value) => Math.abs(value) >= 1000 ? `${(value / 1000).toFixed(0)}k` : `${value}`}
                           tickLine={false}
                           axisLine={{ stroke: 'var(--border)' }}
                         />
                         <YAxis 
                           yAxisId="price" 
                           orientation="right" 
+                          width={44}
                           stroke="#f59e0b" 
-                          fontSize={11} 
+                          fontSize={10} 
                           domain={['auto', 'auto']}
                           tickFormatter={(value) => `$${value}`}
                           tickLine={false}

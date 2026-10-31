@@ -11,6 +11,23 @@ export default function NewsSection({ symbol }: { symbol: string }) {
 
   useEffect(() => {
     const fetchNews = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/news?symbol=${encodeURIComponent(symbol)}`, {
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json?.data) && json.data.length > 0) {
+            setNews(json.data);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // Fallback to backend API below
+      }
+
       try {
         const res = await api.get(`/stocks/${symbol}/news`);
         const items = res.data?.data || res.data || [];
@@ -66,20 +83,20 @@ export default function NewsSection({ symbol }: { symbol: string }) {
             href={searchLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="block p-4 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/80 border border-transparent hover:border-accent/50 transition-all group"
+            className="block p-3.5 sm:p-4 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/80 border border-transparent hover:border-accent/50 transition-all group"
           >
-            <div className="flex justify-between items-start gap-4">
-              <div className="flex-1">
-                <h3 className="font-semibold text-primary group-hover:text-accent transition-colors mb-2 leading-snug">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2.5 sm:gap-4">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm sm:text-base font-semibold text-primary group-hover:text-accent transition-colors mb-1.5 leading-snug">
                   {item.title}
                 </h3>
-                <div className="text-xs text-secondary flex gap-3">
+                <div className="text-xs text-secondary flex flex-wrap gap-3">
                   <span className="text-accent/90 font-medium">{item.source || "即時快訊"}</span>
                   <span>{formatDate(item.date)}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-1 text-accent text-xs font-medium whitespace-nowrap opacity-80 group-hover:opacity-100 transition-opacity bg-accent/10 px-2.5 py-1.5 rounded">
-                閱讀新聞 <ExternalLink size={14} />
+              <div className="self-start flex items-center gap-1 text-accent text-xs font-medium whitespace-nowrap opacity-80 group-hover:opacity-100 transition-opacity bg-accent/10 px-2.5 py-1 rounded">
+                閱讀新聞 <ExternalLink size={13} />
               </div>
             </div>
           </a>

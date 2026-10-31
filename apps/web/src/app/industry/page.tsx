@@ -184,13 +184,13 @@ export default function IndustryPage() {
         </div>
 
         {/* 時間區段切換按鈕組 */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] shadow-sm">
+        <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] shadow-sm max-w-full overflow-x-auto no-scrollbar">
           {TIME_OPTIONS.map(opt => (
             <button
               key={opt.id}
               onClick={() => setTimeHorizon(opt.id)}
               title={opt.desc}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
                 timeHorizon === opt.id
                   ? 'bg-[var(--accent)] text-white shadow-md shadow-accent/25'
                   : 'text-secondary hover:text-primary'
@@ -235,18 +235,18 @@ export default function IndustryPage() {
             title={`產業報酬與資金動能排行 (${TIME_OPTIONS.find(t => t.id === timeHorizon)?.label})`}
             className="border border-[var(--border)] shadow-md hover-lift"
           >
-            <div className="h-[360px] w-full">
+            <div className="h-[340px] sm:h-[360px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={chartData}
                   layout="vertical"
-                  margin={{ top: 10, right: 30, left: 40, bottom: 5 }}
+                  margin={{ top: 8, right: 14, left: 0, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                   <XAxis 
                     type="number" 
                     stroke="var(--text-secondary)" 
-                    fontSize={12} 
+                    fontSize={11} 
                     tickFormatter={(v) => `${v}%`}
                     tickLine={false}
                     axisLine={{ stroke: 'var(--border)' }}
@@ -255,10 +255,10 @@ export default function IndustryPage() {
                     type="category" 
                     dataKey="industry" 
                     stroke="var(--text-primary)" 
-                    fontSize={12} 
+                    fontSize={11} 
                     tickLine={false}
                     axisLine={{ stroke: 'var(--border)' }}
-                    width={100}
+                    width={78}
                   />
                   <Tooltip 
                     cursor={{ fill: 'var(--bg-tertiary)', opacity: 0.3 }}

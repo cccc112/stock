@@ -1,9 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
-import Card from "@/components/ui/Card";
-import { Newspaper, Search, RefreshCw, Sparkles, Globe, DollarSign } from "lucide-react";
-import { apiStocks } from "@/lib/api";
 
+import { useState, useEffect, useCallback } from "react";
+import Card from "@/components/ui/Card";
+import { Newspaper, Search, RefreshCw, Sparkles, DollarSign, X, ExternalLink } from "lucide-react";
+import { apiStocks } from "@/lib/api";
 
 function formatRelativeTime(dateInput: any) {
   if (!dateInput) return "剛剛";
@@ -23,29 +23,55 @@ function formatRelativeTime(dateInput: any) {
   return new Date(time).toLocaleDateString("zh-TW", { month: "2-digit", day: "2-digit" });
 }
 
-const PRESET_TOPICS = [
-  { id: "tw", label: "台股焦點", symbols: ["2330", "2317", "2454", "3231", "2603"] },
-  { id: "us", label: "美股與全球科技", symbols: ["NVDA", "AAPL", "TSLA", "MSFT", "GOOGL"] },
-  { id: "etf", label: "ETF 與總體經濟", symbols: ["0050", "00878", "00919", "SPY", "QQQ"] },
+const MACRO_TOPICS = [
+  { id: "MACRO_TW", label: "台股大盤與總經", title: "台股大盤與總體經濟即時快訊" },
+  { id: "MACRO_US", label: "美股與全球科技", title: "美股華爾街與全球科技即時動態" },
+  { id: "MACRO_ETF", label: "ETF 與債匯市", title: "ETF 申贖、美債殖利率與匯市快訊" },
+  { id: "MACRO_GLOBAL", label: "國際政經與原物料", title: "全球總經、央行政策與原物料快訊" },
 ];
 
 export default function NewsPage() {
-  const [topic, setTopic] = useState<string>("tw");
+  const [topic, setTopic] = useState<string>("MACRO_TW");
+  const [customSymbol, setCustomSymbol] = useState<string>("");
+  const [searchInput, setSearchInput] = useState<string>("");
   const [news, setNews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [searchSymbol, setSearchSymbol] = useState("");
-  const [activeSymbol, setActiveSymbol] = useState("2330");
 
-  const fetchNews = async (sym: string) => {
+  const fetchNewsData = useCallback(async (activeTopic: string, symbolQuery: string) => {
     setLoading(true);
-    setError("");
     try {
-      const res = await apiStocks.getNews(sym);
+      const params = symbolQuery
+        ? `symbol=${encodeURIComponent(symbolQuery)}`
+        : `topic=${encodeURIComponent(activeTopic)}`;
+
+      // 1. 優先由前端同源 Serverless Route 即時抓取 Google 財經 RSS，毫秒級回應且不受後端冷啟動影響
+      const localRes = await fetch(`/api/news?${params}`);
+      if (localRes.ok) {
+        const json = await localRes.json();
+        if (Array.isArray(json.data) && json.data.length > 0) {
+          setNews(
+            json.data.map((item: any) => ({
+              headline: item.title,
+              source: item.source || "財經即時快訊",
+              datetime: item.timestamp || new Date(item.date).getTime() || Date.now(),
+              url:
+                item.link && item.link.startsWith("http")
+                  ? item.link
+                  : `https://news.google.com/search?q=${encodeURIComponent(item.title)}`,
+            }))
+          );
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 2. 後端 API 備援
+      const target = symbolQuery || (activeTopic === "MACRO_US" ? "SPY" : "0050");
+      const res = await apiStocks.getNews(target);
       const items = res.data?.data || res.data || [];
       if (Array.isArray(items) && items.length > 0) {
         setNews(
-          items.slice(0, 25).map((item: any) => ({
+          items.slice(0, 30).map((item: any) => ({
             headline: item.title,
             source: item.source || "財經即時快訊",
             datetime: (() => {
@@ -62,163 +88,186 @@ export default function NewsPage() {
         setNews([]);
       }
     } catch (err) {
-      console.warn("Backend news fetch failed:", err);
+      console.warn("News fetch error:", err);
       setNews([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    const defaultSym = PRESET_TOPICS.find((t) => t.id === topic)?.symbols[0] || "2330";
-    setActiveSymbol(defaultSym);
-    fetchNews(defaultSym);
-  }, [topic]);
+    fetchNewsData(topic, customSymbol);
+  }, [topic, customSymbol, fetchNewsData]);
 
-  // 每 45 秒自動同步盤中最新快訊
+  // 每 60 秒自動靜態更新最新即時新聞
   useEffect(() => {
-    if (!activeSymbol) return;
     const timer = setInterval(() => {
-      fetchNews(activeSymbol);
-    }, 45000);
+      fetchNewsData(topic, customSymbol);
+    }, 60000);
     return () => clearInterval(timer);
-  }, [activeSymbol]);
+  }, [topic, customSymbol, fetchNewsData]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const q = searchSymbol.trim().toUpperCase();
+    const q = searchInput.trim().toUpperCase();
     if (q) {
-      setActiveSymbol(q);
-      fetchNews(q);
+      setCustomSymbol(q);
+    } else {
+      setCustomSymbol("");
     }
   };
 
+  const clearCustomSearch = () => {
+    setSearchInput("");
+    setCustomSymbol("");
+  };
+
+  const currentTitle = customSymbol
+    ? `${customSymbol} 個股與相關即時新聞`
+    : MACRO_TOPICS.find((t) => t.id === topic)?.title || "即時財經新聞";
+
   return (
-    <div className="animate-fade-in space-y-6">
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+    <div className="animate-fade-in space-y-5">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-bold tracking-tight">即時財經新聞與全球動態</h1>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/30 font-medium flex items-center gap-1">
-              <Globe size={12} /> 同步台股 FinMind 與美股 Yahoo Finance / Google 財經
-            </span>
-          </div>
-          <p className="text-secondary text-sm">
-            全市場上市櫃個股、美股科技巨頭與各大主流 ETF 即時重大新聞即時抓取
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-1">
+            即時財經新聞與全球總體動態
+          </h1>
+          <p className="text-secondary text-xs sm:text-sm">
+            全天候追蹤台股大盤總經、美股華爾街科技、ETF 債匯市與國際財經即時快訊
           </p>
         </div>
 
-        <form onSubmit={handleSearch} className="flex items-center gap-2">
-          <div className="relative w-48 sm:w-60">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
+        <form onSubmit={handleSearch} className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
             <input
               type="text"
-              value={searchSymbol}
-              onChange={(e) => setSearchSymbol(e.target.value)}
-              placeholder="搜尋標的新聞 (例: NVDA, 2330)"
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg py-1.5 pl-8 pr-3 text-xs text-primary focus:outline-none focus:border-accent font-mono uppercase"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="選填搜尋特定個股 (例: NVDA, 2330)"
+              className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg py-1.5 pl-8 pr-7 text-xs text-primary focus:outline-none focus:border-accent"
             />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={clearCustomSearch}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-primary cursor-pointer"
+                title="清除搜尋"
+              >
+                <X size={13} />
+              </button>
+            )}
           </div>
           <button
             type="submit"
-            className="px-3 py-1.5 rounded-lg bg-accent text-white text-xs font-semibold cursor-pointer whitespace-nowrap"
+            className="px-3.5 py-1.5 rounded-lg bg-accent text-white text-xs font-semibold cursor-pointer whitespace-nowrap"
           >
-            查詢新聞
+            搜尋
           </button>
         </form>
       </header>
 
-      {/* 市場切換分類 */}
-      <div className="flex items-center justify-between border-b border-[var(--border)] pb-2 flex-wrap gap-2">
-        <div className="flex gap-2">
-          {PRESET_TOPICS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => {
-                setTopic(t.id);
-                setSearchSymbol("");
-              }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-                topic === t.id
-                  ? "bg-accent text-white shadow-sm"
-                  : "bg-[var(--bg-secondary)] text-secondary hover:text-primary"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+      {/* 總體新聞分類切換列（無預設個股，直接呈現大盤與總經新聞） */}
+      <div className="flex items-center justify-between border-b border-[var(--border)] pb-2.5 gap-2">
+        <div className="flex gap-2 overflow-x-auto hide-scrollbar">
+          {MACRO_TOPICS.map((t) => {
+            const isActive = !customSymbol && topic === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => {
+                  setCustomSymbol("");
+                  setSearchInput("");
+                  setTopic(t.id);
+                }}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap ${
+                  isActive
+                    ? "bg-accent text-white shadow-sm"
+                    : "bg-[var(--bg-secondary)] text-secondary hover:text-primary"
+                }`}
+              >
+                {t.label}
+              </button>
+            );
+          })}
         </div>
 
-        <div className="flex items-center gap-1.5 text-xs text-muted flex-wrap">
-          <span>快捷標的：</span>
-          {(PRESET_TOPICS.find((t) => t.id === topic)?.symbols || []).map((sym) => (
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {customSymbol && (
             <button
-              key={sym}
-              onClick={() => {
-                setActiveSymbol(sym);
-                fetchNews(sym);
-              }}
-              className={`px-2 py-0.5 rounded font-mono text-xs cursor-pointer transition-colors ${
-                activeSymbol === sym
-                  ? "bg-accent/20 text-accent font-bold border border-accent/40"
-                  : "bg-[var(--bg-tertiary)] text-secondary hover:text-primary"
-              }`}
+              onClick={clearCustomSearch}
+              className="px-2.5 py-1 rounded-lg bg-accent/15 text-accent border border-accent/30 text-xs font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap"
             >
-              {sym}
+              <span>搜尋: {customSymbol}</span>
+              <X size={12} />
             </button>
-          ))}
+          )}
           <button
-            onClick={() => fetchNews(activeSymbol)}
-            className="p-1 rounded text-secondary hover:text-primary transition-colors ml-1 cursor-pointer"
-            title="刷新新聞"
+            onClick={() => fetchNewsData(topic, customSymbol)}
+            className="p-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] text-secondary hover:text-primary transition-colors cursor-pointer"
+            title="手動刷新即時新聞"
           >
-            <RefreshCw size={13} className={loading ? "animate-spin text-accent" : ""} />
+            <RefreshCw size={14} className={loading ? "animate-spin text-accent" : ""} />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card
           title={
             <div className="flex items-center gap-2">
-              <Newspaper size={18} className="text-accent" />
-              <span>{activeSymbol} 最新即時新聞 ({news.length} 則)</span>
+              <Newspaper size={17} className="text-accent flex-shrink-0" />
+              <span className="truncate">{currentTitle}</span>
+              <span className="text-xs font-mono text-secondary font-normal flex-shrink-0">
+                ({news.length} 則)
+              </span>
             </div>
           }
-          className="md:col-span-2"
+          className="lg:col-span-2"
         >
           {loading ? (
-            <div className="flex flex-col space-y-4 text-center items-center py-16 text-secondary animate-pulse">
-              載入最新即時新聞中...
+            <div className="flex flex-col space-y-4 text-center items-center py-16 text-secondary animate-pulse text-sm">
+              正在同步最新即時財經快訊...
             </div>
           ) : news.length === 0 ? (
             <div className="text-secondary text-center py-16 text-sm">
-              暫無 {activeSymbol} 最新即時新聞，可嘗試上方切換其他標的
+              暫無相關即時新聞，請點擊右上角重新整理或切換分類
             </div>
           ) : (
-            <div className="space-y-3 max-h-[580px] overflow-y-auto pr-1">
+            <div className="space-y-2.5 max-h-[640px] overflow-y-auto pr-1">
               {news.map((n, i) => (
                 <a
                   key={i}
                   href={n.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block p-3.5 rounded-xl hover:bg-[var(--bg-tertiary)] transition-colors border border-[var(--border)] group"
+                  className="block p-3 sm:p-3.5 rounded-xl bg-[var(--bg-secondary)]/60 hover:bg-[var(--bg-tertiary)] transition-colors border border-[var(--border)] group"
                 >
-                  <div className="font-semibold text-primary group-hover:text-accent transition-colors mb-1.5 text-sm leading-snug">
-                    {n.headline}
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <div className="font-semibold text-primary group-hover:text-accent transition-colors text-xs sm:text-sm leading-snug">
+                      {n.headline}
+                    </div>
+                    <ExternalLink
+                      size={13}
+                      className="text-muted group-hover:text-accent flex-shrink-0 mt-0.5"
+                    />
                   </div>
-                  <div className="flex justify-between items-center text-xs text-secondary">
-                    <span className="font-medium text-accent/80">{n.source}</span>
-                    <div className="flex items-center gap-2">
+                  <div className="flex justify-between items-center text-[11px] text-secondary">
+                    <span className="font-medium text-accent/90 truncate max-w-[160px] sm:max-w-none">
+                      {n.source}
+                    </span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <span className="px-1.5 py-0.5 rounded text-[10px] bg-accent/15 text-accent font-medium">
                         {formatRelativeTime(n.datetime)}
                       </span>
-                      <span className="font-mono text-muted text-[11px]">
+                      <span className="font-mono text-muted">
                         {new Date(n.datetime).toLocaleDateString("zh-TW", {
-                          year: "numeric",
                           month: "2-digit",
                           day: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: false,
                         })}
                       </span>
                     </div>
@@ -229,32 +278,32 @@ export default function NewsPage() {
           )}
         </Card>
 
-        <Card title="全球市場 AI 每日情報摘要">
-          <div className="flex flex-col space-y-4 p-4 text-xs text-secondary bg-[var(--bg-tertiary)] rounded-xl leading-relaxed">
+        <Card title="全球市場總體觀察重點">
+          <div className="flex flex-col space-y-4 p-3.5 sm:p-4 text-xs text-secondary bg-[var(--bg-tertiary)] rounded-xl leading-relaxed">
             <div>
               <div className="font-bold text-primary mb-1 flex items-center gap-1.5 text-sm">
                 <Sparkles size={14} className="text-accent" />
-                <span>美股與科技 AI 趨勢</span>
+                <span>美股與全球科技總經趨勢</span>
               </div>
               <p>
-                輝達(NVDA)與大型 CSP 雲端資本支出持續攀升，AI 晶片需求帶動那斯達克維持多頭排列，需關注聯準會貨幣政策會議與利率預期定價。
+                大型雲端服務商（CSP）AI 資本支出與半導體先進製程拉貨動能持續支撐科技板塊，市場聚焦聯準會利率路徑、非農就業與通膨數據對美債殖利率之影響。
               </p>
             </div>
             <div className="border-t border-[var(--border)] pt-3">
               <div className="font-bold text-primary mb-1 flex items-center gap-1.5 text-sm">
                 <DollarSign size={14} className="text-accent" />
-                <span>台股權值與 ETF 資金動向</span>
+                <span>台股加權與資金輪動結構</span>
               </div>
               <p>
-                外資與投信在半導體供應鏈、高股息 ETF 與先進封裝族群維持高持股水位，高殖利率與成分股換股動態成為資金避風港。
+                外資期現貨籌碼與投信被動型 ETF 申購資金構成台股下檔支撐，權值電子、AI 伺服器散熱及高殖利率金控族群呈現良性輪動。
               </p>
             </div>
             <div className="border-t border-[var(--border)] pt-3">
               <div className="font-bold text-primary mb-1 text-sm">
-                <span>操作建議與避險觀察</span>
+                <span>跨資產風險控管提醒</span>
               </div>
               <p>
-                短線乖離率過高時宜逢高分批調節，留意美債殖利率(^TNX)與美元指數(DXY)波動，避免在 ETF 溢價超過 1% 時過度追高。
+                留意美元指數（DXY）與新台幣匯率連動對外資買盤之影響；操作 ETF 時應觀察盤中即時折溢價幅度，避免於溢價過大時追價。
               </p>
             </div>
           </div>
