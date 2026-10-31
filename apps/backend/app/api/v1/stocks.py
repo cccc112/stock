@@ -1,3 +1,8 @@
+import json
+import asyncio
+from datetime import datetime
+from email.utils import parsedate_to_datetime
+from app.services.cache import cache_service
 import logging
 import urllib.parse
 import xml.etree.ElementTree as ET
@@ -16,12 +21,22 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+CHINESE_NAME_MAP = {
+    "2330": "台積電", "2317": "鴻海", "2454": "聯發科", "2382": "廣達", "3231": "緯創",
+    "2603": "長榮", "2881": "富邦金", "2882": "國泰金", "2891": "中信金", "2303": "聯電",
+    "0050": "元大台灣50", "0056": "元大高股息", "00878": "國泰永續高股息", "00919": "群益精選高息",
+    "00929": "復華台灣科技優息", "00940": "元大台灣價值高息", "00713": "元大高息低波",
+    "NVDA": "輝達", "TSLA": "特斯拉", "AAPL": "蘋果", "MSFT": "微軟", "GOOGL": "谷歌",
+    "AMZN": "亞馬遜", "META": "Meta", "AMD": "超微", "INTC": "英特爾", "AVGO": "博通",
+    "SPY": "標普500", "QQQ": "那斯達克", "SOXX": "半導體ETF", "SMH": "費半ETF",
+}
 
-async def fetch_rss_news(query: str, limit: int = 20) -> List[Dict[str, Any]]:
-    """Google News RSS 即時備援，保證永遠有新聞且支援美股/台股"""
+
+async def fetch_rss_news(query: str, limit: int = 25) -> List[Dict[str, Any]]:
+    """Google News RSS 即時新聞引擎，保證抓取當日即時發布之重大財經快訊"""
     try:
         url = f"https://news.google.com/rss/search?q={urllib.parse.quote(query)}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
-        async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=4.0, follow_redirects=True) as client:
             resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
             if resp.status_code == 200:
                 root = ET.fromstring(resp.content)
@@ -30,13 +45,23 @@ async def fetch_rss_news(query: str, limit: int = 20) -> List[Dict[str, Any]]:
                     title = el.findtext("title") or ""
                     link = el.findtext("link") or ""
                     pub_date = el.findtext("pubDate") or ""
-                    source = el.findtext("source") or "財經新聞"
-                    items.append({
-                        "title": title,
-                        "link": link,
-                        "date": pub_date,
-                        "source": source,
-                    })
+                    source = el.findtext("source") or "即時快訊"
+                    
+                    # 標準化發布時間為 ISO 字串，確保前後端排序精確
+                    date_str = pub_date
+                    try:
+                        dt = parsedate_to_datetime(pub_date)
+                        date_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+                    except Exception:
+                        pass
+
+                    if title:
+                        items.append({
+                            "title": title,
+                            "link": link,
+                            "date": date_str,
+                            "source": source,
+                        })
                 return items
     except Exception as e:
         logger.warning(f"fetch_rss_news failed for {query}: {e}")
@@ -161,50 +186,95 @@ async def get_institutional(symbol: str, days: int = 30):
 
 @router.get("/{symbol}/news")
 async def get_news(symbol: str, days: int = 5):
+    """即時多源新聞聚合：優先調用即時 Google News RSS，輔以 FinMind 與 Yahoo 財經，保證新聞當日即時性與秒級快取"""
     code, market, _ = market_data.split_symbol(symbol)
-    news = []
+    code_upper = code.upper()
+    cache_key = f"news_cache:{code_upper}"
+
+    # 1. 優先命中 180 秒秒級快取，防止重複高頻調用導致延遲
+    cached = await cache_service.get(cache_key)
+    if cached:
+        try:
+            return json.loads(cached)
+        except Exception:
+            pass
+
+    # 2. 獲取中文標準名稱建立搜尋關鍵字
+    quote = await market_data.get_quote(symbol)
+    name = quote.name if quote else ""
+    chinese_name = CHINESE_NAME_MAP.get(code_upper, name)
+    query = f"{code} {chinese_name}".strip() if chinese_name else code
+
+    # 3. 並行獲取即時新聞 (優先抓取最新 Google 財經 RSS，並設定安全 timeout 防止卡頓)
+    tasks = [
+        fetch_rss_news(query, limit=25),
+    ]
+
     if market == "TW":
-        try:
-            news = await finmind_service.get_news(code, days)
-        except Exception as e:
-            logger.warning(f"finmind get_news failed: {e}")
-            news = []
+        # 台股背景嘗試抓取 FinMind 新聞 (限制 2.5 秒超時，防止阻塞主流程)
+        async def fetch_finmind_safe():
+            try:
+                return await asyncio.wait_for(finmind_service.get_news(code, days=3), timeout=2.5)
+            except Exception:
+                return []
+        tasks.append(fetch_finmind_safe())
     else:
-        # 美股與全球標的：優先使用 Yahoo Finance 官方即時新聞
+        # 美股補充 Yahoo Finance 即時搜尋
+        async def fetch_yahoo_safe():
+            try:
+                async with httpx.AsyncClient(timeout=3.5) as client:
+                    y_url = f"https://query2.finance.yahoo.com/v1/finance/search?q={code}&quotesCount=1&newsCount=15"
+                    y_res = await client.get(y_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+                    if y_res.status_code == 200:
+                        items = []
+                        for it in y_res.json().get("news", []):
+                            t = it.get("title")
+                            l = it.get("link")
+                            pub = it.get("providerPublishTime")
+                            src = it.get("publisher", "Yahoo財經")
+                            if t and l:
+                                d_str = datetime.fromtimestamp(pub).strftime("%Y-%m-%d %H:%M:%S") if pub else ""
+                                items.append({"title": t, "link": l, "date": d_str, "source": src})
+                        return items
+            except Exception:
+                return []
+            return []
+        tasks.append(fetch_yahoo_safe())
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    all_news = []
+    seen_titles = set()
+
+    for res in results:
+        if isinstance(res, list):
+            for it in res:
+                title = it.get("title", "").strip()
+                if not title or title in seen_titles:
+                    continue
+                seen_titles.add(title)
+                all_news.append(it)
+
+    # 4. 依照發布時間嚴格由最新到最舊排序，確保今日與最新消息排在最頂部
+    def parse_item_time(it):
+        d = it.get("date", "")
+        if not d:
+            return 0
         try:
-            async with httpx.AsyncClient(timeout=6.0) as client:
-                y_url = f"https://query2.finance.yahoo.com/v1/finance/search?q={code}&quotesCount=1&newsCount=15"
-                y_res = await client.get(y_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
-                if y_res.status_code == 200:
-                    y_items = y_res.json().get("news", [])
-                    for it in y_items:
-                        title = it.get("title")
-                        link = it.get("link")
-                        pub_time = it.get("providerPublishTime")
-                        publisher = it.get("publisher", "美股即時快訊")
-                        if title and link:
-                            date_str = ""
-                            if pub_time:
-                                try:
-                                    date_str = datetime.fromtimestamp(pub_time).strftime("%Y-%m-%d %H:%M")
-                                except Exception:
-                                    pass
-                            news.append({
-                                "title": title,
-                                "link": link,
-                                "date": date_str,
-                                "source": publisher,
-                            })
-        except Exception as e:
-            logger.warning(f"yahoo finance news failed for {code}: {e}")
+            return parsedate_to_datetime(d).timestamp()
+        except Exception:
+            try:
+                return datetime.fromisoformat(d).timestamp()
+            except Exception:
+                return 0
 
-    # 若無資料、條數過少或需中文財經新聞，調用 Google News RSS 繁體中文財經備援
-    if len(news) < 5:
-        quote = await market_data.get_quote(symbol)
-        name = quote.name if quote else ""
-        query = f"{code} {name}".strip()
-        rss_news = await fetch_rss_news(query)
-        if rss_news:
-            news.extend(rss_news)
+    all_news.sort(key=parse_item_time, reverse=True)
+    final_news = all_news[:30]
 
-    return news
+    # 5. 寫入快取 180 秒 (3 分鐘)
+    if final_news:
+        try:
+            await cache_service.set(cache_key, json.dumps(final_news), ttl=180)
+        except Exception:
+            pass
+
+    return final_news

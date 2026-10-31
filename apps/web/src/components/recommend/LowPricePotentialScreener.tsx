@@ -55,7 +55,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "2409",
     name: "友達",
     industry: "光電面板",
-    price: 16.2,
+    price: 30.65,
     change_pct: 1.25,
     volume: 58200,
     volume_mult: 2.6,
@@ -77,7 +77,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "3481",
     name: "群創",
     industry: "光電面板",
-    price: 15.5,
+    price: 42.55,
     change_pct: 1.95,
     volume: 64800,
     volume_mult: 3.1,
@@ -99,7 +99,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "6116",
     name: "彩晶",
     industry: "光電零組件",
-    price: 9.85,
+    price: 13.30,
     change_pct: 0.82,
     volume: 18500,
     volume_mult: 2.2,
@@ -121,7 +121,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "2401",
     name: "凌陽",
     industry: "半導體 IC 設計",
-    price: 28.5,
+    price: 23.80,
     change_pct: 2.15,
     volume: 14200,
     volume_mult: 2.8,
@@ -187,7 +187,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "2353",
     name: "宏碁",
     industry: "電腦週邊",
-    price: 41.5,
+    price: 30.40,
     change_pct: 1.1,
     volume: 31000,
     volume_mult: 1.8,
@@ -209,7 +209,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "2324",
     name: "仁寶",
     industry: "電子代工",
-    price: 36.8,
+    price: 35.20,
     change_pct: 0.55,
     volume: 29500,
     volume_mult: 1.9,
@@ -231,7 +231,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "2367",
     name: "燿華",
     industry: "電子零組件 PCB",
-    price: 33.5,
+    price: 40.55,
     change_pct: 2.45,
     volume: 36200,
     volume_mult: 3.4,
@@ -253,7 +253,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "2605",
     name: "新興",
     industry: "散裝航運",
-    price: 25.5,
+    price: 34.95,
     change_pct: 1.8,
     volume: 21500,
     volume_mult: 2.7,
@@ -275,7 +275,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "2002",
     name: "中鋼",
     industry: "鋼鐵龍頭",
-    price: 22.5,
+    price: 19.25,
     change_pct: 0.45,
     volume: 28000,
     volume_mult: 1.6,
@@ -297,7 +297,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "2014",
     name: "中鴻",
     industry: "鋼鐵原物料",
-    price: 18.5,
+    price: 16.20,
     change_pct: 1.35,
     volume: 32000,
     volume_mult: 2.4,
@@ -319,7 +319,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "2365",
     name: "昆盈",
     industry: "電腦週邊",
-    price: 45.0,
+    price: 25.95,
     change_pct: 3.2,
     volume: 38900,
     volume_mult: 3.5,
@@ -341,7 +341,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "3047",
     name: "訊舟",
     industry: "通信網路",
-    price: 38.0,
+    price: 14.40,
     change_pct: 2.15,
     volume: 27500,
     volume_mult: 2.6,
@@ -363,7 +363,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "2328",
     name: "廣宇",
     industry: "電子零組件",
-    price: 34.5,
+    price: 50.60,
     change_pct: 0.88,
     volume: 16800,
     volume_mult: 1.9,
@@ -385,7 +385,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "2352",
     name: "佳世達",
     industry: "電腦週邊",
-    price: 35.2,
+    price: 33.80,
     change_pct: 0.57,
     volume: 19200,
     volume_mult: 1.7,
@@ -407,7 +407,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "4960",
     name: "誠美材",
     industry: "光電零組件",
-    price: 13.5,
+    price: 31.50,
     change_pct: 1.5,
     volume: 15200,
     volume_mult: 2.3,
@@ -429,7 +429,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "3576",
     name: "聯合再生",
     industry: "太陽能與儲能",
-    price: 12.2,
+    price: 16.35,
     change_pct: 0.82,
     volume: 14500,
     volume_mult: 2.0,
@@ -451,7 +451,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "9105",
     name: "泰金寶-KY",
     industry: "電子代工",
-    price: 6.5,
+    price: 8.00,
     change_pct: 0.62,
     volume: 28400,
     volume_mult: 2.1,
@@ -517,7 +517,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "1722",
     name: "台肥",
     industry: "肥料化工與資產",
-    price: 54.0,
+    price: 41.90,
     change_pct: 0.75,
     volume: 11200,
     volume_mult: 1.5,
@@ -539,7 +539,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "2323",
     name: "中環",
     industry: "光碟與轉投資",
-    price: 11.5,
+    price: 11.45,
     change_pct: 0.88,
     volume: 15400,
     volume_mult: 1.8,
@@ -561,7 +561,7 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
     symbol: "1314",
     name: "中石化",
     industry: "特用化學與資產",
-    price: 8.85,
+    price: 8.06,
     change_pct: 1.15,
     volume: 42500,
     volume_mult: 2.1,
@@ -581,12 +581,13 @@ const LOW_PRICE_POTENTIAL_SEEDS: LowPriceStockItem[] = [
   },
 ];
 
-type PriceCapFilter = "ALL" | "P20" | "P35" | "P50";
 type PatternFilter = "ALL" | "底部放量突破" | "均線多頭排列" | "布林通道壓縮" | "營運轉虧為盈" | "法人主力吸籌";
 type SortOption = "SCORE" | "VOLUME_MULT" | "PBR" | "CHANGE_PCT" | "UPSIDE";
 
 export default function LowPricePotentialScreener() {
-  const [priceCap, setPriceCap] = useState<PriceCapFilter>("ALL");
+  // 動態連動「即時現價」過濾器（預設 60 元，可自由拖曳拉桿或輸入任意金額）
+  const [maxPrice, setMaxPrice] = useState<number>(60);
+  const [unlimitedPrice, setUnlimitedPrice] = useState<boolean>(false);
   const [patternFilter, setPatternFilter] = useState<PatternFilter>("ALL");
   const [sortBy, setSortBy] = useState<SortOption>("SCORE");
   const [search, setSearch] = useState("");
@@ -674,11 +675,8 @@ export default function LowPricePotentialScreener() {
       };
     })
       .filter((item) => {
-        // 價格區間過濾 (低價潛力股嚴格上限 60 元，超過 60 元絕對不出現)
-        if (item.price > 60) return false;
-        if (priceCap === "P20" && item.price > 20) return false;
-        if (priceCap === "P35" && item.price > 35) return false;
-        if (priceCap === "P50" && item.price > 50) return false;
+        // 價格區間過濾：100% 依據「盤中即時撮合現價」動態過濾，杜絕寫死
+        if (!unlimitedPrice && item.price > maxPrice) return false;
 
         // 技術形態過濾
         if (patternFilter !== "ALL" && item.pattern !== patternFilter) return false;
@@ -703,7 +701,7 @@ export default function LowPricePotentialScreener() {
         if (sortBy === "UPSIDE") return b.upside_pct - a.upside_pct;
         return 0;
       });
-  }, [priceCap, patternFilter, sortBy, search, livePrices]);
+  }, [maxPrice, unlimitedPrice, patternFilter, sortBy, search, livePrices]);
 
   // 頂部統計指標
   const stats = useMemo(() => {
@@ -785,53 +783,35 @@ export default function LowPricePotentialScreener() {
 
       {/* 控制與篩選列 */}
       <div className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] space-y-3.5">
-        {/* 第一排：價格區間切換 & 搜尋 */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs text-secondary font-semibold mr-1">股價上限:</span>
-            <button
-              onClick={() => setPriceCap("ALL")}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-                priceCap === "ALL"
-                  ? "bg-accent text-white"
-                  : "bg-[var(--bg-tertiary)] text-secondary hover:text-primary"
-              }`}
-            >
-              全部低價 (≤ $60)
-            </button>
-            <button
-              onClick={() => setPriceCap("P20")}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-                priceCap === "P20"
-                  ? "bg-accent text-white"
-                  : "bg-[var(--bg-tertiary)] text-secondary hover:text-primary"
-              }`}
-            >
-              銅板股 (≤ $20)
-            </button>
-            <button
-              onClick={() => setPriceCap("P35")}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-                priceCap === "P35"
-                  ? "bg-accent text-white"
-                  : "bg-[var(--bg-tertiary)] text-secondary hover:text-primary"
-              }`}
-            >
-              主流低價 (≤ $35)
-            </button>
-            <button
-              onClick={() => setPriceCap("P50")}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-                priceCap === "P50"
-                  ? "bg-accent text-white"
-                  : "bg-[var(--bg-tertiary)] text-secondary hover:text-primary"
-              }`}
-            >
-              中低價轉機 (≤ $50)
-            </button>
-          </div>
+        {/* 第一排：現價動態過濾器 (支援拉桿、自訂輸入與快捷標籤) & 搜尋 */}
+        <div className="space-y-2.5">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+            {/* 動態拉桿與自訂數值 */}
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <span className="text-xs text-secondary font-bold flex-shrink-0">
+                現價上限:
+              </span>
+              <div className="flex items-center gap-2 flex-1 md:w-56">
+                <input
+                  type="range"
+                  min={10}
+                  max={100}
+                  step={1}
+                  disabled={unlimitedPrice}
+                  value={maxPrice}
+                  onChange={(e) => {
+                    setMaxPrice(Number(e.target.value));
+                    setUnlimitedPrice(false);
+                  }}
+                  className="w-full accent-[var(--accent)] cursor-pointer disabled:opacity-40"
+                />
+                <span className="font-mono font-bold text-accent text-sm w-16 text-right tabular-nums">
+                  {unlimitedPrice ? "不設限" : `≤ $${maxPrice}`}
+                </span>
+              </div>
+            </div>
 
-          <div className="relative w-full sm:w-60">
+            <div className="relative w-full sm:w-64">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
             <input
               type="text"
@@ -840,6 +820,40 @@ export default function LowPricePotentialScreener() {
               placeholder="搜尋代碼、名稱或產業..."
               className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg py-1 pl-8 pr-3 text-xs text-primary focus:outline-none focus:border-accent"
             />
+          </div>
+        </div>
+
+          {/* 快捷篩選標籤 (點選即時聯動現價) */}
+          <div className="flex items-center gap-1.5 flex-wrap pt-1 text-xs">
+            <span className="text-muted text-[11px] mr-0.5">快捷現價區間:</span>
+            {[
+              { label: "全部低價 (≤ 60元)", price: 60, unlimited: false },
+              { label: "極致銅板 (≤ 15元)", price: 15, unlimited: false },
+              { label: "銅板股 (≤ 20元)", price: 20, unlimited: false },
+              { label: "平價標的 (≤ 30元)", price: 30, unlimited: false },
+              { label: "主流低價 (≤ 35元)", price: 35, unlimited: false },
+              { label: "中低價 (≤ 50元)", price: 50, unlimited: false },
+              { label: "不設上限 (全市場)", price: 999, unlimited: true },
+            ].map((chip) => {
+              const isSelected = !unlimitedPrice && maxPrice === chip.price && !chip.unlimited || (unlimitedPrice && chip.unlimited);
+              return (
+                <button
+                  key={chip.label}
+                  type="button"
+                  onClick={() => {
+                    setMaxPrice(chip.price);
+                    setUnlimitedPrice(chip.unlimited);
+                  }}
+                  className={`px-2.5 py-0.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                    isSelected
+                      ? "bg-accent text-white shadow-sm"
+                      : "bg-[var(--bg-tertiary)] text-secondary hover:text-primary"
+                  }`}
+                >
+                  {chip.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 

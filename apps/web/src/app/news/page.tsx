@@ -4,6 +4,25 @@ import Card from "@/components/ui/Card";
 import { Newspaper, Search, RefreshCw, Sparkles, Globe, DollarSign } from "lucide-react";
 import { apiStocks } from "@/lib/api";
 
+
+function formatRelativeTime(dateInput: any) {
+  if (!dateInput) return "剛剛";
+  const time = typeof dateInput === "number" ? dateInput : new Date(dateInput).getTime();
+  if (isNaN(time)) return String(dateInput);
+  const diffMs = Date.now() - time;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  if (diffMin < 2) return "剛剛更新";
+  if (diffMin < 60) return `${diffMin} 分鐘前`;
+  if (diffHour < 24) return `${diffHour} 小時前`;
+  if (diffDay === 1) return "昨天";
+  if (diffDay < 7) return `${diffDay} 天前`;
+  return new Date(time).toLocaleDateString("zh-TW", { month: "2-digit", day: "2-digit" });
+}
+
 const PRESET_TOPICS = [
   { id: "tw", label: "台股焦點", symbols: ["2330", "2317", "2454", "3231", "2603"] },
   { id: "us", label: "美股與全球科技", symbols: ["NVDA", "AAPL", "TSLA", "MSFT", "GOOGL"] },
@@ -55,6 +74,15 @@ export default function NewsPage() {
     setActiveSymbol(defaultSym);
     fetchNews(defaultSym);
   }, [topic]);
+
+  // 每 45 秒自動同步盤中最新快訊
+  useEffect(() => {
+    if (!activeSymbol) return;
+    const timer = setInterval(() => {
+      fetchNews(activeSymbol);
+    }, 45000);
+    return () => clearInterval(timer);
+  }, [activeSymbol]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,15 +210,18 @@ export default function NewsPage() {
                   </div>
                   <div className="flex justify-between items-center text-xs text-secondary">
                     <span className="font-medium text-accent/80">{n.source}</span>
-                    <span className="font-mono">
-                      {new Date(n.datetime).toLocaleDateString("zh-TW", {
-                        year: "numeric",
-                        month: "2-digit",
-                        day: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-accent/15 text-accent font-medium">
+                        {formatRelativeTime(n.datetime)}
+                      </span>
+                      <span className="font-mono text-muted text-[11px]">
+                        {new Date(n.datetime).toLocaleDateString("zh-TW", {
+                          year: "numeric",
+                          month: "2-digit",
+                          day: "2-digit",
+                        })}
+                      </span>
+                    </div>
                   </div>
                 </a>
               ))}

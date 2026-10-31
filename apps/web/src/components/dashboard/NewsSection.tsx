@@ -25,11 +25,16 @@ export default function NewsSection({ symbol }: { symbol: string }) {
   }, [symbol]);
 
   const formatDate = (dateStr: any) => {
-    if (!dateStr) return "";
+    if (!dateStr) return "剛剛";
     const d = new Date(dateStr);
-    return isNaN(d.getTime())
-      ? String(dateStr)
-      : d.toLocaleDateString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit" });
+    const time = d.getTime();
+    if (isNaN(time)) return String(dateStr);
+    const diffMin = Math.floor((Date.now() - time) / 60000);
+    if (diffMin < 2) return "剛剛";
+    if (diffMin < 60) return `${diffMin} 分鐘前`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour} 小時前`;
+    return d.toLocaleDateString("zh-TW", { month: "2-digit", day: "2-digit" });
   };
 
   if (loading) {
