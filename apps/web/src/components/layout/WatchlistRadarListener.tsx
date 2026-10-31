@@ -38,7 +38,8 @@ export default function WatchlistRadarListener() {
     const handleRadarEvent = (e: any) => {
       if (e?.detail) {
         const ev = e.detail as RadarAlertEvent;
-        setActiveToasts((prev) => [ev, ...prev.filter((t) => t.id !== ev.id)].slice(0, 3));
+        // 依照 symbol 進行聚合，若已有同一檔股票的 toast，直接替換更新為最新聚合訊息
+        setActiveToasts((prev) => [ev, ...prev.filter((t) => t.symbol !== ev.symbol)].slice(0, 3));
 
         // 8 秒後自動淡出
         setTimeout(() => {
@@ -180,6 +181,17 @@ export default function WatchlistRadarListener() {
               <div className="text-xs text-primary font-medium mb-1.5 leading-relaxed">
                 {toast.message}
               </div>
+
+              {toast.signals && toast.signals.length > 1 && (
+                <div className="my-2 p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)] text-[11px] space-y-1">
+                  {toast.signals.map((sig, idx) => (
+                    <div key={idx} className="flex items-start gap-1.5 text-secondary">
+                      <span className="text-accent font-bold">•</span>
+                      <span>{sig}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="flex items-center justify-between text-[11px] pt-1 border-t border-[var(--border)] text-muted">
                 <span>{new Date(toast.timestamp).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>

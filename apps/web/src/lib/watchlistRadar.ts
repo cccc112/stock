@@ -10,6 +10,7 @@ export interface RadarAlertEvent {
   ruleId: string;
   title: string;
   message: string;
+  signals?: string[];
   price: number;
   changePct: number;
   type: "up" | "down" | "info";
@@ -121,6 +122,14 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
       const smc = report.models?.smc || {};
       const verdict = report.verdict || {};
 
+      // 聚合單一股票在此次掃描中觸發的所有信號
+      const symbolSignals: {
+        ruleId: string;
+        title: string;
+        message: string;
+        type: "up" | "down" | "info";
+      }[] = [];
+
       // 1. Minervini VCP 收斂爆發突破
       const vcpRatio = Number(min.vcp_ratio ?? 1.0);
       const minScore = Number(min.score ?? 0);
@@ -130,19 +139,12 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
         const lastTriggered = cooldownMap[cooldownKey] || 0;
 
         if (now - lastTriggered > COOLDOWN_MS) {
-          const event: RadarAlertEvent = {
-            id: `${symbol}_${ruleId}_${now}`,
-            symbol,
-            name,
+          symbolSignals.push({
             ruleId,
             title: `⚡ Minervini VCP 波動壓縮突破`,
-            message: `${name} 波動壓縮比 ${vcpRatio}x 完成洗盤，當日漲幅 ${changePct >= 0 ? "+" : ""}${changePct}% 帶量轉強！`,
-            price,
-            changePct,
+            message: `波動壓縮比 ${vcpRatio}x 完成洗盤，帶量轉強 (+${changePct}%)`,
             type: "up",
-            timestamp: now,
-          };
-          triggeredEvents.push(event);
+          });
           cooldownMap[cooldownKey] = now;
         }
       }
@@ -156,19 +158,12 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
         const lastTriggered = cooldownMap[cooldownKey] || 0;
 
         if (now - lastTriggered > COOLDOWN_MS) {
-          const event: RadarAlertEvent = {
-            id: `${symbol}_${ruleId}_${now}`,
-            symbol,
-            name,
+          symbolSignals.push({
             ruleId,
             title: `🎯 SMC 多方機構訂單塊踩點支撐`,
-            message: `${name} 現價 $${price} 精準回測機構主力訂單塊支撐區 ($${obLow} ~ $${obHigh})，具高勝率進場防守位階！`,
-            price,
-            changePct,
+            message: `現價 $${price} 精準回測主力訂單塊支撐區 ($${obLow} ~ $${obHigh})`,
             type: "info",
-            timestamp: now,
-          };
-          triggeredEvents.push(event);
+          });
           cooldownMap[cooldownKey] = now;
         }
       }
@@ -180,19 +175,12 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
         const lastTriggered = cooldownMap[cooldownKey] || 0;
 
         if (now - lastTriggered > COOLDOWN_MS) {
-          const event: RadarAlertEvent = {
-            id: `${symbol}_${ruleId}_${now}`,
-            symbol,
-            name,
+          symbolSignals.push({
             ruleId,
-            title: `🔥 底部爆量主力吸籌起漲`,
-            message: `${name} 於相對低檔打底後爆量收長紅 (+${changePct}%)，主力大單換手積極，帶量脫離底部成本區！`,
-            price,
-            changePct,
+            title: `🔥 底部爆量主力換手起漲`,
+            message: `打底後爆量收紅 (+${changePct}%)，主力大單換手積極脫離成本區`,
             type: "up",
-            timestamp: now,
-          };
-          triggeredEvents.push(event);
+          });
           cooldownMap[cooldownKey] = now;
         }
       }
@@ -208,19 +196,12 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
           const lastTriggered = cooldownMap[cooldownKey] || 0;
 
           if (now - lastTriggered > COOLDOWN_MS) {
-            const event: RadarAlertEvent = {
-              id: `${symbol}_${ruleId}_${now}`,
-              symbol,
-              name,
+            symbolSignals.push({
               ruleId,
-              title: `💼 觸及 AI 委員會建議階梯進場區`,
-              message: `${name} 現價 $${price} 進入委員會階梯掛單建議位階 ($${eLow} ~ $${eHigh})。`,
-              price,
-              changePct,
+              title: `💼 觸及 AI 委員會階梯進場區`,
+              message: `現價 $${price} 進入建議階梯掛單位階 ($${eLow} ~ $${eHigh})`,
               type: "up",
-              timestamp: now,
-            };
-            triggeredEvents.push(event);
+            });
             cooldownMap[cooldownKey] = now;
           }
         }
@@ -234,19 +215,12 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
         const lastTriggered = cooldownMap[cooldownKey] || 0;
 
         if (now - lastTriggered > COOLDOWN_MS) {
-          const event: RadarAlertEvent = {
-            id: `${symbol}_${ruleId}_${now}`,
-            symbol,
-            name,
+          symbolSignals.push({
             ruleId,
             title: `🚨 跌破硬性防守停損價`,
-            message: `${name} 現價 $${price} 已跌破防守價 $${stopLoss}，請嚴格執行風控紀律，切勿凹單！`,
-            price,
-            changePct,
+            message: `現價 $${price} 跌破防守價 $${stopLoss}，請嚴格執行風控紀律`,
             type: "down",
-            timestamp: now,
-          };
-          triggeredEvents.push(event);
+          });
           cooldownMap[cooldownKey] = now;
         }
       }
@@ -258,21 +232,50 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
         const lastTriggered = cooldownMap[cooldownKey] || 0;
 
         if (now - lastTriggered > COOLDOWN_MS) {
-          const event: RadarAlertEvent = {
-            id: `${symbol}_${ruleId}_${now}`,
-            symbol,
-            name,
+          symbolSignals.push({
             ruleId,
             title: `🚀 自選股強勢噴出`,
-            message: `${name} 當日大漲 +${changePct}%，目前報價 $${price}，多方買盤積極卡位！`,
-            price,
-            changePct,
+            message: `當日大漲 +${changePct}%，目前報價 $${price}，多方買盤強勁`,
             type: "up",
-            timestamp: now,
-          };
-          triggeredEvents.push(event);
+          });
           cooldownMap[cooldownKey] = now;
         }
+      }
+
+      // 將該股票觸發的所有信號「整合為單一推播通知」，杜絕同一股票連發多條洗版
+      if (symbolSignals.length === 1) {
+        const sig = symbolSignals[0];
+        triggeredEvents.push({
+          id: `${symbol}_${sig.ruleId}_${now}`,
+          symbol,
+          name,
+          ruleId: sig.ruleId,
+          title: `${sig.title} (${symbol} ${name})`,
+          message: `${name} 現價 $${price}（${changePct >= 0 ? "+" : ""}${changePct}%）：${sig.message}`,
+          signals: [`${sig.title}：${sig.message}`],
+          price,
+          changePct,
+          type: sig.type,
+          timestamp: now,
+        });
+      } else if (symbolSignals.length > 1) {
+        const hasDown = symbolSignals.some((s) => s.type === "down");
+        const hasUp = symbolSignals.some((s) => s.type === "up");
+        const aggType: "up" | "down" | "info" = hasDown ? "down" : hasUp ? "up" : "info";
+
+        triggeredEvents.push({
+          id: `${symbol}_aggregated_${now}`,
+          symbol,
+          name,
+          ruleId: "aggregated",
+          title: `⚡ ${symbol} ${name} 多重雷達共振 (${symbolSignals.length}項訊號)`,
+          message: `${name} 現價 $${price} (${changePct >= 0 ? "+" : ""}${changePct}%) 同時觸發 ${symbolSignals.map((s) => s.title.replace(/^[^\s]+\s*/, "")).join("、")}`,
+          signals: symbolSignals.map((s) => `${s.title}：${s.message}`),
+          price,
+          changePct,
+          type: aggType,
+          timestamp: now,
+        });
       }
     } catch (e) {
       // 容錯跳過個別標的

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { apiInstitutions } from "@/lib/api";
+import { apiInstitutions, apiStocks } from "@/lib/api";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -397,7 +397,7 @@ export default function InstitutionsPage() {
   }, [twView, selectedStock]);
 
   // 封裝安全超時請求，防止遠端後端冷啟動導致手機無限轉圈或白屏
-  const withTimeout = <T,>(promise: Promise<T>, ms = 3500): Promise<T> => {
+  const withTimeout = <T,>(promise: Promise<T>, ms = 8000): Promise<T> => {
     return Promise.race([
       promise,
       new Promise<T>((_, reject) => setTimeout(() => reject(new Error("Timeout")), ms)),
@@ -408,9 +408,9 @@ export default function InstitutionsPage() {
     setLoading(true);
     try {
       const [resTw, resUs, resRanks] = await Promise.allSettled([
-        withTimeout(apiInstitutions.getTw()),
-        withTimeout(apiInstitutions.getUs13F()),
-        withTimeout(apiInstitutions.getRanksTw()),
+        withTimeout(apiInstitutions.getTw(), 10000),
+        withTimeout(apiInstitutions.getUs13F(), 8000),
+        withTimeout(apiInstitutions.getRanksTw(), 8000),
       ]);
 
       if (resTw.status === "fulfilled" && Array.isArray(resTw.value.data) && resTw.value.data.length > 0) {
@@ -442,12 +442,31 @@ export default function InstitutionsPage() {
   const fetchStockInstitutions = async (sym: string) => {
     setStockLoading(true);
     try {
-      const res = await withTimeout(apiInstitutions.getStockTw(sym));
-      if (res?.data && res.data.history && res.data.history.length > 0) {
-        setStockData(res.data);
+      const [resInst, resQuote] = await Promise.allSettled([
+        withTimeout(apiInstitutions.getStockTw(sym), 10000),
+        apiStocks.getQuote(sym),
+      ]);
+
+      let dataToSet: StockInstData | null = null;
+      if (resInst.status === "fulfilled" && resInst.value?.data?.history?.length > 0) {
+        dataToSet = resInst.value.data;
       } else {
-        setStockData(getRealisticStockData(sym));
+        dataToSet = getRealisticStockData(sym);
       }
+
+      if (resQuote.status === "fulfilled" && resQuote.value?.data?.price) {
+        const livePrice = Number(resQuote.value.data.price);
+        const liveName = resQuote.value.data.name;
+        if (dataToSet && livePrice > 0) {
+          dataToSet.latest_close = livePrice;
+          if (liveName) dataToSet.name = liveName;
+          if (dataToSet.history && dataToSet.history.length > 0) {
+            dataToSet.history[dataToSet.history.length - 1].close = livePrice;
+          }
+        }
+      }
+
+      setStockData(dataToSet);
     } catch {
       setStockData(getRealisticStockData(sym));
     } finally {
@@ -524,7 +543,7 @@ export default function InstitutionsPage() {
                   : 'text-secondary hover:text-primary hover:bg-[var(--bg-tertiary)]'
               }`}
             >
-              個股三大法人籌碼診斷 ({selectedStock})
+              個股三大法人籌碼診斷
             </button>
           </div>
 
@@ -1034,7 +1053,7 @@ export default function InstitutionsPage() {
                       <span>本季加碼 (Top Buys)</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {fund.topBuys.map((ticker: string) => (
+                      {(fund.topBuys || []).map((ticker: string) => (
                         <span 
                           key={ticker} 
                           className="px-2 py-0.5 rounded text-[11px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
@@ -1051,7 +1070,7 @@ export default function InstitutionsPage() {
                       <span>本季減碼 (Top Sells)</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {fund.topSells.map((ticker: string) => (
+                      {(fund.topSells || []).map((ticker: string) => (
                         <span 
                           key={ticker} 
                           className="px-2 py-0.5 rounded text-[11px] font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20"
@@ -1118,7 +1137,7 @@ export default function InstitutionsPage() {
                 </div>
 
                 {/* 板塊配置分佈 */}
-                {selectedFund.sectorAllocation && (
+                {Array.isArray(selectedFund.sectorAllocation) && selectedFund.sectorAllocation.length > 0 && (
                   <div>
                     <h4 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
                       <PieChart size={14} /> 板塊資產配置分佈
@@ -1135,7 +1154,7 @@ export default function InstitutionsPage() {
                 )}
 
                 {/* 重倉股明細表格 */}
-                {selectedFund.holdings && (
+                {Array.isArray(selectedFund.holdings) && selectedFund.holdings.length > 0 && (
                   <div>
                     <h4 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
                       <Layers size={14} /> 前大重倉股持股明細表 (Top Holdings)
@@ -1153,30 +1172,35 @@ export default function InstitutionsPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--border)] font-mono">
-                          {selectedFund.holdings.map((h: any) => (
-                            <tr key={h.symbol} className="hover:bg-[var(--bg-tertiary)]/50 transition-colors">
-                              <td className="py-2.5 px-3 font-bold text-accent">
-                                <Link href={`/stock/${h.symbol}`} className="hover:underline">
-                                  {h.symbol}
-                                </Link>
-                              </td>
-                              <td className="py-2.5 px-3 text-primary font-sans">{h.name}</td>
-                              <td className="py-2.5 px-3 text-right text-secondary">{h.shares}</td>
-                              <td className="py-2.5 px-3 text-right font-semibold text-primary">{h.value}</td>
-                              <td className="py-2.5 px-3 text-right text-accent font-bold">{h.portfolioPct}%</td>
-                              <td className="py-2.5 px-3 text-right font-sans">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                  h.action.includes('增持') || h.action.includes('加碼') || h.action.includes('建倉')
-                                    ? 'bg-emerald-500/15 text-emerald-400'
-                                    : h.action.includes('減持')
-                                    ? 'bg-rose-500/15 text-rose-400'
-                                    : 'bg-zinc-500/15 text-zinc-400'
-                                }`}>
-                                  {h.action} {h.changePct !== 0 ? `(${h.changePct > 0 ? '+' : ''}${h.changePct}%)` : ''}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
+                          {selectedFund.holdings.map((h: any) => {
+                            const act = String(h?.action || '持有');
+                            const isPositiveAction = act.includes('增持') || act.includes('加碼') || act.includes('建倉');
+                            const isNegativeAction = act.includes('減持') || act.includes('賣出');
+                            return (
+                              <tr key={h?.symbol} className="hover:bg-[var(--bg-tertiary)]/50 transition-colors">
+                                <td className="py-2.5 px-3 font-bold text-accent">
+                                  <Link href={`/stock/${h?.symbol}`} className="hover:underline">
+                                    {h?.symbol}
+                                  </Link>
+                                </td>
+                                <td className="py-2.5 px-3 text-primary font-sans">{h?.name}</td>
+                                <td className="py-2.5 px-3 text-right text-secondary">{h?.shares}</td>
+                                <td className="py-2.5 px-3 text-right font-semibold text-primary">{h?.value}</td>
+                                <td className="py-2.5 px-3 text-right text-accent font-bold">{h?.portfolioPct}%</td>
+                                <td className="py-2.5 px-3 text-right font-sans">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                    isPositiveAction
+                                      ? 'bg-emerald-500/15 text-emerald-400'
+                                      : isNegativeAction
+                                      ? 'bg-rose-500/15 text-rose-400'
+                                      : 'bg-zinc-500/15 text-zinc-400'
+                                  }`}>
+                                    {act} {h?.changePct ? `(${h.changePct > 0 ? '+' : ''}${h.changePct}%)` : ''}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>

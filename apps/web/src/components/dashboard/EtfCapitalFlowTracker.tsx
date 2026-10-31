@@ -676,17 +676,21 @@ type MarketFilter = "all" | "TW" | "US";
 type SubViewType = "flow" | "holdings";
 
 interface EtfCapitalFlowTrackerProps {
+  subView?: SubViewType;
   defaultSubView?: SubViewType;
   initialEtf?: string;
   hideSubViewTabs?: boolean;
 }
 
 export default function EtfCapitalFlowTracker({
+  subView: controlledSubView,
   defaultSubView = "flow",
   initialEtf = "0050",
   hideSubViewTabs = true,
 }: EtfCapitalFlowTrackerProps = {}) {
-  const [subView, setSubView] = useState<SubViewType>(defaultSubView);
+  const [internalSubView, setInternalSubView] = useState<SubViewType>(defaultSubView);
+  const subView = controlledSubView || internalSubView;
+  const setSubView = setInternalSubView;
   const [period, setPeriod] = useState<PeriodType>("1d");
   const [direction, setDirection] = useState<FlowFilter>("all");
   const [market, setMarket] = useState<MarketFilter>("all");
@@ -1006,36 +1010,70 @@ export default function EtfCapitalFlowTracker({
     });
   }, [currentPortfolio, holdingActionFilter, holdingSearch]);
 
+  const dynamicResearch = useMemo(() => {
+    const sortedByFlow = [...items].sort((a, b) => {
+      const fA = period === "1d" ? a.flow_1d : period === "5d" ? a.flow_5d : a.flow_20d;
+      const fB = period === "1d" ? b.flow_1d : period === "5d" ? b.flow_5d : b.flow_20d;
+      return fB - fA;
+    });
+
+    const topInflow1 = sortedByFlow.find((x) => (period === "1d" ? x.flow_1d : x.flow_5d) > 0);
+    const topInflow2 = sortedByFlow.filter((x) => (period === "1d" ? x.flow_1d : x.flow_5d) > 0)[1];
+    const topOutflow1 = [...sortedByFlow].reverse().find((x) => (period === "1d" ? x.flow_1d : x.flow_5d) < 0);
+    const topOutflow2 = [...sortedByFlow].reverse().filter((x) => (period === "1d" ? x.flow_1d : x.flow_5d) < 0)[1];
+
+    const topCategory = categorySummary[0];
+
+    const premiums = items.filter((x) => x.nav_discount_pct > 0.15).sort((a, b) => b.nav_discount_pct - a.nav_discount_pct);
+    const discounts = items.filter((x) => x.nav_discount_pct < -0.15).sort((a, b) => a.nav_discount_pct - b.nav_discount_pct);
+
+    const periodLabel = period === "1d" ? "今日" : period === "5d" ? "近5日" : period === "20d" ? "近月" : "今年以來";
+
+    let part1Title = "1. 主力資金申贖與板塊偏好";
+    let part1Text = "";
+    if (topInflow1) {
+      const f1 = period === "1d" ? topInflow1.flow_1d : topInflow1.flow_5d;
+      const f2 = topInflow2 ? (period === "1d" ? topInflow2.flow_1d : topInflow2.flow_5d) : 0;
+      part1Title = `1. ${topCategory ? topCategory[0] : "市場"}吸金力道強勁`;
+      part1Text = `${periodLabel}全市場淨申購龍頭為 ${topInflow1.symbol} ${topInflow1.name}，單檔估計淨流入逾 ${Math.abs(f1).toFixed(1)} 億元${
+        topInflow2 ? `，其次為 ${topInflow2.symbol} ${topInflow2.name}（淨流入 +${Math.abs(f2).toFixed(1)} 億元）` : ""
+      }。從大類板塊觀察，${topCategory ? `【${topCategory[0]}】合計吸金達 +${topCategory[1].totalFlow.toFixed(1)} 億元` : ""}，資金顯著往具備高流動性與防守/成長題材的標的集中。`;
+    } else {
+      part1Text = `${periodLabel}全市場 ETF 申贖平衡，造市商主要依據盤中即時流動性進行動態中性避險，大盤加權指數波動平穩。`;
+    }
+
+    let part2Title = "2. 即時折溢價與套利空間監測";
+    let part2Text = "";
+    if (premiums.length > 0) {
+      const topP = premiums[0];
+      part2Text = `監測到 ${topP.symbol} ${topP.name} 出現 +${topP.nav_discount_pct.toFixed(2)}% 之次級市場溢價${
+        premiums.length > 1 ? `，${premiums[1].symbol} 亦有 +${premiums[1].nav_discount_pct.toFixed(2)}% 溢價` : ""
+      }，反映買盤追價意願強烈。投資人盤中需留意市價偏離淨值過大之收斂風險，防範次級市場套利壓回。`;
+    } else if (discounts.length > 0) {
+      const topD = discounts[0];
+      part2Text = `${topD.symbol} ${topD.name} 目前呈現 ${topD.nav_discount_pct.toFixed(2)}% 折價狀態，市價略低於基金真實淨值，具備折價收斂或中長線低接安全邊際。`;
+    } else {
+      part2Text = `全市場主流 ETF 市價與淨值貼合度極佳（折溢價差收斂在 ±0.2% 正常造市容忍區間），未見異常套利空間或大幅流動性折價現象。`;
+    }
+
+    let part3Title = "3. 資金調節與防守警戒方向";
+    let part3Text = "";
+    if (topOutflow1) {
+      const o1 = period === "1d" ? topOutflow1.flow_1d : topOutflow1.flow_5d;
+      part3Title = "3. 部分調節提款與資金輪動";
+      part3Text = `${periodLabel}淨贖回/調節最顯著標的為 ${topOutflow1.symbol} ${topOutflow1.name}（淨流出約 ${Math.abs(o1).toFixed(1)} 億元）${
+        topOutflow2 ? `及 ${topOutflow2.symbol}（淨流出 ${Math.abs((period === "1d" ? topOutflow2.flow_1d : topOutflow2.flow_5d)).toFixed(1)} 億元）` : ""
+      }。研判為機構法人因應近期大盤位階之動態再平衡調倉或獲利了結，建議短線留意該板塊權重股是否面臨被動型賣盤調節壓力。`;
+    } else {
+      part3Text = "目前未見大規模機構贖回或避險反向 ETF 異常激增現象，整體市場籌碼架構偏向多方健康換手。";
+    }
+
+    return { part1Title, part1Text, part2Title, part2Text, part3Title, part3Text };
+  }, [items, period, categorySummary]);
+
   return (
     <div className="space-y-6">
-      {/* 頂部切換 Tab：若由外部父層頁面統一管理導航，則隱藏避免重複選單 */}
-      {!hideSubViewTabs && (
-        <div className="flex border-b border-[var(--border)] gap-2 pb-2">
-          <button
-            onClick={() => setSubView("flow")}
-            className={`px-4 py-2 text-sm font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
-              subView === "flow"
-                ? "bg-accent text-white shadow-md"
-                : "text-secondary hover:text-primary hover:bg-[var(--bg-secondary)]"
-            }`}
-          >
-            <Flame size={16} />
-            <span>1. 各大 ETF 資金申贖動向與吸金排行榜</span>
-          </button>
 
-          <button
-            onClick={() => setSubView("holdings")}
-            className={`px-4 py-2 text-sm font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
-              subView === "holdings"
-                ? "bg-accent text-white shadow-md"
-                : "text-secondary hover:text-primary hover:bg-[var(--bg-secondary)]"
-            }`}
-          >
-            <ShoppingBag size={16} />
-            <span>2. ETF 每日買了哪些股票・成分股資產變動明細</span>
-          </button>
-        </div>
-      )}
 
       {subView === "flow" ? (
         <>
@@ -1823,30 +1861,24 @@ export default function EtfCapitalFlowTracker({
         </div>
       )}
 
-      {/* 4. 每日 ETF 資金流向與法人解讀 Summary */}
+      {/* 4. 每日 ETF 資金流向與法人解讀 Summary (全市場即時動態運算) */}
       <div className="p-4 sm:p-5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)]">
         <div className="flex items-center gap-2 mb-2 text-primary font-bold text-sm">
           <Sparkles size={16} className="text-accent" />
-          <span>法人研究部：今日 ETF 資金動向核心解讀與籌碼透視</span>
+          <span>法人研究部：今日 ETF 資金動向核心解讀與籌碼透視 (即時動態分析)</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-secondary leading-relaxed pt-2">
           <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)]">
-            <strong className="text-primary block mb-1">1. 高股息與市值型雙引擎吸金</strong>
-            <p>
-              0050 與 006208 權值市值型單日湧入逾 70 億元，反映外資被動型買盤隨台積電等權值股走揚而強勁增發；00878、00919 季配息收益型亦吸引穩定定額與散戶加碼。
-            </p>
+            <strong className="text-primary block mb-1">{dynamicResearch.part1Title}</strong>
+            <p>{dynamicResearch.part1Text}</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)]">
-            <strong className="text-primary block mb-1">2. AI 半導體科技 ETF 溢價警示</strong>
-            <p>
-              海外費半與美股科技 ETF（00830、00757、SMH）出現 0.3%~0.6% 溢價，反映市場追捧輝達與晶圓代工行情，建議交易員避免盤中追買大幅溢價標的，防範造市商套利收斂震盪。
-            </p>
+            <strong className="text-primary block mb-1">{dynamicResearch.part2Title}</strong>
+            <p>{dynamicResearch.part2Text}</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)]">
-            <strong className="text-primary block mb-1">3. 槓反與避險資金撤離</strong>
-            <p>
-              00632R (元大台灣50反1) 連續 5 日出現大額淨贖回，反映空單避險資金逐步停損出場，多頭市場格局穩健；長天期美債 ETF 則維持穩定低接申購節奏。
-            </p>
+            <strong className="text-primary block mb-1">{dynamicResearch.part3Title}</strong>
+            <p>{dynamicResearch.part3Text}</p>
           </div>
         </div>
       </div>
