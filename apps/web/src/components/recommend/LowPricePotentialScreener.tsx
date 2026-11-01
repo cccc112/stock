@@ -730,7 +730,7 @@ export default function LowPricePotentialScreener() {
             </div>
             <p className="text-xs text-secondary">
               聚焦 10~60 元銅板與中低價區間，鎖定底部爆量長紅突破、均線多頭發散、單季營運轉虧為盈與低股價淨值比安全邊際
-              {lastUpdated && <span className="ml-2 text-xs font-mono text-accent">⚡ 最新撮合報價：{lastUpdated}</span>}
+              {lastUpdated && <span className="ml-2 text-xs font-mono text-accent">撮合報價：{lastUpdated}</span>}
             </p>
           </div>
 

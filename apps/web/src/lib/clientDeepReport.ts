@@ -1121,7 +1121,7 @@ export async function generateSmartStockAnalysis(symbol: string): Promise<Equity
       `除息除權時程與配息金額公告 (${ep.dividend_freq})`,
     ];
 
-    const md = `## 📊 ${deep.name} (${deep.symbol}) 法人深度研究報告 (ETF & Macro Assets)
+    const md = `## ${deep.name} (${deep.symbol}) 法人深度研究報告 (ETF & Macro Assets)
 
 ### 1. 商業模式與追蹤指數護城河 (Index Architecture & Moat)
 - **資產類別與發行機構**：由 **${ep.issuer}** 發行之「**${ep.category}**」，目前資產規模約 **${ep.aum}**。
@@ -1139,11 +1139,11 @@ export async function generateSmartStockAnalysis(symbol: string): Promise<Equity
 ---
 
 ### 3. 三種情境估值目標價矩陣 (Three Scenario Valuation Models)
-- 🚀 **樂觀情境 (Bull Case, 目標價 $${valuation_scenarios.bull.target} / +${valuation_scenarios.bull.upside_pct}%)**：
+- **多頭情境 (Bull Case, 目標價 $${valuation_scenarios.bull.target} / +${valuation_scenarios.bull.upside_pct}%)**：
   - *關鍵假設*：${valuation_scenarios.bull.assumptions}。
-- ⚖️ **基準情境 (Base Case, 目標價 $${valuation_scenarios.base.target} / +${valuation_scenarios.base.upside_pct}%)**：
+- **基準情境 (Base Case, 目標價 $${valuation_scenarios.base.target} / +${valuation_scenarios.base.upside_pct}%)**：
   - *關鍵假設*：${valuation_scenarios.base.assumptions}。
-- 🛡️ **悲觀情境 (Bear Case, 防守價 $${valuation_scenarios.bear.target} / ${valuation_scenarios.bear.upside_pct}%)**：
+- **防守情境 (Bear Case, 防守價 $${valuation_scenarios.bear.target} / ${valuation_scenarios.bear.upside_pct}%)**：
   - *關鍵假設*：${valuation_scenarios.bear.assumptions}。
 
 ---
@@ -1258,7 +1258,7 @@ export async function generateSmartStockAnalysis(symbol: string): Promise<Equity
     `法人持股比率與籌碼集中度是否持續創波段新高`,
   ];
 
-  const md = `## 📑 ${deep.name} (${deep.symbol}) 法人深度研究報告 (Equity Research Deep Dive)
+  const md = `## ${deep.name} (${deep.symbol}) 法人深度研究報告 (Equity Research Deep Dive)
 
 ### 1. 商業模式與產業護城河評估 (Moat & Business Model)
 - **護城河級別評定**：**${moat.level}**（綜合護城河評分 **${moat.score} / 100**）。
@@ -1277,11 +1277,11 @@ export async function generateSmartStockAnalysis(symbol: string): Promise<Equity
 ---
 
 ### 3. 三種情境估值目標價矩陣 (Three Scenario Valuation Models)
-- 🚀 **樂觀情境 (Bull Case, 目標價 $${valuation_scenarios.bull.target} / +${valuation_scenarios.bull.upside_pct}%)**：
+- **多頭情境 (Bull Case, 目標價 $${valuation_scenarios.bull.target} / +${valuation_scenarios.bull.upside_pct}%)**：
   - *估值假設*：${valuation_scenarios.bull.assumptions}。預估隱含本益比約 **${valuation_scenarios.bull.per}x**。
-- ⚖️ **基準情境 (Base Case, 目標價 $${valuation_scenarios.base.target} / +${valuation_scenarios.base.upside_pct}%)**：
+- **基準情境 (Base Case, 目標價 $${valuation_scenarios.base.target} / +${valuation_scenarios.base.upside_pct}%)**：
   - *估值假設*：${valuation_scenarios.base.assumptions}。預估隱含本益比約 **${valuation_scenarios.base.per}x**。
-- 🛡️ **悲觀情境 (Bear Case, 防守價 $${valuation_scenarios.bear.target} / ${valuation_scenarios.bear.upside_pct}%)**：
+- **防守情境 (Bear Case, 防守價 $${valuation_scenarios.bear.target} / ${valuation_scenarios.bear.upside_pct}%)**：
   - *估值假設*：${valuation_scenarios.bear.assumptions}。預估隱含本益比約 **${valuation_scenarios.bear.per}x**。
 
 ---

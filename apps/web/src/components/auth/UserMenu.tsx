@@ -267,7 +267,7 @@ export default function UserMenu() {
                 網站個人化偏好
               </div>
 
-              {/* ⚙️ 前往「網站個人設定」主頁面 */}
+              {/* 前往「網站個人設定」主頁面 */}
               <Link
                 href="/settings"
                 onClick={() => setMenuOpen(false)}

@@ -66,7 +66,7 @@ export default function TaiwanBearMascot() {
   useEffect(() => {
     const handleRadarAlert = () => {
       setHasAlert(true);
-      setSpeechBubble("⚡ 抓到了！偵測到主力爆量突破訊號！點我看盤！");
+      setSpeechBubble("主力突破訊號！偵測到爆量關鍵異動，點擊查看即時雷達。");
       setTimeout(() => setHasAlert(false), 15000);
     };
 
@@ -112,7 +112,7 @@ export default function TaiwanBearMascot() {
                   <span>市場情緒: {sentimentScore} / 100</span>
                   <span>•</span>
                   <span className={mood === "BULLISH" ? "text-red-500 font-bold" : mood === "FEAR" ? "text-emerald-500 font-bold" : "text-secondary"}>
-                    {mood === "BULLISH" ? "🔥 貪婪偏多" : mood === "FEAR" ? "🛡️ 恐慌防禦" : "⚖️ 中性觀望"}
+                    {mood === "BULLISH" ? "多方偏多" : mood === "FEAR" ? "空方防禦" : "中性觀望"}
                   </span>
                 </div>
               </div>

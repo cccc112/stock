@@ -18,6 +18,7 @@ import {
   Image as ImageIcon,
   BellRing,
   Loader2,
+  Compass,
 } from "lucide-react";
 import type { CelebrityPostItem, CelebrityPostAnalysis } from "@/app/api/celebrity-feed/route";
 
@@ -26,31 +27,31 @@ const CELEBRITIES = [
     id: "ALL",
     name: "全部名人雷達",
     sub: "川普 · 馬斯克 · 黃仁勳 · 鮑爾",
-    badge: "🔥 全域監控",
+    badge: "全域即時監控",
   },
   {
     id: "TRUMP",
     name: "川普 Donald Trump",
     sub: "@realDonaldTrump · 財經/關稅/政策",
-    badge: "🇺🇸 關稅/晶片/總經",
+    badge: "關稅 · 晶片 · 總經",
   },
   {
     id: "MUSK",
     name: "馬斯克 Elon Musk",
     sub: "@elonmusk · X (Twitter)",
-    badge: "🚀 特斯拉/機器人",
+    badge: "特斯拉 · 機器人",
   },
   {
     id: "HUANG",
     name: "黃仁勳 Jensen Huang",
     sub: "@nvidia · AI 算力教父",
-    badge: "🟢 輝達/CoWoS",
+    badge: "輝達 · CoWoS",
   },
   {
     id: "POWELL",
     name: "鮑爾 Jerome Powell",
     sub: "@federalreserve · Fed 主席",
-    badge: "🏛️ 降息/美債",
+    badge: "降息 · 美債利率",
   },
 ] as const;
 
@@ -111,7 +112,7 @@ export default function CelebrityRadar() {
               "Notification" in window &&
               Notification.permission === "granted"
             ) {
-              new Notification(`🎙️ ${latestNew.personName} 最新原始貼文`, {
+              new Notification(`[即時快訊] ${latestNew.personName} 最新貼文`, {
                 body: latestNew.headline,
               });
             }
@@ -500,8 +501,9 @@ export default function CelebrityRadar() {
 
                     {/* 受影響之台美股標的清單 */}
                     <div className="space-y-1.5">
-                      <div className="text-[11px] text-secondary font-medium">
-                        🎯 AI 點名此貼文連動台美股標的（點擊查看即時 K 線與籌碼）：
+                      <div className="text-[11px] text-primary font-semibold flex items-center gap-1.5">
+                        <Compass size={13} className="text-accent flex-shrink-0" />
+                        <span>AI 診斷連動標的（點擊進入技術分析與籌碼）：</span>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                         {analysis.affectedStocks.map((st) => (

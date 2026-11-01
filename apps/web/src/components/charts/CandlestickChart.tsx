@@ -597,8 +597,9 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
           )}
 
           {!showMA && !showAutoTrends && drawingsApi.drawings.length === 0 && (
-            <div className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-sans font-medium flex items-center gap-1">
-              <span>✨ 純淨 K 線模式</span>
+            <div className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-sans font-medium flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span>純淨 K 線模式</span>
             </div>
           )}
         </div>

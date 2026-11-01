@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   Sparkles,
   Search,
+  CheckCircle2,
 } from "lucide-react";
 import {
   ETF_CATALOG,
@@ -608,12 +609,14 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
                 <AlertTriangle size={14} /> 溢價超過 1.0%：市價顯著高於基金實質淨值，追高容易面臨收斂修正風險，建議分批或等待收斂再進場。
               </span>
             ) : (Number(etfNav?.discount_pct) || 0) < -0.5 ? (
-              <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                ✨ 深度折價幅度大：市價低於基金持有資產淨值，具備向淨值收斂之潛在獲利與防守邊際。
+              <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
+                <Sparkles size={14} className="text-emerald-500 flex-shrink-0" />
+                <span>深度折價幅度大：市價低於基金持有資產淨值，具備向淨值收斂之潛在獲利與防守邊際。</span>
               </span>
             ) : (
-              <span>
-                ✅ <strong>折溢價正常收斂</strong>：偏離度在正常造市商可套利調節範圍內（一般合理區間為 ±0.3% 以內）。
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
+                <span><strong>折溢價正常收斂</strong>：偏離度在正常造市商可套利調節範圍內（一般合理區間為 ±0.3% 以內）。</span>
               </span>
             )}
           </div>

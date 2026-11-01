@@ -147,10 +147,10 @@ export default function IndustryPage() {
 
   // 四象限資金輪動分類 (RRG Quadrant Classification)
   const quadrants = useMemo(() => {
-    const leading: Industry[] = [];    // 🔥 領先強勢區：漲幅 > 0 且站上月線 >= 50%
-    const improving: Industry[] = [];  // 🚀 潛力轉強區：漲幅 <= 0 但站上月線 >= 50% 或技術分高
-    const weakening: Industry[] = [];  // 💤 高檔震盪區：漲幅 > 0 但跌破月線 (< 50%)
-    const lagging: Industry[] = [];    // ⚠️ 弱勢落後區：漲幅 <= 0 且破月線
+    const leading: Industry[] = [];    // 領先強勢區：漲幅 > 0 且站上月線 >= 50%
+    const improving: Industry[] = [];  // 潛力轉強區：漲幅 <= 0 但站上月線 >= 50% 或技術分高
+    const weakening: Industry[] = [];  // 高檔震盪區：漲幅 > 0 但跌破月線 (< 50%)
+    const lagging: Industry[] = [];    // 弱勢落後區：漲幅 <= 0 且破月線
 
     processedList.forEach(ind => {
       const r = ind[`ret_${timeHorizon}` as keyof Industry] as number;
@@ -297,8 +297,9 @@ export default function IndustryPage() {
             {/* 1. 領先強勢區 */}
             <Card className="hover-lift border-l-4 border-l-rose-500 border-[var(--border)] bg-[var(--bg-secondary)]">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-rose-400 flex items-center gap-1">
-                  <Flame size={14} /> 🔥 領先強勢區 (Leading)
+                <span className="text-xs font-bold text-rose-400 flex items-center gap-1.5">
+                  <Flame size={14} className="text-rose-500 flex-shrink-0" />
+                  <span>領先強勢區 (Leading)</span>
                 </span>
                 <span className="text-xs font-mono text-secondary">{quadrants.leading.length} 板塊</span>
               </div>
@@ -320,8 +321,9 @@ export default function IndustryPage() {
             {/* 2. 潛力轉強區 */}
             <Card className="hover-lift border-l-4 border-l-blue-500 border-[var(--border)] bg-[var(--bg-secondary)]">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-blue-400 flex items-center gap-1">
-                  <TrendingUp size={14} /> 🚀 潛力轉強區 (Improving)
+                <span className="text-xs font-bold text-blue-400 flex items-center gap-1.5">
+                  <TrendingUp size={14} className="text-blue-500 flex-shrink-0" />
+                  <span>潛力轉強區 (Improving)</span>
                 </span>
                 <span className="text-xs font-mono text-secondary">{quadrants.improving.length} 板塊</span>
               </div>
@@ -343,8 +345,9 @@ export default function IndustryPage() {
             {/* 3. 高檔震盪區 */}
             <Card className="hover-lift border-l-4 border-l-amber-500 border-[var(--border)] bg-[var(--bg-secondary)]">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-amber-400 flex items-center gap-1">
-                  <Clock size={14} /> 💤 高檔震盪區 (Weakening)
+                <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                  <Clock size={14} className="text-amber-500 flex-shrink-0" />
+                  <span>高檔震盪區 (Weakening)</span>
                 </span>
                 <span className="text-xs font-mono text-secondary">{quadrants.weakening.length} 板塊</span>
               </div>
@@ -366,8 +369,9 @@ export default function IndustryPage() {
             {/* 4. 弱勢落後區 */}
             <Card className="hover-lift border-l-4 border-l-emerald-500 border-[var(--border)] bg-[var(--bg-secondary)]">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                  <ArrowDownRight size={14} /> ⚠️ 弱勢落後區 (Lagging)
+                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                  <ArrowDownRight size={14} className="text-emerald-500 flex-shrink-0" />
+                  <span>弱勢落後區 (Lagging)</span>
                 </span>
                 <span className="text-xs font-mono text-secondary">{quadrants.lagging.length} 板塊</span>
               </div>
@@ -401,7 +405,7 @@ export default function IndustryPage() {
                     <th className="px-2">今日上漲比</th>
                     <th className="px-2">站上月線比</th>
                     <th className="px-2">技術綜合分</th>
-                    <th className="text-left pl-4">🔥 領漲標的</th>
+                    <th className="text-left pl-4">領漲標的</th>
                     <th className="text-left pl-2">落後標的</th>
                   </tr>
                 </thead>

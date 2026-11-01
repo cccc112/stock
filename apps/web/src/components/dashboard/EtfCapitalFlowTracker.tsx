@@ -1546,23 +1546,25 @@ export default function EtfCapitalFlowTracker({
                   </button>
                   <button
                     onClick={() => setArbitrageFilter("PREMIUM")}
-                    className={`px-2.5 py-1 rounded-md cursor-pointer transition-all ${
+                    className={`px-2.5 py-1 rounded-md cursor-pointer transition-all inline-flex items-center gap-1 ${
                       arbitrageFilter === "PREMIUM"
                         ? "bg-amber-500 text-white dark:text-black font-bold shadow-sm"
                         : "text-muted hover:text-amber-600 dark:hover:text-amber-300"
                     }`}
                   >
-                    ⚠️ 溢價警戒
+                    <AlertTriangle size={12} className={arbitrageFilter === "PREMIUM" ? "text-current" : "text-amber-500"} />
+                    <span>溢價警戒</span>
                   </button>
                   <button
                     onClick={() => setArbitrageFilter("DISCOUNT")}
-                    className={`px-2.5 py-1 rounded-md cursor-pointer transition-all ${
+                    className={`px-2.5 py-1 rounded-md cursor-pointer transition-all inline-flex items-center gap-1 ${
                       arbitrageFilter === "DISCOUNT"
                         ? "bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-sm"
                         : "text-muted hover:text-emerald-600 dark:hover:text-emerald-300"
                     }`}
                   >
-                    ✨ 折價收斂
+                    <Sparkles size={12} className={arbitrageFilter === "DISCOUNT" ? "text-current" : "text-emerald-500"} />
+                    <span>折價收斂</span>
                   </button>
                 </div>
 
@@ -1857,7 +1859,7 @@ export default function EtfCapitalFlowTracker({
                           >
                             {item.nav_discount_pct > 0 ? "+" : ""}
                             {item.nav_discount_pct.toFixed(2)}%
-                            {item.nav_discount_pct > 0.3 && <span className="text-[10px] ml-1 text-amber-400">⚠️</span>}
+                            {item.nav_discount_pct > 0.3 && <AlertTriangle size={11} className="inline ml-1 text-amber-500" />}
                           </td>
                           <td className="text-right font-mono tabular-nums text-xs text-primary font-semibold">
                             {item.dividend_yield > 0 ? `${item.dividend_yield.toFixed(1)}%` : "—"}

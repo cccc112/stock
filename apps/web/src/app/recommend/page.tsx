@@ -246,7 +246,7 @@ function RecommendInner() {
           <p className="text-sm text-secondary mt-1">
             多因子量化評分（技術面 + 籌碼面 + 營收成長），真實市場數據客觀計分。
             {meta.evaluated > 0 && ` 已評估 ${meta.evaluated}/${meta.universe} 檔。`}
-            {generatedAt && <span className="ml-2 text-xs text-[var(--accent)] font-mono">⚡ 最新運算時間：{generatedAt}</span>}
+            {generatedAt && <span className="ml-2 text-xs text-[var(--accent)] font-mono">運算時間：{generatedAt}</span>}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">

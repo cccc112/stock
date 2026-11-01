@@ -410,16 +410,16 @@ function buildDynamicPostSpecificAnalysis(
       )
       .join("\n");
 
-    const deepReportMarkdown = `### 🎯 貼文重點與弦外之音拆解
+    const deepReportMarkdown = `### 貼文重點與弦外之音拆解
 - **發言來源**：${personName}
 - **分析原文**：「${headline}」
 - **市場定調**：**${primary.label}**（衝擊強度：**${primary.score} / 10**）
 - **核心因果推演**：${aiSummary}
 
-### 📈 AI 點名連動台美股標的與理由
+### AI 點名連動台美股標的與理由
 ${stockLines}
 
-### 🛡️ 具體操作建議與風控策略
+### 具體操作建議與風控策略
 - **實戰建議**：${actionableAdvice}
 - **風險紀律**：名人言論常引發演算法短線急拉或急殺，建議避免於開盤第一根爆量 K 棒追高殺低，以 5 日與 20 日均線作為波段加減碼依據。`;
 
@@ -464,7 +464,7 @@ ${stockLines}
     aiSummary,
     actionableAdvice,
     affectedStocks: fallbackStocks,
-    deepReportMarkdown: `### 🎯 貼文重點與市場解讀\n- **分析貼文**：「${headline}」\n- **因果分析**：${aiSummary}\n- **操作建議**：${actionableAdvice}`,
+    deepReportMarkdown: `### 貼文重點與市場解讀\n- **分析貼文**：「${headline}」\n- **因果分析**：${aiSummary}\n- **操作建議**：${actionableAdvice}`,
     engine: "AI 語意因果推演引擎",
   };
 }

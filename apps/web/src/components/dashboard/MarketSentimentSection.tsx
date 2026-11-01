@@ -16,6 +16,7 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
+  Lightbulb,
 } from "lucide-react";
 import { useColorPreference } from "@/hooks/useColorPreference";
 import type { MarketSentimentResponse } from "@/app/api/market-sentiment/route";
@@ -205,8 +206,9 @@ export default function MarketSentimentSection() {
 
               {/* 狀態精闢點評 */}
               <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-secondary leading-relaxed">
-                <p className="font-semibold text-primary mb-1">
-                  💡 {data?.statusDescription}
+                <p className="font-semibold text-primary mb-1 flex items-center gap-1.5">
+                  <Lightbulb size={13} className="text-amber-500 flex-shrink-0" />
+                  <span>{data?.statusDescription}</span>
                 </p>
                 <div className="flex items-start gap-1.5 pt-1 text-[11px] text-accent font-medium border-t border-[var(--border)]/60 mt-1.5">
                   <Compass size={13} className="flex-shrink-0 mt-0.5" />

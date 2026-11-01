@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
           await replyLineMessage(replyToken, [
             {
               type: "text",
-              text: `✅ 綁定成功！\n您的 LINE 帳號已成功綁定至網頁版戰情室。\n已為您啟動 14 天 Pro 盤中量化雷達即時推播權限！`,
+              text: `【綁定成功】\n您的 LINE 帳號已完成網頁戰情室連動。\n已為您啟動 14 天 Pro 盤中量化雷達即時推播權限！`,
             },
           ]);
           continue;
@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
         await replyLineMessage(replyToken, [
           {
             type: "text",
-            text: `🐻 熊霸收到您的訊息！\n\n💡 您可以直接在此輸入：\n1. 股票或 ETF 代碼（如「2330」或「0050」秒查即時行情與籌碼）\n2. 輸入「/bind 您的6位驗證碼」完成網頁戰情室綁定\n\n查看完整即時雷達：\nhttps://stock-green-ten.vercel.app/alerts`,
+            text: `【AI 投資戰情室】\n\n您可直接在此聊天室輸入：\n1. 股票或 ETF 代碼（如「2330」或「0050」秒查即時行情與籌碼）\n2. 輸入「/bind 您的6位驗證碼」完成網頁戰情室綁定\n\n查看完整即時雷達：\nhttps://stock-green-ten.vercel.app/alerts`,
           },
         ]);
       }

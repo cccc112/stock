@@ -603,7 +603,7 @@ export default function InstitutionsPage() {
                       }}
                       labelFormatter={(lbl, payload) => {
                         const full = payload?.[0]?.payload?.full_date;
-                        return `📅 交易日期：${full || lbl}`;
+                        return `交易日期：${full || lbl}`;
                       }}
                     />
                     <Legend wrapperStyle={{ paddingTop: "12px", fontSize: "12px" }} />
@@ -1037,7 +1037,7 @@ export default function InstitutionsPage() {
                           }}
                           labelFormatter={(lbl, payload) => {
                             const full = payload?.[0]?.payload?.full_date;
-                            return `📅 交易日期：${full || lbl}`;
+                            return `交易日期：${full || lbl}`;
                           }}
                         />
                         <Legend wrapperStyle={{ paddingTop: "12px", fontSize: "12px" }} />

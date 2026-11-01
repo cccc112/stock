@@ -25,7 +25,7 @@ export function createRadarAlertFlexCard(data: RadarSignalData) {
 
   return {
     type: "flex",
-    altText: `⚡【量化雷達警報】${data.name} (${data.symbol}) ${data.triggerName}`,
+    altText: `【量化雷達警報】${data.name} (${data.symbol}) ${data.triggerName}`,
     contents: {
       type: "bubble",
       size: "kilo",
@@ -41,7 +41,7 @@ export function createRadarAlertFlexCard(data: RadarSignalData) {
             contents: [
               {
                 type: "text",
-                text: "⚡ 盤中量化雷達觸發",
+                text: "盤中量化雷達觸發",
                 color: "#f59e0b",
                 weight: "bold",
                 size: "xs",
@@ -220,7 +220,7 @@ export function createPostMarketFlexCard(topBuys: { symbol: string; name: string
 
   return {
     type: "flex",
-    altText: "📊 今日 15:30 盤後籌碼戰報：全市場投信與 ETF 聯手大買榜",
+    altText: "15:30 盤後籌碼戰報：全市場投信與 ETF 聯手大買榜",
     contents: {
       type: "bubble",
       size: "kilo",
@@ -232,7 +232,7 @@ export function createPostMarketFlexCard(topBuys: { symbol: string; name: string
         contents: [
           {
             type: "text",
-            text: "🐻 熊霸盤後籌碼戰報",
+            text: "盤後法人籌碼精選",
             color: "#f59e0b",
             weight: "bold",
             size: "xs",
@@ -300,7 +300,7 @@ export function createPostMarketFlexCard(topBuys: { symbol: string; name: string
 export function createWelcomeFlexCard(bindingCode: string) {
   return {
     type: "flex",
-    altText: "🎉 歡迎加入 AI Stock Monitor！已為您開通 14 天 Pro 盤中即時雷達試用",
+    altText: "歡迎加入 AI Stock Monitor！已為您開通 14 天 Pro 盤中即時雷達試用",
     contents: {
       type: "bubble",
       size: "kilo",
@@ -312,7 +312,7 @@ export function createWelcomeFlexCard(bindingCode: string) {
         contents: [
           {
             type: "text",
-            text: "🐻 台灣黑熊「熊霸」報到！",
+            text: "AI Stock Monitor 官方服務",
             color: "#f59e0b",
             weight: "bold",
             size: "sm",
@@ -349,7 +349,7 @@ export function createWelcomeFlexCard(bindingCode: string) {
             contents: [
               {
                 type: "text",
-                text: "💡 快捷查詢秘訣：",
+                text: "快捷查詢說明：",
                 size: "xs",
                 weight: "bold",
                 color: "#0f172a",

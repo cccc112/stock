@@ -183,7 +183,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
             </button>
             {lastUpdate && (
               <span className="font-mono text-xs text-accent">
-                ⚡ 最新撮合：{lastUpdate}
+                撮合時間：{lastUpdate}
               </span>
             )}
             <span>資料來源：{stock.source === 'twse' ? 'TWSE 臺灣證券交易所 (0秒即時)' : (stock.source || '—')}</span>

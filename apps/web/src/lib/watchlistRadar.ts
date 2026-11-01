@@ -147,7 +147,7 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
         if (now - lastTriggered > COOLDOWN_MS) {
           symbolSignals.push({
             ruleId,
-            title: `⚡ Minervini VCP 波動壓縮突破`,
+            title: `Minervini VCP 波動壓縮突破`,
             message: `波動壓縮比 ${vcpRatio}x 完成洗盤，帶量轉強 (+${changePct}%)`,
             type: "up",
           });
@@ -166,7 +166,7 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
         if (now - lastTriggered > COOLDOWN_MS) {
           symbolSignals.push({
             ruleId,
-            title: `🎯 SMC 多方機構訂單塊踩點支撐`,
+            title: `SMC 機構訂單塊踩點支撐`,
             message: `現價 $${price} 精準回測主力訂單塊支撐區 ($${obLow} ~ $${obHigh})`,
             type: "info",
           });
@@ -183,7 +183,7 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
         if (now - lastTriggered > COOLDOWN_MS) {
           symbolSignals.push({
             ruleId,
-            title: `🔥 底部爆量主力換手起漲`,
+            title: `底部爆量主力換手起漲`,
             message: `打底後爆量收紅 (+${changePct}%)，主力大單換手積極脫離成本區`,
             type: "up",
           });
@@ -204,7 +204,7 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
           if (now - lastTriggered > COOLDOWN_MS) {
             symbolSignals.push({
               ruleId,
-              title: `💼 觸及 AI 委員會階梯進場區`,
+              title: `觸及 AI 委員會階梯進場區`,
               message: `現價 $${price} 進入建議階梯掛單位階 ($${eLow} ~ $${eHigh})`,
               type: "up",
             });
@@ -223,7 +223,7 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
         if (now - lastTriggered > COOLDOWN_MS) {
           symbolSignals.push({
             ruleId,
-            title: `🚨 跌破硬性防守停損價`,
+            title: `跌破硬性防守停損價`,
             message: `現價 $${price} 跌破防守價 $${stopLoss}，請嚴格執行風控紀律`,
             type: "down",
           });
@@ -240,7 +240,7 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
         if (now - lastTriggered > COOLDOWN_MS) {
           symbolSignals.push({
             ruleId,
-            title: `🚀 自選股強勢噴出`,
+            title: `自選股強勢放量突破`,
             message: `當日大漲 +${changePct}%，目前報價 $${price}，多方買盤強勁`,
             type: "up",
           });
@@ -274,7 +274,7 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
           symbol,
           name,
           ruleId: "aggregated",
-          title: `⚡ ${symbol} ${name} 多重雷達共振 (${symbolSignals.length}項訊號)`,
+          title: `${symbol} ${name} 多重雷達共振 (${symbolSignals.length} 項訊號)`,
           message: `${name} 現價 $${price} (${changePct >= 0 ? "+" : ""}${changePct}%) 同時觸發 ${symbolSignals.map((s) => s.title.replace(/^[^\s]+\s*/, "")).join("、")}`,
           signals: symbolSignals.map((s) => `${s.title}：${s.message}`),
           price,

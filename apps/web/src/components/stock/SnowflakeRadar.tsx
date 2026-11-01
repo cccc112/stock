@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { InfoTip } from "@/components/ui/TermTooltip";
-import { ChevronDown, ChevronUp, CheckCircle2, AlertTriangle, HelpCircle } from "lucide-react";
+import { ChevronDown, ChevronUp, CheckCircle2, AlertTriangle, HelpCircle, Info } from "lucide-react";
 
 export interface RadarItem {
   axis: string;
@@ -278,7 +278,10 @@ export default function SnowflakeRadar({
                       {/* 核心判定理由 */}
                       {item.reason && (
                         <div className="p-1.5 rounded bg-[var(--bg-secondary)] border border-[var(--border)] text-primary">
-                          <span className="font-semibold text-accent mr-1">💡 判定理由：</span>
+                          <span className="font-semibold text-accent inline-flex items-center gap-1 mr-1">
+                            <Info size={11} className="flex-shrink-0" />
+                            <span>判定理由：</span>
+                          </span>
                           {item.reason}
                         </div>
                       )}

@@ -661,7 +661,7 @@ export function DrawingToolbar({
               if (!bars || bars.length < 5) return;
               const all = autoGenerateAllDrawings(bars, color);
               addMany(all);
-              showToast('⚡ 已一鍵全套自動畫出：趨勢通道、斐波那契、SMC 箱體與支撐壓力線！');
+              showToast('已完成自動量化畫線：趨勢通道、斐波那契、SMC 箱體與關鍵支撐壓力線');
               setTool('cursor');
             }}
             title="按下直接自動畫出：趨勢通道 + 斐波那契黃金分割 + SMC 箱體 + 水平支撐壓力"
@@ -835,7 +835,7 @@ export function DrawingToolbar({
 
       {toast && (
         <div className="px-3 py-1.5 text-xs rounded-lg bg-accent/15 border border-accent/30 text-accent font-medium flex items-center gap-1.5 shadow-sm animate-fade-in">
-          <span>✨</span>
+          <Sparkles size={13} className="text-accent flex-shrink-0" />
           <span>{toast}</span>
         </div>
       )}
