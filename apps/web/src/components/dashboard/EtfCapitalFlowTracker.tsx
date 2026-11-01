@@ -1517,11 +1517,11 @@ export default function EtfCapitalFlowTracker({
           <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-amber-500/20 pb-3">
               <div className="flex items-start gap-2.5">
-                <AlertTriangle size={20} className="text-amber-400 mt-0.5 flex-shrink-0" />
+                <AlertTriangle size={20} className="text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
                 <div>
-                  <div className="text-sm font-bold text-amber-300 flex items-center gap-2 flex-wrap">
+                  <div className="text-sm font-bold text-amber-600 dark:text-amber-300 flex items-center gap-2 flex-wrap">
                     <span>全市場 ETF 即時折溢價與套利雷達 (TWSE 官方 MIS 即時淨值)</span>
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 font-mono">
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-200 font-mono font-bold">
                       涵蓋 {Object.keys(etfNavMap).length || 355} 檔全市場 ETF
                     </span>
                   </div>
@@ -1548,8 +1548,8 @@ export default function EtfCapitalFlowTracker({
                     onClick={() => setArbitrageFilter("PREMIUM")}
                     className={`px-2.5 py-1 rounded-md cursor-pointer transition-all ${
                       arbitrageFilter === "PREMIUM"
-                        ? "bg-amber-400 text-black font-bold shadow-sm"
-                        : "text-muted hover:text-amber-300"
+                        ? "bg-amber-500 text-white dark:text-black font-bold shadow-sm"
+                        : "text-muted hover:text-amber-600 dark:hover:text-amber-300"
                     }`}
                   >
                     ⚠️ 溢價警戒
@@ -1558,8 +1558,8 @@ export default function EtfCapitalFlowTracker({
                     onClick={() => setArbitrageFilter("DISCOUNT")}
                     className={`px-2.5 py-1 rounded-md cursor-pointer transition-all ${
                       arbitrageFilter === "DISCOUNT"
-                        ? "bg-emerald-500 text-white font-bold shadow-sm"
-                        : "text-muted hover:text-emerald-300"
+                        ? "bg-emerald-600 dark:bg-emerald-500 text-white font-bold shadow-sm"
+                        : "text-muted hover:text-emerald-600 dark:hover:text-emerald-300"
                     }`}
                   >
                     ✨ 折價收斂
@@ -1595,7 +1595,7 @@ export default function EtfCapitalFlowTracker({
               <div className="p-4 rounded-xl bg-[var(--bg-primary)]/80 border border-amber-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-amber-300 font-semibold">當前選取 ETF 折溢價詳情：</span>
+                    <span className="text-xs text-amber-600 dark:text-amber-300 font-semibold">當前選取 ETF 折溢價詳情：</span>
                     <span className="font-mono font-bold text-accent text-base">{selectedArbitrageItem.symbol}</span>
                     <span className="font-semibold text-primary text-sm">{selectedArbitrageItem.name}</span>
                     <span className="text-[10px] px-1.5 py-0.2 rounded bg-[var(--bg-tertiary)] text-muted font-mono">

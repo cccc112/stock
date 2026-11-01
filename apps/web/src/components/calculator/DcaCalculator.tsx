@@ -549,7 +549,7 @@ export default function DcaCalculator() {
             <Coffee size={14} />
             <span>預估未來每月被動現金流</span>
           </div>
-          <div className="font-mono text-2xl sm:text-3xl font-extrabold text-amber-300 tracking-tight">
+          <div className="font-mono text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-300 tracking-tight">
             {currSymbol} {formatNumber(simulation.finalMonthlyPassiveIncome)}
             <span className="text-xs font-normal text-muted ml-1">/ 月</span>
           </div>
@@ -678,7 +678,7 @@ export default function DcaCalculator() {
                     <td className="py-2.5 px-3 text-right text-emerald-400 font-bold">
                       +{row.roiPct}%
                     </td>
-                    <td className="py-2.5 px-3 text-right text-amber-300">
+                    <td className="py-2.5 px-3 text-right text-amber-600 dark:text-amber-300 font-medium">
                       {currSymbol} {formatNumber(row.monthlyPassiveIncome)} /月
                     </td>
                   </tr>
