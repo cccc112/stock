@@ -217,7 +217,7 @@ export default function TrendingPanel() {
             onClick={() => setSortType("gainers")}
             className={`px-2 py-0.5 rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1 ${
               sortType === "gainers"
-                ? "bg-red-500/15 text-red-400 border border-red-500/30 font-bold"
+                ? "bg-up-badge font-bold"
                 : "text-muted hover:text-secondary"
             }`}
           >

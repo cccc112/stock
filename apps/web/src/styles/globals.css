@@ -40,10 +40,21 @@
   --accent-hover: #38bdf8;
   --accent-glow: rgba(56, 189, 248, 0.28);
 
-  --up-tw: #f43f5e;
-  --down-tw: #10b981;
-  --up-us: #f43f5e;
-  --down-us: #10b981;
+  /* 漲跌顏色動態系統 (預設: 紅漲綠跌) */
+  --up-color: #f43f5e;
+  --up-color-text: #fb7185;
+  --up-color-bg: rgba(244, 63, 94, 0.12);
+  --up-color-border: rgba(244, 63, 94, 0.25);
+
+  --down-color: #10b981;
+  --down-color-text: #34d399;
+  --down-color-bg: rgba(16, 185, 129, 0.12);
+  --down-color-border: rgba(16, 185, 129, 0.25);
+
+  --up-tw: var(--up-color-text);
+  --down-tw: var(--down-color-text);
+  --up-us: var(--up-color-text);
+  --down-us: var(--down-color-text);
 
   --warning: #f59e0b;
   --danger: #ef4444;
@@ -56,6 +67,24 @@
     radial-gradient(ellipse 60% 45% at 90% 100%, rgba(99, 102, 241, 0.1), transparent 70%),
     linear-gradient(rgba(56, 189, 248, 0.025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(56, 189, 248, 0.025) 1px, transparent 1px);
+}
+
+/* 綠漲紅跌 (美股/國際慣例) */
+[data-color-scheme="green-up"] {
+  --up-color: #10b981;
+  --up-color-text: #34d399;
+  --up-color-bg: rgba(16, 185, 129, 0.12);
+  --up-color-border: rgba(16, 185, 129, 0.25);
+
+  --down-color: #f43f5e;
+  --down-color-text: #fb7185;
+  --down-color-bg: rgba(244, 63, 94, 0.12);
+  --down-color-border: rgba(244, 63, 94, 0.25);
+
+  --up-tw: var(--up-color-text);
+  --down-tw: var(--down-color-text);
+  --up-us: var(--up-color-text);
+  --down-us: var(--down-color-text);
 }
 
 /* 淺色科技模式 (Crisp Daylight Tech Mode) - 乾淨純白零雜質暗影 */
@@ -83,10 +112,21 @@
   --accent-hover: #1d4ed8;
   --accent-glow: rgba(37, 99, 235, 0.15);
 
-  --up-tw: #e11d48;
-  --down-tw: #059669;
-  --up-us: #e11d48;
-  --down-us: #059669;
+  /* 淺色模式漲跌顏色動態系統 */
+  --up-color: #e11d48;
+  --up-color-text: #e11d48;
+  --up-color-bg: rgba(225, 29, 72, 0.12);
+  --up-color-border: rgba(225, 29, 72, 0.25);
+
+  --down-color: #059669;
+  --down-color-text: #059669;
+  --down-color-bg: rgba(5, 150, 105, 0.12);
+  --down-color-border: rgba(5, 150, 105, 0.25);
+
+  --up-tw: var(--up-color-text);
+  --down-tw: var(--down-color-text);
+  --up-us: var(--up-color-text);
+  --down-us: var(--down-color-text);
 
   --warning: #d97706;
   --danger: #dc2626;
@@ -95,6 +135,23 @@
   --card-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
   --card-hover-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06);
   --ambient-bg: none;
+}
+
+[data-theme="light"][data-color-scheme="green-up"] {
+  --up-color: #059669;
+  --up-color-text: #059669;
+  --up-color-bg: rgba(5, 150, 105, 0.12);
+  --up-color-border: rgba(5, 150, 105, 0.25);
+
+  --down-color: #e11d48;
+  --down-color-text: #e11d48;
+  --down-color-bg: rgba(225, 29, 72, 0.12);
+  --down-color-border: rgba(225, 29, 72, 0.25);
+
+  --up-tw: var(--up-color-text);
+  --down-tw: var(--down-color-text);
+  --up-us: var(--up-color-text);
+  --down-us: var(--down-color-text);
 }
 
 [data-theme="light"] .sidebar.open {
@@ -688,10 +745,20 @@
   .text-success { color: var(--success); }
   .text-warning { color: var(--warning); }
   .text-accent { color: var(--accent); }
-  .text-up-tw { color: var(--up-tw); }
-  .text-down-tw { color: var(--down-tw); }
-  .text-up-us { color: var(--up-us); }
-  .text-down-us { color: var(--down-us); }
+  .text-up, .text-up-tw { color: var(--up-color-text) !important; }
+  .text-down, .text-down-tw { color: var(--down-color-text) !important; }
+  .text-up-us { color: var(--up-color-text) !important; }
+  .text-down-us { color: var(--down-color-text) !important; }
+  .bg-up-badge {
+    background-color: var(--up-color-bg) !important;
+    color: var(--up-color-text) !important;
+    border: 1px solid var(--up-color-border) !important;
+  }
+  .bg-down-badge {
+    background-color: var(--down-color-bg) !important;
+    color: var(--down-color-text) !important;
+    border: 1px solid var(--down-color-border) !important;
+  }
   .bg-secondary { background-color: var(--bg-secondary); }
   .bg-tertiary { background-color: var(--bg-tertiary); }
   .bg-danger { background-color: var(--danger); }

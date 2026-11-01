@@ -20,6 +20,18 @@ export default function RootLayout({
   return (
     <html lang="zh-TW">
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var c = localStorage.getItem('stock_color_preference') || 'red-up';
+                document.documentElement.setAttribute('data-color-scheme', c);
+                var t = localStorage.getItem('theme_mode') || 'dark';
+                document.documentElement.setAttribute('data-theme', t);
+              } catch (e) {}
+            `,
+          }}
+        />
         <Script
           src="https://accounts.google.com/gsi/client"
           strategy="afterInteractive"

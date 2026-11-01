@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, getPriceColors } from "@/lib/utils";
 import { Term } from "@/components/ui/TermTooltip";
 import { REAL_STOCK_INSTITUTIONAL_MAP } from "@/lib/realInstitutionalSnapshot";
 import {
@@ -28,7 +28,8 @@ function StockCandleShape(props: any) {
   if (!close || high <= 0) return null;
 
   const isUp = close >= open;
-  const color = isUp ? "#ef4444" : "#22c55e";
+  const { upColor, downColor } = getPriceColors();
+  const color = isUp ? upColor : downColor;
   const range = Math.max(high - low, 0.0001);
   const absH = Math.max(Math.abs(height), 2);
   const topY = height >= 0 ? y : y + height;

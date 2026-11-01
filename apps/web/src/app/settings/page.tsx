@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
-import { Server, Bell, Trash2, CheckCircle2, ShieldCheck, ChevronDown, ChevronUp } from "lucide-react";
+import { Server, Bell, Trash2, CheckCircle2, ShieldCheck, ChevronDown, ChevronUp, Palette } from "lucide-react";
+import { useColorPreference } from "@/hooks/useColorPreference";
 
 export default function SettingsPage() {
+  const { preference, setPreference } = useColorPreference();
   const [backendUrl, setBackendUrl] = useState("");
   const [urlMessage, setUrlMessage] = useState("");
   const [testingUrl, setTestingUrl] = useState(false);
@@ -70,6 +72,112 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold">網站個人設定</h1>
         <p className="text-secondary text-sm">系統主機連線、即時推播與個人化參數配置</p>
       </div>
+
+      {/* 漲跌顏色偏好設定 (紅漲綠跌 vs 綠漲紅跌) */}
+      <Card title="漲跌顏色偏好設定 (Price Color Scheme)">
+        <div className="space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <div className="font-semibold text-primary flex items-center gap-2">
+                <Palette size={16} className="text-accent" />
+                <span>全站標的漲跌與 K 線色彩慣例</span>
+              </div>
+              <p className="text-xs text-secondary leading-relaxed">
+                自訂台股、美股、加密貨幣、外匯、期貨等所有市場與資產的漲跌色彩慣例。切換後全站報價卡片、清單與 K 線圖表立即同步生效。
+              </p>
+            </div>
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-accent/15 text-accent border border-accent/30 font-medium whitespace-nowrap">
+              {preference === "red-up" ? "當前：紅漲綠跌" : "當前：綠漲紅跌"}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+            {/* 選項 1: 紅漲綠跌 */}
+            <div
+              onClick={() => setPreference("red-up")}
+              className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-3.5 ${
+                preference === "red-up"
+                  ? "bg-accent/10 border-accent shadow-sm ring-1 ring-accent/30"
+                  : "bg-[var(--bg-tertiary)] border-[var(--border)] hover:border-[var(--border-hover)]"
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="font-bold text-sm text-primary flex items-center gap-2">
+                    <span>紅漲綠跌</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-400 font-semibold">
+                      台股 / 亞股慣例
+                    </span>
+                  </div>
+                  <p className="text-xs text-secondary mt-1.5 leading-relaxed">
+                    上漲顯示紅色、下跌顯示綠色。符合台灣證券交易所、櫃買中心與亞洲主流市場看盤習慣。
+                  </p>
+                </div>
+                <div
+                  className={`w-4 h-4 rounded-full border flex items-center justify-center mt-0.5 flex-shrink-0 ${
+                    preference === "red-up" ? "border-accent bg-accent text-white" : "border-muted"
+                  }`}
+                >
+                  {preference === "red-up" && <CheckCircle2 size={12} className="stroke-[3]" />}
+                </div>
+              </div>
+
+              {/* 預覽效果 */}
+              <div className="flex items-center gap-2 pt-2.5 border-t border-[var(--border)]/60 text-xs font-mono">
+                <span className="text-muted text-[11px]">視覺預覽：</span>
+                <span className="px-2 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 font-bold">
+                  +2.45%
+                </span>
+                <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold">
+                  -1.80%
+                </span>
+              </div>
+            </div>
+
+            {/* 選項 2: 綠漲紅跌 */}
+            <div
+              onClick={() => setPreference("green-up")}
+              className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-3.5 ${
+                preference === "green-up"
+                  ? "bg-accent/10 border-accent shadow-sm ring-1 ring-accent/30"
+                  : "bg-[var(--bg-tertiary)] border-[var(--border)] hover:border-[var(--border-hover)]"
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="font-bold text-sm text-primary flex items-center gap-2">
+                    <span>綠漲紅跌</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-semibold">
+                      美股 / 國際慣例
+                    </span>
+                  </div>
+                  <p className="text-xs text-secondary mt-1.5 leading-relaxed">
+                    上漲顯示綠色、下跌顯示紅色。符合 Wall Street、TradingView 與全球主流加密貨幣交易所習慣。
+                  </p>
+                </div>
+                <div
+                  className={`w-4 h-4 rounded-full border flex items-center justify-center mt-0.5 flex-shrink-0 ${
+                    preference === "green-up" ? "border-accent bg-accent text-white" : "border-muted"
+                  }`}
+                >
+                  {preference === "green-up" && <CheckCircle2 size={12} className="stroke-[3]" />}
+                </div>
+              </div>
+
+              {/* 預覽效果 */}
+              <div className="flex items-center gap-2 pt-2.5 border-t border-[var(--border)]/60 text-xs font-mono">
+                <span className="text-muted text-[11px]">視覺預覽：</span>
+                <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold">
+                  +2.45%
+                </span>
+                <span className="px-2 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 font-bold">
+                  -1.80%
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {/* 1. 雲端後端連線狀態 (統一連線站長主機，免手動填寫) */}
       <Card title="雲端後端伺服器 (官方連線)">

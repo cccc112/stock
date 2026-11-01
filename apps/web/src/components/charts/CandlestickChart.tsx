@@ -174,6 +174,8 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
   const chartRef = useRef<IChartApi | null>(null);
   const upperTrendRef = useRef<ISeriesApi<"Line"> | null>(null);
   const lowerTrendRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const mainSeriesRef = useRef<any>(null);
+  const volumeSeriesRef = useRef<any>(null);
   const ma5Ref = useRef<ISeriesApi<"Line"> | null>(null);
   const ma20Ref = useRef<ISeriesApi<"Line"> | null>(null);
   const ma60Ref = useRef<ISeriesApi<"Line"> | null>(null);
@@ -188,8 +190,9 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
   const [overlay, setOverlay] = useState<{ chart: IChartApi; series: ISeriesApi<SeriesType>; bars: BarInfo[] } | null>(null);
   const drawingsApi = useDrawings(symbol, activePeriod === '1d' || activePeriod === '5d');
 
-  const upColor = '#ef4444';
-  const downColor = '#22c55e';
+  const isGreenUp = typeof document !== 'undefined' && document.documentElement.getAttribute('data-color-scheme') === 'green-up';
+  const upColor = isGreenUp ? '#22c55e' : '#ef4444';
+  const downColor = isGreenUp ? '#ef4444' : '#22c55e';
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -247,11 +250,13 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
       // 最新價標籤固定取「最後一根 K 棒」，而不是畫面上最後一根可見的 K 棒
       priceLineSource: PriceLineSource.LastBar,
     });
+    mainSeriesRef.current = mainSeries;
     
     const volumeSeries = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' },
       priceScaleId: 'left',
     });
+    volumeSeriesRef.current = volumeSeries;
 
     volumeSeries.priceScale().applyOptions({
       scaleMargins: { top: 0.68, bottom: 0 },
@@ -461,12 +466,16 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
     }
   }, [showAutoTrends, upperTrendColor]);
 
-  // 監聽深淺色模式切換，即時更新 K 線圖座標軸與網格配色
+  // 監聽深淺色與漲跌顏色模式切換，即時更新 K 線圖座標軸、網格與 K 棒配色
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const applyThemeToChart = () => {
       if (!chartRef.current) return;
       const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      const isGreenUpNow = document.documentElement.getAttribute('data-color-scheme') === 'green-up';
+      const currentUp = isGreenUpNow ? '#22c55e' : '#ef4444';
+      const currentDown = isGreenUpNow ? '#ef4444' : '#22c55e';
+
       const gridColor = isLight ? 'rgba(148, 163, 184, 0.22)' : 'rgba(59, 130, 246, 0.1)';
       const borderColor = isLight ? 'rgba(148, 163, 184, 0.4)' : 'rgba(59, 130, 246, 0.2)';
       const textColor = isLight ? '#475569' : '#94a3b8';
@@ -478,10 +487,19 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
           leftPriceScale: { borderColor },
           timeScale: { borderColor },
         });
+
+        if (mainSeriesRef.current) {
+          mainSeriesRef.current.applyOptions({
+            upColor: currentUp,
+            downColor: currentDown,
+            wickUpColor: currentUp,
+            wickDownColor: currentDown,
+          });
+        }
       } catch { /* ignore */ }
     };
     const observer = new MutationObserver(applyThemeToChart);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-color-scheme'] });
     return () => observer.disconnect();
   }, []);
 

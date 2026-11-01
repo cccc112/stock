@@ -35,7 +35,19 @@ export function getChangeColorClass(change: number, _market: 'TW' | 'US' = 'TW')
   return change > 0 ? 'text-up-tw' : 'text-down-tw';
 }
 
+export function getPriceColors() {
+  const isGreenUp =
+    typeof document !== 'undefined' &&
+    document.documentElement.getAttribute('data-color-scheme') === 'green-up';
+  return {
+    upColor: isGreenUp ? '#22c55e' : '#ef4444',
+    downColor: isGreenUp ? '#ef4444' : '#22c55e',
+    isGreenUp,
+  };
+}
+
 export function getChangeColor(change: number, _market: 'TW' | 'US' = 'TW') {
   if (change === 0) return '#8b8f9a'; // text-secondary
-  return change > 0 ? '#ef4444' : '#22c55e'; // 全站統一紅漲綠跌
+  const { upColor, downColor } = getPriceColors();
+  return change > 0 ? upColor : downColor;
 }

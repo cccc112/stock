@@ -21,6 +21,9 @@ export default function TopBar() {
     const saved = (localStorage.getItem("theme_mode") as "dark" | "light") || "dark";
     setTheme(saved);
     document.documentElement.setAttribute("data-theme", saved);
+
+    const savedColor = localStorage.getItem("stock_color_preference") || "red-up";
+    document.documentElement.setAttribute("data-color-scheme", savedColor);
   }, []);
 
   const toggleTheme = () => {
