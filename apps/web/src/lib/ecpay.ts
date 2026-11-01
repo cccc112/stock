@@ -95,7 +95,7 @@ export function buildPeriodicalPaymentParams(
 }
 
 /**
- * 驗證綠界回傳之 Webhook 壓碼是否合法
+ * 驗證綠界回傳之 Webhook 壓碼是否合法 (含防止時序攻擊 timingSafeEqual)
  */
 export function verifyECPayCallback(
   callbackData: Record<string, any>,
@@ -103,6 +103,16 @@ export function verifyECPayCallback(
   hashIV: string = DEFAULT_ECPAY_CONFIG.HashIV
 ): boolean {
   if (!callbackData?.CheckMacValue) return false;
-  const calculated = generateCheckMacValue(callbackData, hashKey, hashIV);
-  return calculated === callbackData.CheckMacValue;
+
+  const expected = generateCheckMacValue(callbackData, hashKey, hashIV).toUpperCase();
+  const received = String(callbackData.CheckMacValue).trim().toUpperCase();
+
+  const expBuf = Buffer.from(expected, "utf8");
+  const recBuf = Buffer.from(received, "utf8");
+
+  if (expBuf.length !== recBuf.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(expBuf, recBuf);
 }

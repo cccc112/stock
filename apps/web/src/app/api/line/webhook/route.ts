@@ -12,17 +12,34 @@ const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "";
 const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "";
 
 /**
- * 校驗 LINE Webhook HMAC-SHA256 簽章
+ * 校驗 LINE Webhook HMAC-SHA256 簽章 (含時序攻擊 Timing-Safe 防護與生產環境強制校驗)
  */
 function verifyLineSignature(body: string, signature: string): boolean {
-  if (!LINE_CHANNEL_SECRET) return true; // 開發測試時未配置 secret 允許通過
+  if (!LINE_CHANNEL_SECRET) {
+    if (process.env.NODE_ENV === "production") {
+      console.error("[LINE Webhook Security] 嚴重資安警告: 生產環境必須設置 LINE_CHANNEL_SECRET");
+      return false;
+    }
+    return true; // 本地測試環境無 secret 時放行
+  }
+  if (!signature) return false;
+
   try {
     const hash = crypto
       .createHmac("SHA256", LINE_CHANNEL_SECRET)
       .update(body)
       .digest("base64");
-    return hash === signature;
-  } catch {
+
+    const hashBuf = Buffer.from(hash, "utf8");
+    const sigBuf = Buffer.from(signature, "utf8");
+
+    if (hashBuf.length !== sigBuf.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(hashBuf, sigBuf);
+  } catch (err) {
+    console.error("[LINE Webhook Security] 簽章驗證失敗:", err);
     return false;
   }
 }
@@ -66,6 +83,11 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
+    // 1. 資安防護：防 Payload 炸彈 (限制單次請求 < 1MB)
+    if (rawBody.length > 1024 * 1024) {
+      return NextResponse.json({ error: "Payload too large" }, { status: 413 });
+    }
+
     const signature = req.headers.get("x-line-signature") || "";
 
     if (!verifyLineSignature(rawBody, signature)) {
@@ -74,8 +96,15 @@ export async function POST(req: NextRequest) {
 
     const payload = JSON.parse(rawBody);
     const events: any[] = Array.isArray(payload?.events) ? payload.events : [];
+    const now = Date.now();
 
     for (const ev of events) {
+      // 2. 資安防護：防重放攻擊 (Replay Attack Check, 超過 10 分鐘視為過期無效)
+      if (ev.timestamp && Math.abs(now - ev.timestamp) > 10 * 60 * 1000) {
+        console.warn(`[LINE Webhook Security] 忽略過期重放事件 ${ev.type}, age: ${now - ev.timestamp}ms`);
+        continue;
+      }
+
       const lineUserId = ev.source?.userId;
       const replyToken = ev.replyToken;
 
