@@ -1,4 +1,5 @@
 import MarketOverview from "@/components/dashboard/MarketOverview";
+import MarketSentimentSection from "@/components/dashboard/MarketSentimentSection";
 import WatchlistPanel from "@/components/dashboard/WatchlistPanel";
 import AlertFeed from "@/components/dashboard/AlertFeed";
 import AIInsightCard from "@/components/dashboard/AIInsightCard";
@@ -14,6 +15,9 @@ export default function DashboardPage() {
       </header>
 
       <MarketOverview />
+
+      {/* AI 即時市場情緒與恐慌雷達 */}
+      <MarketSentimentSection />
 
       <div className="dashboard-grid items-start">
         <div className="flex flex-col gap-6 min-w-0">
