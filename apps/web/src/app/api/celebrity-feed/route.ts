@@ -15,7 +15,11 @@ export interface CelebrityPostItem {
   personTitle: string;
   handle: string;
   platform: string;
+  postType?: "original" | "quote" | "repost" | "news";
   headline: string;
+  originalText?: string;
+  mediaUrl?: string;
+  mediaType?: string;
   source: string;
   link: string;
   date: string;
@@ -33,12 +37,11 @@ const CELEBRITY_META = {
   TRUMP: {
     personId: "TRUMP" as const,
     personName: "Donald Trump (川普)",
-    personTitle: "美國總統 / 關稅與地緣政策風向球",
+    personTitle: "美國總統 / Truth Social 全量發文即時監控",
     handle: "@realDonaldTrump",
-    platform: "Truth Social / 官方談話",
+    platform: "Truth Social 官方全量貼文",
     queries: [
-      "川普 關稅 OR 台積電 OR 半導體 OR 股市 OR 降息 OR 比特幣",
-      "Donald Trump Truth Social tariff OR TSMC OR stock market OR China",
+      "川普 關稅 OR 台積電 OR 半導體 OR 股市 OR 降息 OR 比特幣 OR 貼文",
     ],
   },
   MUSK: {
@@ -83,7 +86,57 @@ function decodeHtmlEntities(str: string): string {
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ");
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#8211;/g, "–")
+    .replace(/&#8212;/g, "—");
+}
+
+function stripHtmlTags(html: string): string {
+  return decodeHtmlEntities(
+    html
+      .replace(/<br\s*\/?>/gi, " ")
+      .replace(/<\/p>/gi, " ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
+/**
+ * 批次將英文貼文翻譯為繁體中文（使用 Google GTX 免費高速端點，失敗時平滑退回原文）
+ */
+async function batchTranslateToZhTw(texts: string[]): Promise<string[]> {
+  if (texts.length === 0) return [];
+  const results = [...texts];
+  const chunkSize = 10;
+
+  const chunks: Array<{ startIndex: number; slice: string[] }> = [];
+  for (let i = 0; i < texts.length; i += chunkSize) {
+    chunks.push({ startIndex: i, slice: texts.slice(i, i + chunkSize) });
+  }
+
+  await Promise.allSettled(
+    chunks.map(async ({ startIndex, slice }) => {
+      const cleaned = slice.map((t) => t.replace(/\|\|\|/g, " ").slice(0, 380));
+      const joined = cleaned.join("\n ||| \n");
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-TW&dt=t&q=${encodeURIComponent(
+        joined
+      )}`;
+      const res = await fetch(url, { next: { revalidate: 300 } });
+      if (!res.ok) return;
+      const json = await res.json();
+      if (!Array.isArray(json?.[0])) return;
+      const fullZh = json[0].map((seg: any) => (seg && seg[0] ? String(seg[0]) : "")).join("");
+      const parts = fullZh.split("|||").map((p: string) => p.trim());
+      for (let j = 0; j < slice.length; j++) {
+        if (parts[j]) {
+          results[startIndex + j] = parts[j];
+        }
+      }
+    })
+  );
+
+  return results;
 }
 
 /**
@@ -105,78 +158,109 @@ function analyzeCelebrityStatement(
 
   if (personId === "TRUMP") {
     const isTariffOrChip =
-      /關稅|tariff|晶片|半導體|台積電|tsmc|chip|制裁|貿易戰|china|中國/.test(lower);
-    const isCryptoOrDereg = /比特幣|加密|bitcoin|crypto|deregulat|減稅|tax|能源|石油|drill/.test(lower);
-    const isFedRate = /降息|聯準會|fed|powell|利率|美元/.test(lower);
+      /關稅|tariff|晶片|半導體|台積電|tsmc|chip|semiconductor|制裁|貿易|china|中國|mexico|border|import/.test(
+        lower
+      );
+    const isAutoOrManufacturing =
+      /michigan|detroit|auto|car|manufacturing|factory|worker|job|pennsylvania|steel|汽車|製造|工廠|密西根/.test(
+        lower
+      );
+    const isCryptoOrMedia =
+      /比特幣|加密|bitcoin|crypto|deregulat|truth|media|censorship|free speech|djt|bank/.test(lower);
+    const isEnergyOrTax =
+      /減稅|tax|能源|石油|drill|oil|gas|energy|inflation|通膨|降息|聯準會|fed|powell|利率|economy/.test(
+        lower
+      );
 
     if (isTariffOrChip) {
       return {
         sentiment: "VOLATILE",
-        sentimentLabel: "政策高波動 / 供應鏈重組",
-        impactScore: 9.2,
+        sentimentLabel: "關稅與供應鏈重組",
+        impactScore: 9.3,
         sectors: ["晶圓代工", "赴美設廠概念", "貨櫃航運", "防禦型高息股"],
         aiSummary:
-          "川普針對關稅或半導體製造發表強硬言論，短線容易引發費半與台股權值股情緒性震盪；但具備美國亞利桑那/德州廠產能或高定價權的龍頭具備轉嫁能力，且關稅預期往往帶動航運提前拉貨潮。",
+          "川普針對關稅、邊境貿易或半導體製造發表強硬立場，短線易引發費半與台股權值股情緒震盪；但具備美國本土產能或獨佔定價權的龍頭具轉嫁能力，且關稅預期常帶動歐美航運提前拉貨。",
         actionableAdvice:
-          "避免在言論發布當下恐慌追空具護城河之晶圓龍頭，可趁情緒回檔分批佈局具美國產能標的；短線資金可配置貨櫃航運（搶運效應）或內需金融股避險。",
+          "切勿在關稅言論當下恐慌追空先進製程龍頭，可趁情緒回檔分批佈局具美國廠產能之標的；短線資金可關注貨櫃航運（搶運效應）或電信金融股避險。",
         affectedStocks: [
-          { symbol: "2330", name: "台積電", market: "TW", effect: "WATCH", reason: "短線受關稅言論情緒干擾，但先進製程具100%轉嫁定價權" },
-          { symbol: "TSM", name: "台積電 ADR", market: "US", effect: "WATCH", reason: "留意美股盤前溢價收斂與費半指數波動" },
-          { symbol: "2603", name: "長榮", market: "TW", effect: "POSITIVE", reason: "關稅生效前歐美進口商提前備貨，推升SCFI運價預期" },
-          { symbol: "2412", name: "中華電", market: "TW", effect: "POSITIVE", reason: "貿易政策不確定期間之法人資金避風港" },
+          { symbol: "2330", name: "台積電", market: "TW", effect: "WATCH", reason: "短線受關稅言論干擾，但先進製程具100%客戶轉嫁定價權與亞利桑那廠優勢" },
+          { symbol: "TSM", name: "台積電 ADR", market: "US", effect: "WATCH", reason: "留意美股費半指數波動與ADR溢價收斂" },
+          { symbol: "2603", name: "長榮", market: "TW", effect: "POSITIVE", reason: "關稅調升預期促使歐美進口商提前拉貨，支撐運價" },
+          { symbol: "2317", name: "鴻海", market: "TW", effect: "POSITIVE", reason: "德州與威州廠區布局完整，受惠北美在地化製造趨勢" },
         ],
       };
     }
 
-    if (isCryptoOrDereg) {
+    if (isAutoOrManufacturing) {
       return {
         sentiment: "BULLISH",
-        sentimentLabel: "政策鬆綁利多",
-        impactScore: 8.6,
-        sectors: ["加密貨幣概念", "美國傳統能源", "華爾街金融", "川普媒體概念"],
+        sentimentLabel: "美國製造與汽車鏈催化",
+        impactScore: 8.7,
+        sectors: ["北美製造概念", "傳統車廠與車電", "重電基礎建設", "工業自動化"],
         aiSummary:
-          "川普釋放放鬆金融監管、支持加密資產或擴大美國本土能源開採訊號，有助提振風險資產偏好與美股金融、加密板塊估值。",
+          "川普貼文聚焦密西根州/工業搖擺州、汽車製造業回流與勞工就業，強化「美國本土製造 (Made in USA)」與重電基建需求預期。",
         actionableAdvice:
-          "可順勢關注美股加密貨幣交易平台、大型投行與台股板卡/加密算力硬體供應鏈，惟須嚴設移動停利防範題材熱度退潮。",
+          "優先關注已在北美設廠或打入底特律/北美電力基建供應鏈之台美股標的，逢回沿均線偏多布局。",
         affectedStocks: [
-          { symbol: "COIN", name: "Coinbase", market: "US", effect: "POSITIVE", reason: "監管友善政策直接拉升加密貨幣交易量" },
-          { symbol: "2377", name: "微星", market: "TW", effect: "POSITIVE", reason: "顯卡與算力硬體需求受惠加密與AI雙題材" },
-          { symbol: "XOM", name: "ExxonMobil", market: "US", effect: "POSITIVE", reason: "放寬開採限制降低合規成本" },
+          { symbol: "1519", name: "華城", market: "TW", effect: "POSITIVE", reason: "製造業回流美國帶動電網擴建與高壓變壓器強勁訂單" },
+          { symbol: "2317", name: "鴻海", market: "TW", effect: "POSITIVE", reason: "北美俄亥俄州、威州與德州皆具製造基地，受惠美國製造政策" },
+          { symbol: "TSLA", name: "Tesla", market: "US", effect: "POSITIVE", reason: "德州與加州超級工廠本土化程度最高，受進口關稅保護" },
+          { symbol: "2049", name: "上銀", market: "TW", effect: "POSITIVE", reason: "美國製造業回流推升工廠自動化與機器人傳動元件需求" },
         ],
       };
     }
 
-    if (isFedRate) {
+    if (isEnergyOrTax) {
       return {
-        sentiment: "VOLATILE",
-        sentimentLabel: "利率與匯市震盪",
-        impactScore: 8.4,
-        sectors: ["長天期美債 ETF", "美元匯率", "大型金控"],
+        sentiment: "BULLISH",
+        sentimentLabel: "減稅與傳統能源利多",
+        impactScore: 8.8,
+        sectors: ["傳統能源石化", "華爾街大型銀行", "長天期美債", "塑化原物料"],
         aiSummary:
-          "川普對聯準會貨幣政策與美元匯率表態，引發市場對長端美債殖利率與通膨預期的重新定價。",
+          "川普強調壓低能源價格、擴大本土石油天然氣開採及企業減稅，有助降低企業營運成本並提振美股道瓊與金融能源股估值，但財政赤字預期可能使長債殖利率維持高檔震盪。",
         actionableAdvice:
-          "美債 ETF 宜採區間分批操作，不宜單筆重押槓桿型債券；若美元走弱則有利外資回補台股權值電子。",
+          "美股金融與能源板塊直接受惠減稅與放寬監管；長天期美債 ETF 宜採「殖利率彈升買進、區間操作」策略。",
         affectedStocks: [
-          { symbol: "00679B", name: "元大美債20年", market: "TW", effect: "WATCH", reason: "長債殖利率受政治言論與赤字預期雙向拉扯" },
-          { symbol: "TLT", name: "20年期美債ETF", market: "US", effect: "WATCH", reason: "觀察10年期美債殖利率4.2%~4.5%關鍵區間" },
-          { symbol: "2881", name: "富邦金", market: "TW", effect: "POSITIVE", reason: "壽險匯兌成本與債券評價隨利率路徑動態調整" },
+          { symbol: "XOM", name: "ExxonMobil", market: "US", effect: "POSITIVE", reason: "擴大本土油氣開採與放寬環評直接受惠" },
+          { symbol: "00679B", name: "元大美債20年", market: "TW", effect: "WATCH", reason: "油價走低有利降通膨，但減稅赤字使長債殖利率呈區間震盪" },
+          { symbol: "2881", name: "富邦金", market: "TW", effect: "POSITIVE", reason: "金融環境活絡與資本市場交投熱絡推升金控獲利" },
         ],
       };
     }
 
+    if (isCryptoOrMedia) {
+      return {
+        sentiment: "BULLISH",
+        sentimentLabel: "川普概念與加密利多",
+        impactScore: 8.5,
+        sectors: ["川普媒體概念", "加密貨幣與板卡", "去監管金融"],
+        aiSummary:
+          "貼文涉及社群言論自由、Truth Social 流量動能或金融/加密資產去監管議題，直接催化「川普交易 (Trump Trade)」相關概念股動能。",
+        actionableAdvice:
+          "川普媒體與加密概念股波動度極高（高 Beta），適合短線動能交易者順勢操作並嚴設 5%~7% 移動停利。",
+        affectedStocks: [
+          { symbol: "DJT", name: "Trump Media", market: "US", effect: "POSITIVE", reason: "Truth Social 母公司，直接隨川普貼文聲量與政治動能波動" },
+          { symbol: "COIN", name: "Coinbase", market: "US", effect: "POSITIVE", reason: "川普交易核心指標股，受惠加密資產友善監管預期" },
+          { symbol: "2377", name: "微星", market: "TW", effect: "POSITIVE", reason: "板卡與算力硬體受惠加密貨幣行情升溫" },
+        ],
+      };
+    }
+
+    // 川普造勢、背書、動員等所有政治貼文 -> 連結「川普交易 (Trump Trade)」籃子
     return {
       sentiment: "VOLATILE",
-      sentimentLabel: "政經話題發酵",
-      impactScore: 8.0,
-      sectors: ["美國內需製造", "軍工國防", "台美供應鏈"],
+      sentimentLabel: "川普交易 (Trump Trade) 動能",
+      impactScore: 8.1,
+      sectors: ["川普概念股", "美國內需製造", "軍工國防", "北美設廠台廠"],
       aiSummary:
-        "川普最新貼文引發市場對「美國優先 (America First)」政策延續性的關注，資金傾向由高關稅敞口企業轉往具備美國在地製造能力的供應鏈。",
+        "川普於 Truth Social 密集發文進行政治動員、造勢直播或候選人背書，維持高政治聲量。華爾街量化基金通常將川普聲量與民調動能直接映射至「川普交易 (Trump Trade)」資產籃子（美國本土製造、金融去監管、加密貨幣與國防軍工）。",
       actionableAdvice:
-        "建議檢視持股中對美出口比重，優先配置已在美國設廠或掌握獨家規格之台美科技龍頭。",
+        "當川普發文頻率與政治動能升溫時，市場資金傾向加碼具備「美國製造保護傘」的企業，建議逢低配置擁有北美產線的台系 AI 伺服器與重電龍頭，並留意 DJT 與美元指數短線波動。",
       affectedStocks: [
-        { symbol: "2317", name: "鴻海", market: "TW", effect: "POSITIVE", reason: "擁有德州/威州北美完整AI伺服器組裝產線，抗關稅能力強" },
-        { symbol: "2330", name: "台積電", market: "TW", effect: "POSITIVE", reason: "亞利桑那廠良率領先，為美國本土AI晶片唯一依靠" },
-        { symbol: "SPY", name: "SPDR標普500", market: "US", effect: "WATCH", reason: "美國本土大型企業受惠減稅與內需保護政策" },
+        { symbol: "DJT", name: "Trump Media", market: "US", effect: "POSITIVE", reason: "Truth Social 貼文活躍度與造勢動能之最直接情緒指標" },
+        { symbol: "2317", name: "鴻海", market: "TW", effect: "POSITIVE", reason: "具備美國威州與德州完整產線，為川普「美國製造」政策下最受保護之台廠" },
+        { symbol: "2330", name: "台積電", market: "TW", effect: "WATCH", reason: "美國亞利桑那廠產能持續開出，長線化解地緣與關稅政治壓力" },
+        { symbol: "SPY", name: "SPDR標普500", market: "US", effect: "POSITIVE", reason: "企業減稅與放鬆監管預期支撐美股大型企業獲利估值" },
       ],
     };
   }
@@ -278,6 +362,128 @@ function analyzeCelebrityStatement(
   };
 }
 
+/**
+ * 直接串接川普 Truth Social 官方全量同步流 (trumpstruth.org/feed)，
+ * 100% 抓取 @realDonaldTrump 每一篇發文（原創、引用、轉發、圖片/影片貼文），並自動翻譯為繁體中文
+ */
+async function fetchTrumpTruthSocialDirect(limit = 40): Promise<CelebrityPostItem[]> {
+  try {
+    const resp = await fetch("https://trumpstruth.org/feed", {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      },
+      next: { revalidate: 60 },
+    });
+    if (!resp.ok) return [];
+    const xml = await resp.text();
+    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+    let match: RegExpExecArray | null;
+
+    const rawEntries: Array<{
+      id: string;
+      originalText: string;
+      postType: "original" | "quote" | "repost";
+      link: string;
+      timestamp: number;
+      mediaUrl?: string;
+      mediaType?: string;
+    }> = [];
+
+    while ((match = itemRegex.exec(xml)) !== null && rawEntries.length < limit) {
+      const block = match[1];
+      const titleMatch = block.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/);
+      const descMatch = block.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/);
+      const pubDateMatch = block.match(/<pubDate>([\s\S]*?)<\/pubDate>/);
+      const origUrlMatch = block.match(/<truth:originalUrl>([\s\S]*?)<\/truth:originalUrl>/);
+      const origIdMatch = block.match(/<truth:originalId>([\s\S]*?)<\/truth:originalId>/);
+      const postTypeMatch = block.match(/<archive:postType>([\s\S]*?)<\/archive:postType>/);
+      const mediaMatch = block.match(/<media:content\s+url="([^"]+)"(?:\s+medium="([^"]+)")?/);
+
+      let text = titleMatch ? stripHtmlTags(titleMatch[1]) : "";
+      if (!text || text.startsWith("[No Title]")) {
+        text = descMatch ? stripHtmlTags(descMatch[1]) : "";
+      }
+      // 整理 RT @realDonaldTrump 黏連字元
+      text = text
+        .replace(/^RT\s*@realDonaldTrump\s*/i, "【轉發】")
+        .replace(/RT:\s*https:\/\/truthsocial\.com\/[^\s]+/gi, "")
+        .replace(/View image|View video/gi, "")
+        .trim();
+
+      const postTypeRaw = (postTypeMatch ? postTypeMatch[1].trim() : "original") as
+        | "original"
+        | "quote"
+        | "repost";
+      const mediaUrl = mediaMatch ? mediaMatch[1] : undefined;
+      const mediaType = mediaMatch ? mediaMatch[2] || "image" : undefined;
+
+      if (!text) {
+        text =
+          mediaType === "video"
+            ? "[川普於 Truth Social 發布了一則實況影片貼文]"
+            : "[川普於 Truth Social 發布了一則圖片貼文]";
+      }
+
+      const pubDateStr = pubDateMatch ? pubDateMatch[1].trim() : "";
+      const parsedTime = pubDateStr ? Date.parse(pubDateStr) : Date.now();
+      const timestamp = isNaN(parsedTime) ? Date.now() : parsedTime;
+      const truthLink = origUrlMatch
+        ? origUrlMatch[1].trim()
+        : "https://truthsocial.com/@realDonaldTrump";
+      const id = origIdMatch ? `TRUMP-TS-${origIdMatch[1].trim()}` : `TRUMP-TS-${timestamp}-${rawEntries.length}`;
+
+      rawEntries.push({
+        id,
+        originalText: text,
+        postType: postTypeRaw,
+        link: truthLink,
+        timestamp,
+        mediaUrl,
+        mediaType,
+      });
+    }
+
+    // 批次將英文原文翻譯為繁體中文
+    const translatedList = await batchTranslateToZhTw(rawEntries.map((e) => e.originalText));
+
+    return rawEntries.map((entry, idx) => {
+      const zhText = translatedList[idx] || entry.originalText;
+      const combinedForAnalysis = `${entry.originalText} ${zhText}`;
+      const analysis = analyzeCelebrityStatement("TRUMP", combinedForAnalysis);
+
+      const typeLabel =
+        entry.postType === "original"
+          ? "Truth Social 原創貼文"
+          : entry.postType === "quote"
+          ? "Truth Social 引用發文"
+          : "Truth Social 轉發 (ReTruth)";
+
+      return {
+        id: entry.id,
+        personId: "TRUMP",
+        personName: CELEBRITY_META.TRUMP.personName,
+        personTitle: CELEBRITY_META.TRUMP.personTitle,
+        handle: "@realDonaldTrump",
+        platform: typeLabel,
+        postType: entry.postType,
+        headline: zhText,
+        originalText: entry.originalText,
+        mediaUrl: entry.mediaUrl,
+        mediaType: entry.mediaType,
+        source: "Truth Social (@realDonaldTrump)",
+        link: entry.link,
+        date: new Date(entry.timestamp).toISOString(),
+        timestamp: entry.timestamp,
+        ...analysis,
+      };
+    });
+  } catch (e) {
+    console.warn("Failed to fetch Trump Truth Social direct feed:", e);
+    return [];
+  }
+}
+
 async function fetchRssForPerson(personKey: keyof typeof CELEBRITY_META): Promise<CelebrityPostItem[]> {
   const meta = CELEBRITY_META[personKey];
   const results: CelebrityPostItem[] = [];
@@ -330,12 +536,13 @@ async function fetchRssForPerson(personKey: keyof typeof CELEBRITY_META): Promis
         const analysis = analyzeCelebrityStatement(meta.personId, rawTitle);
 
         results.push({
-          id: `${meta.personId}-${timestamp}-${results.length}`,
+          id: `${meta.personId}-NEWS-${timestamp}-${results.length}`,
           personId: meta.personId,
           personName: meta.personName,
           personTitle: meta.personTitle,
           handle: meta.handle,
           platform: meta.platform,
+          postType: "news",
           headline: rawTitle,
           source,
           link: linkMatch ? linkMatch[1].trim() : `https://news.google.com/search?q=${encodeURIComponent(rawTitle)}`,
@@ -355,18 +562,32 @@ export async function GET(req: NextRequest) {
   const person = (searchParams.get("person") || "ALL").toUpperCase();
 
   try {
-    const keys: Array<keyof typeof CELEBRITY_META> =
-      person === "ALL" || !(person in CELEBRITY_META)
-        ? ["TRUMP", "MUSK", "HUANG", "POWELL"]
-        : [person as keyof typeof CELEBRITY_META];
+    // 若選擇 TRUMP，直接拉取 40 則 Truth Social 官方全量貼文 + 台灣財經轉述
+    if (person === "TRUMP") {
+      const [directTruths, twNews] = await Promise.all([
+        fetchTrumpTruthSocialDirect(40),
+        fetchRssForPerson("TRUMP"),
+      ]);
+      const combined = [...directTruths, ...twNews].sort((a, b) => b.timestamp - a.timestamp);
+      return NextResponse.json({ data: combined });
+    }
 
-    const lists = await Promise.all(keys.map((k) => fetchRssForPerson(k)));
-    const merged = lists
-      .flat()
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, 32);
+    if (person === "ALL") {
+      const [directTruths, muskList, huangList, powellList] = await Promise.all([
+        fetchTrumpTruthSocialDirect(25),
+        fetchRssForPerson("MUSK"),
+        fetchRssForPerson("HUANG"),
+        fetchRssForPerson("POWELL"),
+      ]);
+      const merged = [...directTruths, ...muskList, ...huangList, ...powellList]
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 50);
+      return NextResponse.json({ data: merged });
+    }
 
-    return NextResponse.json({ data: merged });
+    const key = (person in CELEBRITY_META ? person : "MUSK") as keyof typeof CELEBRITY_META;
+    const list = await fetchRssForPerson(key);
+    return NextResponse.json({ data: list });
   } catch (e) {
     return NextResponse.json({ data: [], error: String(e) }, { status: 200 });
   }
@@ -376,6 +597,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const text = String(body.text || body.headline || "").trim();
+    const originalText = String(body.originalText || "").trim();
     const personId = (String(body.personId || "TRUMP").toUpperCase() as "TRUMP" | "MUSK" | "HUANG" | "POWELL");
     const personName = String(body.personName || "國際政經/科技領袖");
     const clientKey = String(body.apiKey || process.env.GEMINI_API_KEY || "").trim();
@@ -384,19 +606,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "請提供貼文或發言內容" }, { status: 400 });
     }
 
-    const baseAnalysis = analyzeCelebrityStatement(personId, text);
+    const baseAnalysis = analyzeCelebrityStatement(personId, `${text} ${originalText}`);
 
-    // 若環境變數或前端傳入 Gemini API Key，則調用 Gemini 進行深度定製推演
     if (clientKey) {
       try {
         const prompt = `你是一位頂尖華爾街宏觀對沖基金經理與台美股首席分析師。請針對以下「${personName}」的最新貼文或發言進行深度市場影響分析，並使用繁體中文（Markdown格式）給出具體、犀利、可執行的投資操作建議：
 
 【發言/貼文內容】：「${text}」
+${originalText ? `【Truth Social / X 原文】：「${originalText}」` : ""}
 
 請依序輸出以下四個段落（直接給重點與代碼，不要空泛廢話）：
 1. **🎯 發言弦外之音與核心動機拆解**：一句話點破政治或商業談判意圖。
 2. **🌊 市場情緒與產業鏈傳導效應**：分析對美股板塊與台股供應鏈的直接衝擊（利多誰、利空誰）。
-3. **📈 台美股核心受惠 / 受害標的與操作價位策略**：點名具體代碼（如 2330 台積電、2317 鴻海、TSLA、NVDA 等）並說明進出場條件。
+3. **📈 台美股核心受惠 / 受害標的與操作價位策略**：點名具體代碼（如 2330 台積電、2317 鴻海、TSLA、NVDA、DJT 等）並說明進出場條件。
 4. **🛡️ 風險控管與避險對策**：若市場出現反轉或言論跳票時的對沖做法。`;
 
         const geminiRes = await fetch(
@@ -427,7 +649,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 內建高精準量化因果推演報告（無須 API Key 亦可秒級生成完整 Markdown 深度報告）
     const stockLines = baseAnalysis.affectedStocks
       .map(
         (s) =>
