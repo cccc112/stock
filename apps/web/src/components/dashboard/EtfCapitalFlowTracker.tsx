@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { apiStocks, apiMarket } from "@/lib/api";
 import { ETF_CATALOG, resolveETFProfile } from "@/lib/etfCatalog";
+import { REAL_STOCK_INSTITUTIONAL_MAP } from "@/lib/realInstitutionalSnapshot";
 
 export const ALL_SELECTABLE_ETFS = [
   {
@@ -1054,13 +1055,49 @@ export default function EtfCapitalFlowTracker({
     return Math.max(...flows, 1);
   }, [items, period]);
 
+  // 全市場 ETF 聯手大買 TOP 8 (由 REAL_STOCK_INSTITUTIONAL_MAP 投信法人買賣超與 ETF_CATALOG 動態產生)
+  const aggregatedEtfTopBuys = useMemo(() => {
+    const list = Object.values(REAL_STOCK_INSTITUTIONAL_MAP || {})
+      .filter((s: any) => s.latest && s.latest.trust > 0)
+      .map((s: any) => {
+        const sym = s.symbol;
+        const live = liveQuotes[sym] || liveQuotes[`${sym}.TW`];
+        const price = live?.price || s.latest_close || 100;
+        const change_pct = live?.change_pct !== undefined ? live.change_pct : 0;
+        const total_shares = s.latest.trust;
+        const total_amount_m = Math.round((total_shares * 1000 * price) / 1e6);
+
+        // 搜尋全市場主要持股 ETF
+        const buyers: string[] = [];
+        Object.entries(ETF_CATALOG).forEach(([etfCode, prof]) => {
+          if (prof.holdings?.some((h) => h.symbol === sym)) {
+            buyers.push(etfCode);
+          }
+        });
+
+        return {
+          symbol: sym,
+          name: s.name,
+          total_shares,
+          total_amount_m,
+          buyers: buyers.slice(0, 4),
+          price,
+          change_pct,
+          date: s.latest.date || "最新",
+        };
+      })
+      .sort((a, b) => b.total_shares - a.total_shares)
+      .slice(0, 8);
+
+    return list;
+  }, [liveQuotes]);
+
   // 動態獲取當前選取 ETF 的即時成分股與真實行情 (涵蓋全台股 360+ 檔與美股 ETF)
   const currentPortfolio = useMemo(() => {
     const isMatchedLive = liveHoldingDetail?.symbol?.toUpperCase() === selectedHoldingEtf.toUpperCase();
     const prof = ETF_CATALOG[selectedHoldingEtf] || resolveETFProfile(selectedHoldingEtf);
     const etfName = (isMatchedLive && liveHoldingDetail?.name) || prof?.name || selectedHoldingEtf;
     const etfItem = items.find((it) => it.symbol === selectedHoldingEtf);
-    const etfFlow1d = etfItem?.flow_1d ?? 8.5;
     const etfAum = etfItem?.aum ?? 1200;
 
     const rawHoldings =
@@ -1071,16 +1108,30 @@ export default function EtfCapitalFlowTracker({
         : ETF_PORTFOLIO_DELTAS[selectedHoldingEtf]?.holdings || [];
 
     const holdingsList: EtfHoldingDelta[] = rawHoldings.map((h: any) => {
-      const live = liveQuotes[h.symbol] || liveQuotes[h.symbol.replace(/\.(TW|TWO)$/i, "")];
+      const sym = h.symbol.replace(/\.(TW|TWO)$/i, "");
+      const live = liveQuotes[h.symbol] || liveQuotes[sym];
       const stockPrice = live?.price || h.price || 100;
       const changePct = live?.change_pct !== undefined ? live.change_pct : (h.change_pct || 0);
 
-      const changeAmountM = Math.max(1, Math.round(Math.abs(etfFlow1d * 100) * (h.weight / 100) * 10) / 10);
-      const isPositiveFlow = etfFlow1d >= 0;
-      const action = isPositiveFlow ? ("BUY" as const) : ("SELL" as const);
-      const reason = isPositiveFlow ? "申購被動加買" : "獲利調節贖回";
+      // 真實投信在該個股之當日買賣超（從法人籌碼即時數據庫比對）
+      const inst = REAL_STOCK_INSTITUTIONAL_MAP[sym] || REAL_STOCK_INSTITUTIONAL_MAP[h.symbol];
+      const trustNetLots = inst?.latest?.trust ?? 0;
 
-      const sharesChange = stockPrice > 0 ? Math.max(5, Math.round((changeAmountM * 1000) / stockPrice)) : 0;
+      let action: "BUY" | "SELL" | "HOLD" = "HOLD";
+      let reason: "申購被動加買" | "權重再平衡" | "定審成分更換" | "獲利調節贖回" = "權重再平衡";
+
+      if (trustNetLots > 0) {
+        action = "BUY";
+        reason = "申購被動加買";
+      } else if (trustNetLots < 0) {
+        action = "SELL";
+        reason = "獲利調節贖回";
+      } else {
+        action = changePct > 0 ? "BUY" : changePct < 0 ? "SELL" : "HOLD";
+        reason = "權重再平衡";
+      }
+
+      // 官方持股張數：優先使用申報的真實張數，若無則依基金規模與權重精確折算
       const officialLots = Number(h.shares_lots) || 0;
       const sharesHeld =
         officialLots > 0
@@ -1088,7 +1139,14 @@ export default function EtfCapitalFlowTracker({
           : stockPrice > 0
           ? Math.round(((etfAum * 100) * (h.weight / 100) * 1000) / stockPrice)
           : 0;
-      const weightChange = Number(((etfFlow1d / (etfAum || 1)) * (h.weight / 100) * 10).toFixed(2));
+
+      // 投信當日增減張數（若無特定投信個別買賣超，顯示權重變動或持平，不捏造假張數）
+      const sharesChange = trustNetLots;
+      const changeAmountM = Math.round((Math.abs(sharesChange) * 1000 * stockPrice) / 1e6);
+
+      // 權重變動：真實漲跌幅與 ETF 淨值漲跌之相對漂移
+      const etfChangePct = liveQuotes[selectedHoldingEtf]?.change_pct || 0;
+      const weightChange = Number((((changePct - etfChangePct) / 100) * h.weight).toFixed(2));
 
       return {
         symbol: h.symbol,
@@ -1096,9 +1154,9 @@ export default function EtfCapitalFlowTracker({
         weight: h.weight,
         weight_change: weightChange,
         shares_held: sharesHeld,
-        shares_change: isPositiveFlow ? sharesChange : -sharesChange,
+        shares_change: sharesChange,
         action,
-        change_amount_m: isPositiveFlow ? changeAmountM : -changeAmountM,
+        change_amount_m: action === "SELL" ? -changeAmountM : changeAmountM,
         reason,
         price: stockPrice,
         change_pct: changePct,
@@ -1107,7 +1165,7 @@ export default function EtfCapitalFlowTracker({
 
     return {
       etfName,
-      updateDate: "盤中即時行情連動與最新投信申贖計算",
+      updateDate: isMatchedLive ? "投信官方持股申報與最新即時行情" : "成分股官方權重與籌碼連動",
       holdings: holdingsList,
     };
   }, [selectedHoldingEtf, items, liveQuotes, liveHoldingDetail]);
@@ -1833,20 +1891,25 @@ export default function EtfCapitalFlowTracker({
         <div className="space-y-6 animate-fade-in">
           {/* A. 全市場 ETF 今日合計大買之龍頭個股 */}
           <div className="p-5 rounded-2xl bg-gradient-to-r from-[var(--bg-secondary)] via-[var(--bg-secondary)] to-amber-500/10 border border-[var(--border)]">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
-                <ShoppingBag size={18} />
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
+                  <ShoppingBag size={18} />
+                </span>
+                <h2 className="text-lg font-bold text-primary">
+                  全市場 ETF 今日聯手大買 TOP 8 個股 (Aggregated ETF Inflow Target)
+                </h2>
+              </div>
+              <span className="text-xs font-mono text-muted bg-[var(--bg-tertiary)] px-2.5 py-1 rounded-lg border border-[var(--border)]">
+                盤後投信官方最新統計
               </span>
-              <h2 className="text-lg font-bold text-primary">
-                全市場 ETF 今日聯手大買 TOP 8 個股 (Aggregated ETF Inflow Target)
-              </h2>
             </div>
             <p className="text-xs text-secondary mb-4">
-              彙整全市場所有上市櫃 ETF（0050、00878、00919、00929、0056 等）當日因申購或權重再平衡而合計加碼買超之個股龍頭
+              彙整全市場上市櫃 ETF 發行投信法人最新買超榜首，並自動穿透比對 0050、00878、00919、0056 等核心持股 ETF
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {ALL_ETFS_TOP_BUYS.map((stk, idx) => (
+              {aggregatedEtfTopBuys.map((stk, idx) => (
                 <div
                   key={stk.symbol}
                   className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] hover:border-accent/40 transition-all hover-lift"
@@ -1864,7 +1927,7 @@ export default function EtfCapitalFlowTracker({
                   </div>
 
                   <div className="my-1.5 flex items-baseline justify-between">
-                    <span className="text-xs text-secondary">今日 ETF 合計加買:</span>
+                    <span className="text-xs text-secondary">今日投信/ETF 合計加買:</span>
                     <span className="text-base font-extrabold font-mono text-red-400">
                       +{stk.total_shares.toLocaleString()} 張
                     </span>
@@ -1876,7 +1939,7 @@ export default function EtfCapitalFlowTracker({
                   </div>
 
                   <div className="text-[10px] text-muted truncate mt-1">
-                    主要買方: <span className="text-secondary">{stk.buyers.join(", ")}</span>
+                    主要買方: <span className="text-secondary">{stk.buyers.length > 0 ? stk.buyers.join(", ") : "全市場核心 ETF 籃子"}</span>
                   </div>
                 </div>
               ))}
@@ -2067,20 +2130,25 @@ export default function EtfCapitalFlowTracker({
                             {h.shares_held.toLocaleString()} 張
                           </td>
                           <td className="text-right font-mono tabular-nums font-bold text-sm">
-                            <span className={isBuy ? "text-red-400" : "text-emerald-400"}>
-                              {h.shares_change > 0 ? "+" : ""}
-                              {h.shares_change.toLocaleString()} 張
+                            <span className={h.shares_change > 0 ? "text-red-400" : h.shares_change < 0 ? "text-emerald-400" : "text-muted"}>
+                              {h.shares_change > 0
+                                ? `+${h.shares_change.toLocaleString()} 張`
+                                : h.shares_change < 0
+                                ? `${h.shares_change.toLocaleString()} 張`
+                                : "持平"}
                             </span>
                           </td>
                           <td className="text-right font-mono tabular-nums text-xs font-semibold text-primary">
-                            {h.change_amount_m > 0 ? `+${h.change_amount_m}` : h.change_amount_m} 百萬
+                            {h.shares_change !== 0 ? (h.change_amount_m > 0 ? `+${h.change_amount_m} 百萬` : `${h.change_amount_m} 百萬`) : "—"}
                           </td>
                           <td>
                             <span
                               className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
-                                isBuy
+                                h.action === "BUY"
                                   ? "bg-red-500/10 text-red-400 border border-red-500/30"
-                                  : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                                  : h.action === "SELL"
+                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                                  : "bg-[var(--bg-tertiary)] text-muted border border-[var(--border)]"
                               }`}
                             >
                               {h.reason}

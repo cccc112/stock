@@ -4,7 +4,6 @@ import Tabs from "@/components/ui/Tabs";
 import CapitalFlowChart from "@/components/dashboard/CapitalFlowChart";
 import EtfCapitalFlowTracker from "@/components/dashboard/EtfCapitalFlowTracker";
 import IndustryPage from "@/app/industry/page";
-import DcaCalculator from "@/components/calculator/DcaCalculator";
 
 export default function CapitalFlowPage() {
   return (
@@ -12,7 +11,7 @@ export default function CapitalFlowPage() {
       <header>
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-1">資金流向與產業輪動</h1>
         <p className="text-secondary text-xs sm:text-sm">
-          整合各大 ETF 資金申贖動向、成分股持股變動、定期定額複利收益預測、權值股資金散佈圖與產業資金輪動
+          整合各大 ETF 資金申贖動向、成分股持股變動明細、權值股資金散佈圖與產業資金輪動
         </p>
       </header>
 
@@ -27,11 +26,6 @@ export default function CapitalFlowPage() {
             id: "etf-holdings",
             label: "ETF 成分股每日持股變動明細",
             content: <EtfCapitalFlowTracker subView="holdings" />,
-          },
-          {
-            id: "dca-calc",
-            label: "定期定額收益預測",
-            content: <DcaCalculator />,
           },
           {
             id: "flow",

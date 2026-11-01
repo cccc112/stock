@@ -15,6 +15,7 @@ import {
   TrendingUp,
   Landmark,
   Loader2,
+  Calculator,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,12 @@ const navGroups: { title: string; items: NavItem[] }[] = [
         href: "/capital-flow",
         matchPrefixes: ["/capital-flow", "/industry"],
         icon: TrendingUp,
+      },
+      {
+        name: "定期定額試算",
+        href: "/dca",
+        matchPrefixes: ["/dca"],
+        icon: Calculator,
       },
     ],
   },
