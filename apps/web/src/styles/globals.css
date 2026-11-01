@@ -87,40 +87,40 @@
   --down-us: var(--down-color-text);
 }
 
-/* 淺色科技模式 (Crisp Daylight Tech Mode) - 乾淨純白零雜質暗影 */
+/* 淺色科技模式 (Crisp Daylight Tech Mode) - 強化對比與深色高可讀性 */
 [data-theme="light"] {
   color-scheme: light;
   --bg-primary: #f8fafc;
   --bg-secondary: #ffffff;
   --bg-tertiary: #f1f5f9;
   --bg-glass: rgba(255, 255, 255, 0.96);
-  --border: #e2e8f0;
-  --border-hover: #93c5fd;
+  --border: #cbd5e1;
+  --border-hover: #3b82f6;
   --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
+  --text-secondary: #334155;
+  --text-muted: #475569;
 
   --color-bg-primary: #f8fafc;
   --color-bg-secondary: #ffffff;
   --color-bg-tertiary: #f1f5f9;
-  --color-border: #e2e8f0;
-  --color-secondary: #475569;
+  --color-border: #cbd5e1;
+  --color-secondary: #334155;
   --color-text-primary: #0f172a;
-  --color-text-secondary: #475569;
+  --color-text-secondary: #334155;
 
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
   --accent-glow: rgba(37, 99, 235, 0.15);
 
   /* 淺色模式漲跌顏色動態系統 */
-  --up-color: #e11d48;
-  --up-color-text: #e11d48;
-  --up-color-bg: rgba(225, 29, 72, 0.12);
-  --up-color-border: rgba(225, 29, 72, 0.25);
+  --up-color: #dc2626;
+  --up-color-text: #dc2626;
+  --up-color-bg: rgba(220, 38, 38, 0.08);
+  --up-color-border: rgba(220, 38, 38, 0.25);
 
   --down-color: #059669;
   --down-color-text: #059669;
-  --down-color-bg: rgba(5, 150, 105, 0.12);
+  --down-color-bg: rgba(5, 150, 105, 0.08);
   --down-color-border: rgba(5, 150, 105, 0.25);
 
   --up-tw: var(--up-color-text);
@@ -128,14 +128,31 @@
   --up-us: var(--up-color-text);
   --down-us: var(--down-color-text);
 
-  --warning: #d97706;
+  --warning: #b45309;
   --danger: #dc2626;
   --success: #059669;
 
-  --card-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
-  --card-hover-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06);
-  --ambient-bg: none;
+  --card-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.06), 0 1px 3px 0 rgba(15, 23, 42, 0.04);
+  --card-hover-shadow: 0 10px 25px -4px rgba(37, 99, 235, 0.12), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+  --ambient-bg:
+    radial-gradient(ellipse 70% 45% at 50% -8%, rgba(37, 99, 235, 0.06), rgba(99, 102, 241, 0.04) 45%, transparent 75%),
+    linear-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
 }
+
+/* 淺色模式下，修正深色專用淺色字（400級）在白底看不見的對比度缺陷 */
+[data-theme="light"] .text-red-400 { color: #dc2626 !important; }
+[data-theme="light"] .text-emerald-400 { color: #059669 !important; }
+[data-theme="light"] .text-green-400 { color: #16a34a !important; }
+[data-theme="light"] .text-amber-400 { color: #b45309 !important; }
+[data-theme="light"] .text-yellow-400 { color: #b45309 !important; }
+[data-theme="light"] .text-cyan-400, [data-theme="light"] .text-sky-400 { color: #0284c7 !important; }
+[data-theme="light"] .text-indigo-400 { color: #4338ca !important; }
+[data-theme="light"] .text-purple-400 { color: #6d28d9 !important; }
+[data-theme="light"] .text-rose-400 { color: #be123c !important; }
+[data-theme="light"] .text-muted { color: #475569 !important; }
+[data-theme="light"] .text-secondary { color: #334155 !important; }
+[data-theme="light"] .text-slate-400, [data-theme="light"] .text-zinc-400, [data-theme="light"] .text-gray-400 { color: #475569 !important; }
 
 [data-theme="light"][data-color-scheme="green-up"] {
   --up-color: #059669;
