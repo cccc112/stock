@@ -34,7 +34,13 @@ export function getWatchlistSymbols(): string[] {
     const raw = localStorage.getItem(key);
     if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item: any) =>
+            typeof item === "string" ? item.trim().toUpperCase() : item?.symbol?.trim().toUpperCase()
+          )
+          .filter(Boolean);
+      }
     }
   } catch {}
   return [];

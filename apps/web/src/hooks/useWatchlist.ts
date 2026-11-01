@@ -44,24 +44,17 @@ export function getCategoriesStorageKey(): string {
 }
 
 /**
- * 取得自選股記錄（具備雙向容錯與自動遷移機制，防止帳號切換/重新整理後遺失自選股）
+ * 取得自選股記錄（依當前登入帳號完全獨立隔離，新帳號預設為官方種子標的）
  */
 export function getStoredWatchlistRecords(): WatchlistRecord[] {
   if (typeof window === "undefined") return DEFAULT_WATCHLIST_SEEDS;
   const key = getWatchlistStorageKey();
-  let raw = localStorage.getItem(key);
+  const raw = localStorage.getItem(key);
 
-  // 若使用者特定 key 為空，自動回退讀取全域預設 key 避免自選股丟失
-  if (!raw && key !== "watchlist_symbols") {
-    raw = localStorage.getItem("watchlist_symbols");
-    if (raw) {
-      localStorage.setItem(key, raw);
-    }
-  }
-
-  // 若本地完全無任何資料，初始化預設標的並持久化雙寫
+  // 若當前使用者本地無任何資料，為該帳號獨立初始化預設標的
   if (!raw) {
-    saveWatchlistRecords(DEFAULT_WATCHLIST_SEEDS);
+    const json = JSON.stringify(DEFAULT_WATCHLIST_SEEDS);
+    localStorage.setItem(key, json);
     return DEFAULT_WATCHLIST_SEEDS;
   }
 
@@ -78,8 +71,9 @@ export function getStoredWatchlistRecords(): WatchlistRecord[] {
         return item as WatchlistRecord;
       });
     }
-    // 空陣列也自動補足種子股
-    saveWatchlistRecords(DEFAULT_WATCHLIST_SEEDS);
+    // 空陣列也初始化為預設種子股
+    const json = JSON.stringify(DEFAULT_WATCHLIST_SEEDS);
+    localStorage.setItem(key, json);
     return DEFAULT_WATCHLIST_SEEDS;
   } catch {
     return DEFAULT_WATCHLIST_SEEDS;
@@ -87,14 +81,13 @@ export function getStoredWatchlistRecords(): WatchlistRecord[] {
 }
 
 /**
- * 雙寫儲存自選股清單（同時存入使用者 key 與全域 key，確保永不丟失）
+ * 儲存自選股清單（嚴格隔離至當前使用者空間，避免跨帳號污染）
  */
 export function saveWatchlistRecords(records: WatchlistRecord[]) {
   if (typeof window === "undefined") return;
   const key = getWatchlistStorageKey();
   const json = JSON.stringify(records);
   localStorage.setItem(key, json);
-  localStorage.setItem("watchlist_symbols", json); // 全域備援
   window.dispatchEvent(new CustomEvent("watchlist_changed", { detail: records }));
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -15,6 +15,9 @@ import {
   ExternalLink,
   ShieldCheck,
   Radio,
+  Layers,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { apiAlerts } from "@/lib/api";
 import {
@@ -32,6 +35,42 @@ export default function AlertsPage() {
   const [permission, setPermission] = useState<string>("default");
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [expandedRadarSymbols, setExpandedRadarSymbols] = useState<Record<string, boolean>>({});
+
+  const groupedRadarEvents = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        symbol: string;
+        name?: string;
+        primaryType: "up" | "down" | "info";
+        latestTimestamp: number;
+        items: RadarAlertEvent[];
+      }
+    >();
+
+    for (const ev of radarEvents) {
+      const sym = ev.symbol.trim().toUpperCase();
+      if (!map.has(sym)) {
+        map.set(sym, {
+          symbol: sym,
+          name: ev.name,
+          primaryType: ev.type,
+          latestTimestamp: ev.timestamp,
+          items: [ev],
+        });
+      } else {
+        const ex = map.get(sym)!;
+        ex.items.push(ev);
+        if (ev.timestamp > ex.latestTimestamp) {
+          ex.latestTimestamp = ev.timestamp;
+          ex.primaryType = ev.type;
+        }
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.latestTimestamp - a.latestTimestamp);
+  }, [radarEvents]);
 
   // New alert form state
   const [symbol, setSymbol] = useState("");
@@ -213,13 +252,13 @@ export default function AlertsPage() {
         </div>
       </Card>
 
-      {/* 2. 即時量化雷達已觸發紀錄 */}
+      {/* 2. 即時量化雷達已觸發紀錄 (依個股聚合收合) */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Zap size={16} className="text-accent" />
             <h2 className="text-sm font-bold text-primary">
-              自選股即時量化雷達觸發紀錄 ({radarEvents.length})
+              自選股即時量化雷達觸發紀錄 ({groupedRadarEvents.length} 檔標的 / {radarEvents.length} 則訊號)
             </h2>
           </div>
           {radarEvents.length > 0 && (
@@ -233,58 +272,126 @@ export default function AlertsPage() {
           )}
         </div>
 
-        {radarEvents.length === 0 ? (
+        {groupedRadarEvents.length === 0 ? (
           <Card className="p-6 text-center text-secondary text-xs">
             目前所有自選股皆在常態區間運行，暫無觸發突破或停損訊號。
           </Card>
         ) : (
           <div className="space-y-2.5">
-            {radarEvents.map((ev) => (
-              <Card
-                key={ev.id}
-                className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-accent/40 transition-colors"
-              >
-                <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <div className="p-2.5 rounded-xl bg-[var(--bg-tertiary)] flex-shrink-0 mt-0.5">
-                    {ev.type === "up" ? (
-                      <TrendingUp size={18} className="text-rose-400" />
-                    ) : ev.type === "down" ? (
-                      <AlertTriangle size={18} className="text-emerald-400" />
-                    ) : (
-                      <Zap size={18} className="text-accent" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="font-bold text-sm text-primary">{ev.symbol}</span>
-                      <span className="text-xs text-secondary">{ev.name}</span>
-                      <span className="text-[11px] px-2 py-0.5 rounded bg-accent/15 text-accent font-medium">
-                        {ev.title}
-                      </span>
-                    </div>
-                    <p className="text-xs text-secondary leading-relaxed">
-                      {ev.message}
-                    </p>
-                  </div>
-                </div>
+            {groupedRadarEvents.map((group) => {
+              const isMulti = group.items.length > 1;
+              const isExpanded = !!expandedRadarSymbols[group.symbol];
+              const primary = group.items[0];
 
-                <div className="flex items-center gap-3 self-end sm:self-center flex-shrink-0">
-                  <span className="text-xs font-mono text-secondary">
-                    {new Date(ev.timestamp).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                  <Link
-                    href={`/stock/${encodeURIComponent(ev.symbol)}`}
-                    className="px-3 py-1.5 rounded-lg bg-[var(--bg-tertiary)] hover:bg-accent hover:text-black transition-colors text-xs font-bold flex items-center gap-1.5"
-                  >
-                    <span>戰情室</span>
-                    <ExternalLink size={12} />
-                  </Link>
-                </div>
-              </Card>
-            ))}
+              return (
+                <Card
+                  key={group.symbol}
+                  className="p-4 flex flex-col gap-3 hover:border-accent/40 transition-colors"
+                >
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className="p-2.5 rounded-xl bg-[var(--bg-tertiary)] flex-shrink-0 mt-0.5">
+                        {group.primaryType === "up" ? (
+                          <TrendingUp size={18} className="text-up-tw" />
+                        ) : group.primaryType === "down" ? (
+                          <AlertTriangle size={18} className="text-down-tw" />
+                        ) : (
+                          <Zap size={18} className="text-accent" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="font-bold text-base text-primary font-mono">{group.symbol}</span>
+                          {group.name && <span className="text-xs text-secondary">{group.name}</span>}
+                          {isMulti && (
+                            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-accent/15 text-accent font-semibold border border-accent/30 font-mono">
+                              <Layers size={11} />
+                              共 {group.items.length} 項雷達訊號
+                            </span>
+                          )}
+                          {primary.title && (
+                            <span className="text-[11px] px-2 py-0.5 rounded bg-accent/15 text-accent font-medium truncate max-w-[200px]">
+                              {primary.title}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-secondary leading-relaxed">
+                          {primary.message}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 self-end sm:self-center flex-shrink-0">
+                      <span className="text-xs font-mono text-secondary">
+                        {new Date(group.latestTimestamp).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      {isMulti && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedRadarSymbols((prev) => ({
+                              ...prev,
+                              [group.symbol]: !prev[group.symbol],
+                            }))
+                          }
+                          className="px-2.5 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-tertiary)] text-xs text-secondary flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <span>{isExpanded ? "收合" : `明細 (${group.items.length})`}</span>
+                          {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        </button>
+                      )}
+                      <Link
+                        href={`/stock/${encodeURIComponent(group.symbol)}`}
+                        className="px-3 py-1.5 rounded-lg bg-[var(--bg-tertiary)] hover:bg-accent hover:text-black transition-colors text-xs font-bold flex items-center gap-1.5"
+                      >
+                        <span>戰情室</span>
+                        <ExternalLink size={12} />
+                      </Link>
+                    </div>
+                  </div>
+
+                  {/* 多項訊號展開明細列表 */}
+                  {isMulti && isExpanded && (
+                    <div className="pt-2 border-t border-[var(--border)]/60 space-y-2 animate-fade-in">
+                      <div className="text-[11px] font-semibold text-muted px-1">
+                        歷史觸發訊號歷程：
+                      </div>
+                      <div className="space-y-1.5">
+                        {group.items.map((sub, sidx) => (
+                          <div
+                            key={sidx}
+                            className="p-2 rounded-lg bg-[var(--bg-secondary)] flex items-start justify-between gap-3 text-xs"
+                          >
+                            <div className="flex items-start gap-2 min-w-0">
+                              <span className="text-accent mt-0.5">•</span>
+                              <div className="space-y-0.5">
+                                {sub.title && (
+                                  <span className="font-semibold text-primary block text-[11px]">
+                                    {sub.title}
+                                  </span>
+                                )}
+                                <p className="text-secondary text-[11px] leading-relaxed">
+                                  {sub.message}
+                                </p>
+                              </div>
+                            </div>
+                            <span className="font-mono text-[10px] text-muted flex-shrink-0">
+                              {new Date(sub.timestamp).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

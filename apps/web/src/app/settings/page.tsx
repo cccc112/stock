@@ -5,6 +5,12 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { Server, Bell, Trash2, CheckCircle2, ShieldCheck, ChevronDown, ChevronUp, Palette } from "lucide-react";
 import { useColorPreference } from "@/hooks/useColorPreference";
+import { getCurrentUserNamespace } from "@/hooks/useAuth";
+
+const getNamespaceKey = (base: string) => {
+  const ns = getCurrentUserNamespace();
+  return ns === "default" ? base : `${base}_${ns}`;
+};
 
 export default function SettingsPage() {
   const { preference, setPreference } = useColorPreference();
@@ -18,17 +24,23 @@ export default function SettingsPage() {
   const DEFAULT_BACKEND = "https://stock-backend-lz9p.onrender.com";
 
   useEffect(() => {
-    const customUrl = localStorage.getItem("backend_api_url");
-    if (customUrl) setBackendUrl(customUrl);
+    const loadSettings = () => {
+      const customUrl = localStorage.getItem(getNamespaceKey("backend_api_url"));
+      setBackendUrl(customUrl || "");
 
-    const radarSetting = localStorage.getItem("watchlist_radar_enabled");
-    setRadarEnabled(radarSetting !== "false");
+      const radarSetting = localStorage.getItem(getNamespaceKey("watchlist_radar_enabled"));
+      setRadarEnabled(radarSetting !== "false");
+    };
+
+    loadSettings();
+    window.addEventListener("stock_auth_changed", loadSettings);
+    return () => window.removeEventListener("stock_auth_changed", loadSettings);
   }, []);
 
   const handleToggleRadar = () => {
     const next = !radarEnabled;
     setRadarEnabled(next);
-    localStorage.setItem("watchlist_radar_enabled", next ? "true" : "false");
+    localStorage.setItem(getNamespaceKey("watchlist_radar_enabled"), next ? "true" : "false");
     window.dispatchEvent(new CustomEvent("watchlist_radar_toggle", { detail: next }));
   };
 
@@ -48,20 +60,26 @@ export default function SettingsPage() {
   };
 
   const handleSaveCustomBackend = () => {
+    const key = getNamespaceKey("backend_api_url");
     if (backendUrl.trim()) {
-      localStorage.setItem("backend_api_url", backendUrl.trim());
+      localStorage.setItem(key, backendUrl.trim());
       setUrlMessage("已儲存自訂後端網址");
     } else {
-      localStorage.removeItem("backend_api_url");
+      localStorage.removeItem(key);
       setUrlMessage("已還原官方預設主機");
     }
   };
 
   const handleClearCache = () => {
-    if (confirm("確定要清除所有本地快取嗎？這將會清除您所有的自選設定與快取數據。")) {
-      localStorage.removeItem("watchlist_symbols");
-      localStorage.removeItem("backend_api_url");
-      setClearMessage("快取已清除完畢");
+    if (confirm("確定要重設當前帳號的自選股與個人設定嗎？這將會還原初始預設種子。")) {
+      const ns = getCurrentUserNamespace();
+      localStorage.removeItem(ns === "default" ? "watchlist_symbols" : `watchlist_symbols_${ns}`);
+      localStorage.removeItem(ns === "default" ? "watchlist_categories" : `watchlist_categories_${ns}`);
+      localStorage.removeItem(getNamespaceKey("backend_api_url"));
+      localStorage.removeItem(getNamespaceKey("watchlist_radar_enabled"));
+      localStorage.removeItem(getNamespaceKey("stock_color_preference"));
+      setClearMessage("已還原官方初始設定");
+      window.dispatchEvent(new CustomEvent("watchlist_changed"));
       setTimeout(() => setClearMessage(""), 2000);
     }
   };
@@ -242,7 +260,7 @@ export default function SettingsPage() {
                       variant="secondary"
                       onClick={() => {
                         setBackendUrl("");
-                        localStorage.removeItem("backend_api_url");
+                        localStorage.removeItem(getNamespaceKey("backend_api_url"));
                         setUrlMessage("已還原官方預設主機");
                       }}
                     >
