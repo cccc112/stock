@@ -118,7 +118,8 @@ async def get_tw_institutions():
     ]
     fallback = []
     idx = 0
-    for i in range(25, 0, -1):
+    start_offset = 1 if (today.weekday() < 5 and today.hour < 15) else 0
+    for i in range(28, start_offset - 1, -1):
         d = today - timedelta(days=i)
         if d.weekday() >= 5:
             continue
@@ -243,10 +244,12 @@ async def get_tw_stock_institutions(symbol: str, days: int = 25):
                 })
         else:
             dates_list = []
-            for i in range(22, 0, -1):
+            start_offset = 1 if (today.weekday() < 5 and today.hour < 15) else 0
+            for i in range(25, start_offset - 1, -1):
                 d = today - timedelta(days=i)
                 if d.weekday() < 5:
                     dates_list.append(d)
+            dates_list = dates_list[-15:]
 
             for idx, d in enumerate(dates_list):
                 d_full = d.strftime("%Y-%m-%d")

@@ -110,13 +110,15 @@ function getRealisticTwData(): TwInstData[] {
     { f: 145.8, t: 42.1, dl: 18.5 },
     { f: -215.3, t: 38.6, dl: -42.1 },
   ];
-  let idx = 0;
-  for (let i = 24; i >= 0 && data.length < 15; i--) {
+  let idx = seedValues.length - 1;
+  // 由今天往回推算最近 15 個真實交易日（排除週六、週日；若平日尚未收盤則由前一日開始），再反轉為由舊到新排序
+  const startOffset = today.getDay() >= 1 && today.getDay() <= 5 && today.getHours() < 15 ? 1 : 0;
+  for (let i = startOffset; i <= 35 && data.length < 15; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
     if (d.getDay() === 0 || d.getDay() === 6) continue;
-    const s = seedValues[idx % seedValues.length];
-    idx++;
+    const s = seedValues[(idx + seedValues.length) % seedValues.length];
+    idx--;
     data.push({
       date: `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`,
       full_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
@@ -125,7 +127,7 @@ function getRealisticTwData(): TwInstData[] {
       dealer: s.dl,
     });
   }
-  return data;
+  return data.reverse();
 }
 
 function getRealisticRanks() {
@@ -160,14 +162,22 @@ function getRealisticStockData(sym: string): StockInstData {
     { f: 4800, t: 2100, dl: 520 }, { f: -1250, t: 680, dl: -210 }, { f: 3150, t: 1150, dl: 280 },
     { f: 2900, t: 840, dl: 190 }, { f: 5100, t: 2400, dl: 610 }, { f: 4320, t: 1890, dl: 420 }
   ];
-  let currP = baseP;
-  for (let i = 20; i >= 0 && history.length < 15; i--) {
+  const tradingDates: Date[] = [];
+  const startOffset = today.getDay() >= 1 && today.getDay() <= 5 && today.getHours() < 15 ? 1 : 0;
+  for (let i = startOffset; i <= 35 && tradingDates.length < 15; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
     if (d.getDay() === 0 || d.getDay() === 6) continue;
-    const s = seedValues[history.length % seedValues.length];
+    tradingDates.push(d);
+  }
+  tradingDates.reverse();
+
+  let currP = baseP;
+  for (let idx = 0; idx < tradingDates.length; idx++) {
+    const d = tradingDates[idx];
+    const s = seedValues[idx % seedValues.length];
     const ret = (s.f + s.t) / 45000.0;
-    currP = Math.round(currP * (1.0 + ret * 0.35) * 10) / 10;
+    currP = idx === tradingDates.length - 1 ? baseP : Math.round(currP * (1.0 + ret * 0.35) * 10) / 10;
     history.push({
       date: `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`,
       full_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
@@ -407,13 +417,16 @@ export default function InstitutionsPage() {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [resTw, resUs, resRanks] = await Promise.allSettled([
-        withTimeout(apiInstitutions.getTw(), 10000),
+      const [resLocalTw, resTw, resUs, resRanks] = await Promise.allSettled([
+        fetch("/api/institutions", { cache: "no-store" }).then((r) => (r.ok ? r.json() : [])),
+        withTimeout(apiInstitutions.getTw(), 8000),
         withTimeout(apiInstitutions.getUs13F(), 8000),
         withTimeout(apiInstitutions.getRanksTw(), 8000),
       ]);
 
-      if (resTw.status === "fulfilled" && Array.isArray(resTw.value.data) && resTw.value.data.length > 0) {
+      if (resLocalTw.status === "fulfilled" && Array.isArray(resLocalTw.value) && resLocalTw.value.length > 0) {
+        setTwData(resLocalTw.value);
+      } else if (resTw.status === "fulfilled" && Array.isArray(resTw.value.data) && resTw.value.data.length > 0) {
         setTwData(resTw.value.data);
       } else {
         setTwData(getRealisticTwData());
@@ -442,13 +455,18 @@ export default function InstitutionsPage() {
   const fetchStockInstitutions = async (sym: string) => {
     setStockLoading(true);
     try {
-      const [resInst, resQuote] = await Promise.allSettled([
-        withTimeout(apiInstitutions.getStockTw(sym), 10000),
+      const [resLocalInst, resInst, resQuote] = await Promise.allSettled([
+        fetch(`/api/institutions?symbol=${encodeURIComponent(sym)}`, { cache: "no-store" }).then((r) =>
+          r.ok ? r.json() : null
+        ),
+        withTimeout(apiInstitutions.getStockTw(sym), 8000),
         apiStocks.getQuote(sym),
       ]);
 
       let dataToSet: StockInstData | null = null;
-      if (resInst.status === "fulfilled" && resInst.value?.data?.history?.length > 0) {
+      if (resLocalInst.status === "fulfilled" && resLocalInst.value?.history?.length > 0) {
+        dataToSet = resLocalInst.value;
+      } else if (resInst.status === "fulfilled" && resInst.value?.data?.history?.length > 0) {
         dataToSet = resInst.value.data;
       } else {
         dataToSet = getRealisticStockData(sym);
