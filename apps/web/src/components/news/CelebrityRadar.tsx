@@ -84,12 +84,6 @@ export default function CelebrityRadar() {
   const [analysisMap, setAnalysisMap] = useState<Record<string, CelebrityPostAnalysis>>({});
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
 
-  // 自訂貼上推文/發言即時 AI 診斷
-  const [customPerson, setCustomPerson] = useState<"TRUMP" | "MUSK" | "HUANG" | "POWELL">("TRUMP");
-  const [customText, setCustomText] = useState<string>("");
-  const [customLoading, setCustomLoading] = useState<boolean>(false);
-  const [customResult, setCustomResult] = useState<CelebrityPostAnalysis | null>(null);
-
   const fetchFeed = useCallback(async (person: string, includeAll: boolean, silent = false) => {
     if (!silent) setLoading(true);
     try {
@@ -191,38 +185,6 @@ export default function CelebrityRadar() {
     }
   };
 
-  // 自訂貼上推文 AI 分析
-  const handleCustomAnalyze = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customText.trim()) return;
-    setCustomLoading(true);
-    try {
-      const savedKey =
-        typeof window !== "undefined"
-          ? localStorage.getItem("byok_api_key") || localStorage.getItem("user_gemini_api_key") || ""
-          : "";
-      const personMeta = CELEBRITIES.find((c) => c.id === customPerson);
-      const res = await fetch("/api/celebrity-feed", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          personId: customPerson,
-          personName: personMeta?.name || customPerson,
-          text: customText.trim(),
-          apiKey: savedKey,
-        }),
-      });
-      if (res.ok) {
-        const data: CelebrityPostAnalysis = await res.json();
-        setCustomResult(data);
-      }
-    } catch (e) {
-      console.error("Custom analyze error:", e);
-    } finally {
-      setCustomLoading(false);
-    }
-  };
-
   const getSentimentStyle = (sentiment: CelebrityPostAnalysis["sentiment"]) => {
     if (sentiment === "BULLISH") {
       return "bg-red-500/15 text-red-400 border-red-500/30";
@@ -293,137 +255,7 @@ export default function CelebrityRadar() {
         })}
       </div>
 
-      {/* 2. 貼上最新推文 / 貼文即時 AI 投顧診斷室 */}
-      <Card
-        title={
-          <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-accent" />
-            <span>貼上名人最新 Truth Social / X 貼文，讓 AI 即時推演台美股買賣建議</span>
-          </div>
-        }
-        headerAction={
-          <div className="flex items-center gap-1.5 text-[11px] text-secondary">
-            <span>快速填入範例：</span>
-            <button
-              type="button"
-              onClick={() => {
-                setCustomPerson("TRUMP");
-                setCustomText(
-                  "川普發文表示將對進口半導體與晶片課徵高關稅，要求晶片製造商在美國本土擴大設廠生產。"
-                );
-              }}
-              className="px-2 py-0.5 rounded bg-[var(--bg-tertiary)] hover:text-accent cursor-pointer"
-            >
-              川普晶片關稅
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setCustomPerson("MUSK");
-                setCustomText(
-                  "Elon Musk 在 X 宣布 Tesla Optimus 人形機器人產線將於明年大幅擴產，並加速 Cybercab 自駕計程車路測。"
-                );
-              }}
-              className="px-2 py-0.5 rounded bg-[var(--bg-tertiary)] hover:text-accent cursor-pointer"
-            >
-              馬斯克機器人量產
-            </button>
-          </div>
-        }
-      >
-        <form onSubmit={handleCustomAnalyze} className="space-y-3">
-          <div className="flex flex-col sm:flex-row gap-2.5">
-            <select
-              value={customPerson}
-              onChange={(e) => setCustomPerson(e.target.value as any)}
-              className="bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-3 py-2 text-xs text-primary font-semibold focus:outline-none focus:border-accent sm:w-48"
-            >
-              <option value="TRUMP">🇺🇸 川普 (Donald Trump)</option>
-              <option value="MUSK">🚀 馬斯克 (Elon Musk)</option>
-              <option value="HUANG">🟢 黃仁勳 (Jensen Huang)</option>
-              <option value="POWELL">🏛️ 鮑爾 (Jerome Powell)</option>
-            </select>
-
-            <div className="flex-1 flex gap-2">
-              <input
-                type="text"
-                value={customText}
-                onChange={(e) => setCustomText(e.target.value)}
-                placeholder="在此貼上川普 Truth Social 原文、馬斯克 X 推文或突發發言內容（中英文皆可）..."
-                className="flex-1 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-3 py-2 text-xs text-primary focus:outline-none focus:border-accent"
-              />
-              <button
-                type="submit"
-                disabled={customLoading || !customText.trim()}
-                className="px-4 py-2 rounded-lg bg-accent text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-95 transition-all"
-              >
-                {customLoading ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-                {customLoading ? "AI 深度推演中..." : "AI 立即分析"}
-              </button>
-            </div>
-          </div>
-        </form>
-
-        {customLoading && (
-          <div className="mt-4 p-4 rounded-xl bg-accent/10 border border-accent/30 flex items-center gap-3 text-xs text-primary animate-fade-in">
-            <Loader2 size={18} className="animate-spin text-accent flex-shrink-0" />
-            <div>
-              <div className="font-bold text-accent">正在透過 Gemini 3.8 Flash 深度推演此篇貼文...</div>
-              <div className="text-secondary mt-0.5">正在分析政策因果鏈與計算受惠/承壓之台美股標的，請稍候 1~2 秒</div>
-            </div>
-          </div>
-        )}
-
-        {customResult && (
-          <div className="mt-4 p-4 rounded-xl bg-[var(--bg-tertiary)]/90 border border-accent/40 space-y-3 animate-fade-in">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] pb-2.5">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`text-xs px-2.5 py-0.5 rounded-full border font-semibold ${getSentimentStyle(
-                    customResult.sentiment
-                  )}`}
-                >
-                  {customResult.sentimentLabel}
-                </span>
-                <span className="text-xs font-mono text-accent font-bold">
-                  市場衝擊指數：{customResult.impactScore} / 10
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setCustomResult(null)}
-                className="text-xs text-secondary hover:text-primary cursor-pointer"
-              >
-                收合結果
-              </button>
-            </div>
-
-            <div className="ai-report-prose prose prose-invert max-w-none text-xs leading-relaxed">
-              <ReactMarkdown>{customResult.deepReportMarkdown}</ReactMarkdown>
-            </div>
-
-            {Array.isArray(customResult.affectedStocks) && customResult.affectedStocks.length > 0 && (
-              <div className="pt-2 border-t border-[var(--border)] flex flex-wrap gap-2">
-                {customResult.affectedStocks.map((st) => (
-                  <Link
-                    key={st.symbol}
-                    href={`/stock/${st.symbol}`}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] hover:border-accent text-xs transition-all"
-                  >
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] border ${getEffectBadge(st.effect)}`}>
-                      {getEffectLabel(st.effect)}
-                    </span>
-                    <span className="font-bold text-primary font-mono">{st.symbol}</span>
-                    <span className="text-secondary">{st.name}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </Card>
-
-      {/* 3. 即時名人財經貼文串流標題 */}
+      {/* 2. 即時名人財經貼文串流標題 */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-bold text-primary">
           <MessageSquareQuote size={18} className="text-accent" />
