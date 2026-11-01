@@ -330,29 +330,31 @@ async def get_tw_institutional_ranks():
     """三大法人買賣超強弱排行榜 (外資買超、投信買超、土洋同步買超)"""
     return {
         "foreign_buys": [
-            {"symbol": "2330", "name": "台積電", "price": 1085.0, "change_pct": 2.36, "shares": 28450, "amount_billion": 30.8},
-            {"symbol": "2317", "name": "鴻海", "price": 218.5, "change_pct": 1.63, "shares": 19230, "amount_billion": 4.2},
-            {"symbol": "3231", "name": "緯創", "price": 118.0, "change_pct": 3.51, "shares": 14800, "amount_billion": 1.7},
-            {"symbol": "2881", "name": "富邦金", "price": 91.5, "change_pct": 1.10, "shares": 12600, "amount_billion": 1.1},
-            {"symbol": "2603", "name": "長榮", "price": 204.5, "change_pct": 4.07, "shares": 11300, "amount_billion": 2.3},
+            {"symbol": "2609", "name": "陽明", "price": 98.4, "change_pct": 3.47, "shares": 16598, "amount_billion": 16.33},
+            {"symbol": "1101", "name": "台泥", "price": 23.0, "change_pct": 2.22, "shares": 13123, "amount_billion": 3.02},
+            {"symbol": "2834", "name": "臺企銀", "price": 17.5, "change_pct": 1.16, "shares": 9125, "amount_billion": 1.60},
+            {"symbol": "2412", "name": "中華電", "price": 157.5, "change_pct": 0.96, "shares": 8201, "amount_billion": 12.92},
+            {"symbol": "5880", "name": "合庫金", "price": 29.85, "change_pct": 0.67, "shares": 7940, "amount_billion": 2.37},
+            {"symbol": "2603", "name": "長榮", "price": 271.5, "change_pct": 2.07, "shares": 7920, "amount_billion": 21.50},
         ],
         "foreign_sells": [
-            {"symbol": "2303", "name": "聯電", "price": 49.8, "change_pct": -1.95, "shares": -15600, "amount_billion": -0.8},
-            {"symbol": "2888", "name": "新光金", "price": 11.4, "change_pct": -0.87, "shares": -13200, "amount_billion": -0.15},
-            {"symbol": "1301", "name": "台塑", "price": 44.2, "change_pct": -2.10, "shares": -9800, "amount_billion": -0.43},
-            {"symbol": "2002", "name": "中鋼", "price": 22.3, "change_pct": -0.45, "shares": -8400, "amount_billion": -0.19},
+            {"symbol": "2303", "name": "聯電", "price": 84.7, "change_pct": -1.40, "shares": -18420, "amount_billion": -15.60},
+            {"symbol": "3481", "name": "群創", "price": 29.05, "change_pct": -2.52, "shares": -14250, "amount_billion": -4.14},
+            {"symbol": "2409", "name": "友達", "price": 17.4, "change_pct": -1.69, "shares": -11800, "amount_billion": -2.05},
+            {"symbol": "2002", "name": "中鋼", "price": 20.4, "change_pct": -0.73, "shares": -8400, "amount_billion": -1.71},
         ],
         "trust_buys": [
-            {"symbol": "2603", "name": "長榮", "price": 204.5, "change_pct": 4.07, "shares": 8620, "amount_billion": 1.76, "consecutive_days": 8},
-            {"symbol": "3017", "name": "奇鋐", "price": 685.0, "change_pct": 2.85, "shares": 3210, "amount_billion": 2.19, "consecutive_days": 5},
-            {"symbol": "2383", "name": "台光電", "price": 472.0, "change_pct": 3.17, "shares": 2940, "amount_billion": 1.38, "consecutive_days": 6},
-            {"symbol": "3231", "name": "緯創", "price": 118.0, "change_pct": 3.51, "shares": 2850, "amount_billion": 0.34, "consecutive_days": 4},
-            {"symbol": "2454", "name": "聯發科", "price": 1315.0, "change_pct": 2.73, "shares": 1540, "amount_billion": 2.02, "consecutive_days": 3},
+            {"symbol": "2887", "name": "台新新光金", "price": 34.4, "change_pct": 1.47, "shares": 13184, "amount_billion": 4.54, "consecutive_days": 6},
+            {"symbol": "2891", "name": "中信金", "price": 75.5, "change_pct": 1.07, "shares": 10429, "amount_billion": 7.87, "consecutive_days": 8},
+            {"symbol": "2352", "name": "佳世達", "price": 47.4, "change_pct": 2.60, "shares": 8220, "amount_billion": 3.90, "consecutive_days": 4},
+            {"symbol": "3711", "name": "日月光投控", "price": 554.0, "change_pct": 3.55, "shares": 7174, "amount_billion": 39.74, "consecutive_days": 5},
+            {"symbol": "2884", "name": "玉山金", "price": 48.2, "change_pct": 0.84, "shares": 5449, "amount_billion": 2.63, "consecutive_days": 5},
+            {"symbol": "2892", "name": "第一金", "price": 37.9, "change_pct": 0.66, "shares": 5049, "amount_billion": 1.91, "consecutive_days": 4},
         ],
         "both_buys": [
-            {"symbol": "3231", "name": "緯創", "price": 118.0, "foreign_shares": 14800, "trust_shares": 2850, "total_shares": 17650},
-            {"symbol": "2603", "name": "長榮", "price": 204.5, "foreign_shares": 11300, "trust_shares": 8620, "total_shares": 19920},
-            {"symbol": "2330", "name": "台積電", "price": 1085.0, "foreign_shares": 28450, "trust_shares": 1120, "total_shares": 29570},
+            {"symbol": "2603", "name": "長榮", "price": 271.5, "foreign_shares": 7920, "trust_shares": 1450, "total_shares": 9370},
+            {"symbol": "2330", "name": "台積電", "price": 2370.0, "foreign_shares": 6352, "trust_shares": 1120, "total_shares": 7472},
+            {"symbol": "3711", "name": "日月光投控", "price": 554.0, "foreign_shares": 3420, "trust_shares": 7174, "total_shares": 10594},
         ]
     }
 

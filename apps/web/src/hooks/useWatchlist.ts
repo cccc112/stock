@@ -214,12 +214,12 @@ export function useWatchlist() {
       );
 
       const fallbackPrices: Record<string, { price: number; change: number; pct: number; name: string }> = {
-        "2330": { price: 1085, change: 25, pct: 2.36, name: "台積電" },
-        "2317": { price: 218.5, change: 3.5, pct: 1.63, name: "鴻海" },
-        "3231": { price: 118.0, change: 4.0, pct: 3.51, name: "緯創" },
-        "2603": { price: 204.5, change: 8.0, pct: 4.07, name: "長榮" },
-        "NVDA": { price: 141.5, change: 4.2, pct: 3.06, name: "NVIDIA" },
-        "AAPL": { price: 231.4, change: 1.8, pct: 0.78, name: "Apple" },
+        "2330": { price: 2370, change: 10, pct: 0.42, name: "台積電" },
+        "2317": { price: 245.5, change: -0.5, pct: -0.2, name: "鴻海" },
+        "3231": { price: 183.5, change: -1.5, pct: -0.81, name: "緯創" },
+        "2603": { price: 271.5, change: 5.5, pct: 2.07, name: "長榮" },
+        "NVDA": { price: 204.22, change: 4.12, pct: 2.06, name: "NVIDIA" },
+        "AAPL": { price: 275.32, change: 2.15, pct: 0.79, name: "Apple" },
       };
 
       const stocks: WatchlistStock[] = [];

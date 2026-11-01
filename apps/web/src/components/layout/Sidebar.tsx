@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   LineChart,
@@ -14,6 +14,7 @@ import {
   Sparkles,
   TrendingUp,
   Landmark,
+  Loader2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -82,7 +83,9 @@ export const SIDEBAR_TOGGLE_EVENT = "sidebar:toggle";
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   useEffect(() => {
     const toggle = () => setIsOpen((v) => !v);
@@ -90,12 +93,40 @@ export default function Sidebar() {
     return () => window.removeEventListener(SIDEBAR_TOGGLE_EVENT, toggle);
   }, []);
 
+  // 預先載入所有主導覽路由，讓頁面切換達到 0ms 瞬時跳轉
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      navGroups.forEach((group) => {
+        group.items.forEach((item) => {
+          try {
+            router.prefetch(item.href);
+          } catch {}
+        });
+      });
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [router]);
+
   useEffect(() => {
     setIsOpen(false);
+    setPendingHref(null);
+    const mainEl = document.querySelector(".page-content");
+    if (mainEl) {
+      mainEl.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+    }
   }, [pathname]);
+
+  const activePath = pendingHref || pathname;
+  const isNavigating = Boolean(pendingHref && !pathname.startsWith(pendingHref));
 
   return (
     <>
+      {isNavigating && (
+        <div className="fixed top-0 left-0 right-0 z-[100] h-[2.5px] bg-transparent overflow-hidden pointer-events-none">
+          <div className="h-full w-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 animate-route-progress origin-left" />
+        </div>
+      )}
+
       {isOpen && (
         <div className="sidebar-backdrop" onClick={() => setIsOpen(false)} />
       )}
@@ -124,16 +155,27 @@ export default function Sidebar() {
               </div>
               {group.items.map((item) => {
                 const Icon = item.icon;
-                const isActive = item.matchPrefixes.some((p) => pathname.startsWith(p));
+                const isActive = item.matchPrefixes.some((p) => activePath.startsWith(p));
+                const isItemPending = pendingHref === item.href && !pathname.startsWith(item.href);
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={true}
                     className={cn("nav-item", isActive && "active")}
-                    onClick={() => setIsOpen(false)}
+                    onClick={() => {
+                      if (!pathname.startsWith(item.href)) {
+                        setPendingHref(item.href);
+                      }
+                      setIsOpen(false);
+                    }}
                   >
-                    <Icon size={17} className="flex-shrink-0" />
-                    <span>{item.name}</span>
+                    {isItemPending ? (
+                      <Loader2 size={17} className="flex-shrink-0 animate-spin text-accent" />
+                    ) : (
+                      <Icon size={17} className="flex-shrink-0" />
+                    )}
+                    <span className="truncate">{item.name}</span>
                   </Link>
                 );
               })}

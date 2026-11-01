@@ -87,7 +87,15 @@ export const apiStocks = {
     return api.get(`/stocks/${encodeURIComponent(symbol)}/history`, { params: { period } });
   },
   getOrderbook: (symbol: string) => api.get(`/stocks/${encodeURIComponent(symbol)}/orderbook`),
-  searchStocks: (query: string) => api.get(`/stocks/search`, { params: { q: query } }),
+  searchStocks: async (query: string) => {
+    try {
+      const res = await axios.get('/api/market-rankings', { params: { q: query }, timeout: 5000 });
+      if (Array.isArray(res?.data) && res.data.length > 0) return res;
+    } catch {
+      // fallback
+    }
+    return api.get(`/stocks/search`, { params: { q: query } });
+  },
   getNews: (symbol: string = '2330') => api.get(`/stocks/${encodeURIComponent(symbol)}/news`),
 };
 
@@ -166,7 +174,15 @@ export const apiMarket = {
     return api.get('/market/rankings', { params: { limit, sort_by } });
   },
   getPopularETFs: () => api.get('/market/etfs'),
-  getCapitalFlow: () => api.get('/market/capital-flow'),
+  getCapitalFlow: async () => {
+    try {
+      const res = await axios.get('/api/market-rankings', { params: { type: 'capital-flow' }, timeout: 6000 });
+      if (Array.isArray(res?.data) && res.data.length > 0) return res;
+    } catch {
+      // fallback
+    }
+    return api.get('/market/capital-flow');
+  },
   getMultiAssets: () => api.get('/market/multi-assets'),
   getEtfNav: async (symbol?: string) => {
     try {
@@ -200,10 +216,10 @@ export function apiErrorMessage(e: unknown): string {
 }
 
 export const apiInstitutions = {
-  getTw: () => api.get('/institutions/tw'),
-  getStockTw: (symbol: string, days = 25) => api.get(`/institutions/tw/stock/${encodeURIComponent(symbol)}`, { params: { days } }),
-  getRanksTw: () => api.get('/institutions/tw/ranks'),
-  getUs13F: () => api.get('/institutions/us/13f'),
+  getTw: () => axios.get('/api/institutions', { timeout: 6000 }),
+  getStockTw: (symbol: string) => axios.get('/api/institutions', { params: { symbol }, timeout: 6000 }),
+  getRanksTw: () => axios.get('/api/institutions', { params: { type: 'ranks' }, timeout: 6000 }),
+  getUs13F: () => axios.get('/api/institutions', { params: { type: '13f' }, timeout: 6000 }),
 };
 
 export default api;
