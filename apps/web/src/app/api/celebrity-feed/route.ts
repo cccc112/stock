@@ -753,40 +753,49 @@ ${originalText ? `【英文原文】：「${originalText}」` : ""}
   "deepReportMarkdown": "四段式完整 Markdown 深度分析報告"
 }`;
 
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(clientKey)}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: {
-                temperature: 0.35,
-                maxOutputTokens: 1100,
-                responseMimeType: "application/json",
-              },
-            }),
-          }
-        );
+        const candidateModels = [
+          process.env.GEMINI_MODEL || "gemini-3.8-flash",
+          "gemini-3.5-flash-lite",
+          "gemini-3.1-flash-lite",
+          "gemini-flash-latest",
+        ];
 
-        if (geminiRes.ok) {
-          const gJson = await geminiRes.json();
-          const rawText = gJson?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (rawText) {
-            const parsed = JSON.parse(rawText);
-            return NextResponse.json({
-              sentiment: parsed.sentiment || fallbackAnalysis.sentiment,
-              sentimentLabel: parsed.sentimentLabel || fallbackAnalysis.sentimentLabel,
-              impactScore: Number(parsed.impactScore) || fallbackAnalysis.impactScore,
-              sectors: Array.isArray(parsed.sectors) ? parsed.sectors : fallbackAnalysis.sectors,
-              aiSummary: parsed.aiSummary || fallbackAnalysis.aiSummary,
-              actionableAdvice: parsed.actionableAdvice || fallbackAnalysis.actionableAdvice,
-              affectedStocks: Array.isArray(parsed.affectedStocks)
-                ? parsed.affectedStocks
-                : fallbackAnalysis.affectedStocks,
-              deepReportMarkdown: parsed.deepReportMarkdown || fallbackAnalysis.deepReportMarkdown,
-              engine: "Gemini 2.5 Flash 專屬推演",
-            });
+        for (const modelName of Array.from(new Set(candidateModels))) {
+          const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(clientKey)}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                  temperature: 0.35,
+                  maxOutputTokens: 1100,
+                  responseMimeType: "application/json",
+                },
+              }),
+            }
+          );
+
+          if (geminiRes.ok) {
+            const gJson = await geminiRes.json();
+            const rawText = gJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (rawText) {
+              const parsed = JSON.parse(rawText);
+              return NextResponse.json({
+                sentiment: parsed.sentiment || fallbackAnalysis.sentiment,
+                sentimentLabel: parsed.sentimentLabel || fallbackAnalysis.sentimentLabel,
+                impactScore: Number(parsed.impactScore) || fallbackAnalysis.impactScore,
+                sectors: Array.isArray(parsed.sectors) ? parsed.sectors : fallbackAnalysis.sectors,
+                aiSummary: parsed.aiSummary || fallbackAnalysis.aiSummary,
+                actionableAdvice: parsed.actionableAdvice || fallbackAnalysis.actionableAdvice,
+                affectedStocks: Array.isArray(parsed.affectedStocks)
+                  ? parsed.affectedStocks
+                  : fallbackAnalysis.affectedStocks,
+                deepReportMarkdown: parsed.deepReportMarkdown || fallbackAnalysis.deepReportMarkdown,
+                engine: "Gemini 3.8 Flash 專屬推演",
+              });
+            }
           }
         }
       } catch {

@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     # Gemini AI
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"  # 失敗時依序退回 gemini-2.0-flash / gemini-flash-latest
+    gemini_model: str = "gemini-3.8-flash"  # 失敗時依序退回 gemini-3.5-flash-lite / gemini-flash-latest
     # 預設允許全體使用後端設定之 Gemini 金鑰
     allow_public_shared_key: bool = True
     admin_api_key: str = ""

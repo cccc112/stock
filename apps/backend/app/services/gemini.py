@@ -24,11 +24,17 @@ class GeminiService:
     def __init__(self):
         settings = get_settings()
         self.client = self._make_client(settings.gemini_api_key) if settings.gemini_api_key else None
-        # 設定的模型 -> Gemini 2.5 Flash -> Gemini 2.0 Flash -> gemini-flash-latest
+        # 設定的模型 -> Gemini 3.8 Flash -> Gemini 3.5 Flash-Lite -> Gemini 3.1 Flash-Lite -> gemini-flash-latest
         self.models = [
             m
             for m in dict.fromkeys(
-                [settings.gemini_model, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"]
+                [
+                    settings.gemini_model,
+                    "gemini-3.8-flash",
+                    "gemini-3.5-flash-lite",
+                    "gemini-3.1-flash-lite",
+                    "gemini-flash-latest",
+                ]
             )
             if m
         ]
