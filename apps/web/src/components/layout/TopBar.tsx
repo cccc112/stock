@@ -96,25 +96,46 @@ export default function TopBar() {
     router.push(`/stock/${encodeURIComponent(sym)}`);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearchSubmit = async () => {
     const q = query.trim();
     if (!q) return;
-    if (suggestions.length > 0) {
-      goSymbol(suggestions[0].symbol);
+    const upper = q.toUpperCase();
+
+    // 1. 若輸入本身就是明確的代號 (台股/ETF如 00982A, 009802, 2330, 0050; 美股如 NVDA, QQQ; 加密如 BTC-USD; 期貨指數如 GC=F, ^TWII)
+    if (/^(00\d{2,4}[A-Z]?|[0-9]\d{3,5}[A-Z]?|[A-Z]{1,5}|\^[A-Z0-9]+|[A-Z0-9]+=[A-Z0-9]+|[A-Z0-9]+-USD)$/i.test(upper)) {
+      goSymbol(upper);
       return;
     }
+
+    // 2. 若建議清單中有完全吻合代號或名稱的項目，直接跳轉
+    const exactMatch = suggestions.find(
+      (s) => String(s.symbol).toUpperCase() === upper || String(s.name).toUpperCase() === upper
+    );
+    if (exactMatch) {
+      goSymbol(exactMatch.symbol);
+      return;
+    }
+
+    // 3. 重新即時查詢最新關鍵字結果（避免 debounce 尚未完成導致拿到舊的 suggestions[0]）
     try {
       const res = await apiStocks.searchStocks(q);
       const list = Array.isArray(res.data) ? res.data : [];
       if (list.length > 0) {
-        goSymbol(list[0].symbol);
+        const exact = list.find(
+          (s: any) => String(s.symbol).toUpperCase() === upper || String(s.name).toUpperCase() === upper
+        );
+        goSymbol((exact || list[0]).symbol);
         return;
       }
     } catch {
       // fallback
     }
-    goSymbol(q);
+    goSymbol(upper);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSearchSubmit();
   };
 
   return (
@@ -139,6 +160,13 @@ export default function TopBar() {
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setOpen(true);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    if (e.nativeEvent.isComposing || (e as any).keyCode === 229) return;
+                    e.preventDefault();
+                    handleSearchSubmit();
+                  }
                 }}
                 onFocus={() => {
                   if (suggestions.length > 0) setOpen(true);

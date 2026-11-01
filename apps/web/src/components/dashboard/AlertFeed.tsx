@@ -92,8 +92,8 @@ export default function AlertFeed() {
               className="flex items-start gap-3 p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/80 transition-colors"
             >
               <div className="mt-0.5">
-                {alert.type === "up" && <TrendingUp size={16} className="text-emerald-400" />}
-                {alert.type === "down" && <TrendingDown size={16} className="text-rose-400" />}
+                {alert.type === "up" && <TrendingUp size={16} className="text-rose-400" />}
+                {alert.type === "down" && <TrendingDown size={16} className="text-emerald-400" />}
                 {alert.type === "info" && <Zap size={16} className="text-accent" />}
               </div>
               <div className="flex-1 min-w-0">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Link from "next/link";
@@ -46,6 +47,37 @@ const ASSET_CATEGORIES: Record<
       { symbol: "00676R", name: "富邦臺灣加權反1", tag: "1倍反向避險" },
       { symbol: "00663L", name: "國泰臺灣加權正2", tag: "2倍槓桿做多" },
       { symbol: "00685L", name: "群益臺灣加權正2", tag: "2倍槓桿做多" },
+    ],
+  },
+  active_new: {
+    label: "主動式與新掛牌 ETF",
+    items: [
+      { symbol: "00982A", name: "主動群益台灣強棒", tag: "主動式台股 ETF" },
+      { symbol: "00980A", name: "主動野村臺灣優選", tag: "主動式台股 ETF" },
+      { symbol: "00981A", name: "主動統一台股增長", tag: "主動式台股 ETF" },
+      { symbol: "00983A", name: "主動中信ARK創新", tag: "主動式海外科技" },
+      { symbol: "00984A", name: "主動安聯台灣高息", tag: "主動式台股高息" },
+      { symbol: "00985A", name: "主動野村台灣50", tag: "主動式市值型" },
+      { symbol: "00986A", name: "主動台新龍頭成長", tag: "主動式龍頭成長" },
+      { symbol: "00987A", name: "主動台新台灣優勢", tag: "主動式台股成長" },
+      { symbol: "00988A", name: "主動統一全球創新", tag: "主動式全球創新" },
+      { symbol: "00989A", name: "主動摩根美國科技", tag: "主動式美股科技" },
+      { symbol: "00990A", name: "主動元大AI新經濟", tag: "主動式 AI 科技" },
+      { symbol: "00991A", name: "主動復華未來50", tag: "主動式台股動能" },
+      { symbol: "00992A", name: "主動群益科技創新", tag: "主動式台灣科技" },
+      { symbol: "00993A", name: "主動安聯台灣", tag: "主動式台股核心" },
+      { symbol: "00994A", name: "主動第一金台股優", tag: "主動式台股優選" },
+      { symbol: "00995A", name: "主動中信台灣卓越", tag: "主動式台股卓越" },
+      { symbol: "009802", name: "富邦旗艦50", tag: "新掛牌旗艦市值" },
+      { symbol: "009803", name: "保德信市值動能50", tag: "新掛牌市值動能" },
+      { symbol: "009804", name: "聯邦台精彩50", tag: "新掛牌台灣50" },
+      { symbol: "009805", name: "新光美國電力基建", tag: "AI 電力基建" },
+      { symbol: "009816", name: "凱基台灣TOP50", tag: "新掛牌台灣50" },
+      { symbol: "00981T", name: "平衡凱基雙核收息", tag: "股債平衡型 ETF" },
+      { symbol: "00982T", name: "平衡兆豐台美動能", tag: "台美股債平衡" },
+      { symbol: "00981D", name: "主動中信非投等債", tag: "主動式債券 ETF" },
+      { symbol: "00982D", name: "主動富邦動態入息", tag: "主動式債券 ETF" },
+      { symbol: "00983D", name: "主動富邦複合收益", tag: "主動式債券 ETF" },
     ],
   },
   dividend: {
@@ -207,12 +239,59 @@ const ASSET_CATEGORIES: Record<
 const ALL_CATALOG_ITEMS = Object.values(ASSET_CATEGORIES).flatMap((cat) => cat.items);
 
 export default function EtfAndMultiAssetPage() {
+  const router = useRouter();
   const [mainView, setMainView] = useState<"flow" | "catalog">("flow");
   const [quotes, setQuotes] = useState<Record<string, AssetQuote>>({});
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("tw_market");
   const [searchQuery, setSearchQuery] = useState("");
   const [remoteSearchItems, setRemoteSearchItems] = useState<{ symbol: string; name: string; tag: string }[]>([]);
+
+  const handleEtfSearchSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const q = searchQuery.trim();
+    if (!q) return;
+    const upper = q.toUpperCase();
+
+    // 1. 若輸入本身是明確的代號 (台股/ETF如 00982A, 009802, 2330, 0050; 美股如 QQQ, SPY, NVDA; 加密如 BTC-USD)
+    if (/^(00\d{2,4}[A-Z]?|[0-9]\d{3,5}[A-Z]?|[A-Z]{1,5}|\^[A-Z0-9]+|[A-Z0-9]+=[A-Z0-9]+|[A-Z0-9]+-USD)$/i.test(upper)) {
+      router.push(`/stock/${encodeURIComponent(upper)}?tab=etf-info`);
+      return;
+    }
+
+    // 2. 若列表有完全吻合代號或名稱
+    const exact = displayedItems.find(
+      (it) => it.symbol.toUpperCase() === upper || it.name.toUpperCase() === upper
+    );
+    if (exact) {
+      router.push(`/stock/${encodeURIComponent(exact.symbol)}?tab=etf-info`);
+      return;
+    }
+
+    // 3. 即時搜尋
+    try {
+      const res = await apiStocks.searchStocks(q);
+      const list = Array.isArray(res.data) ? res.data : [];
+      if (list.length > 0) {
+        const exactMatch = list.find(
+          (s: any) => String(s.symbol).toUpperCase() === upper || String(s.name).toUpperCase() === upper
+        );
+        router.push(`/stock/${encodeURIComponent((exactMatch || list[0]).symbol)}?tab=etf-info`);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    if (
+      displayedItems.length > 0 &&
+      (displayedItems[0].symbol.toUpperCase().startsWith(upper) || displayedItems[0].name.toLowerCase().includes(q.toLowerCase()))
+    ) {
+      router.push(`/stock/${encodeURIComponent(displayedItems[0].symbol)}?tab=etf-info`);
+    } else {
+      router.push(`/stock/${encodeURIComponent(upper)}?tab=etf-info`);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -360,6 +439,12 @@ export default function EtfAndMultiAssetPage() {
       }
     }
 
+    combined.sort((a, b) => {
+      const aExact = a.symbol.toLowerCase() === q || a.name.toLowerCase() === q ? 0 : a.symbol.toLowerCase().startsWith(q) ? 1 : 2;
+      const bExact = b.symbol.toLowerCase() === q || b.name.toLowerCase() === q ? 0 : b.symbol.toLowerCase().startsWith(q) ? 1 : 2;
+      return aExact - bExact;
+    });
+
     return combined.map(
       (item) =>
         quotes[item.symbol] || {
@@ -390,7 +475,7 @@ export default function EtfAndMultiAssetPage() {
           </p>
         </div>
 
-        <div className="relative w-full md:w-80">
+        <form onSubmit={handleEtfSearchSubmit} className="relative w-full md:w-80">
           <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
             <Search size={16} className="text-secondary" />
           </div>
@@ -398,10 +483,17 @@ export default function EtfAndMultiAssetPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="跨分類搜尋全市場 ETF 與多元資產標的..."
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                if (e.nativeEvent.isComposing || (e as any).keyCode === 229) return;
+                e.preventDefault();
+                handleEtfSearchSubmit();
+              }
+            }}
+            placeholder="輸入 ETF 代號或名稱 (Enter 直達成分股)..."
             className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg py-2 pl-9 pr-4 text-sm focus:outline-none focus:border-accent transition-colors"
           />
-        </div>
+        </form>
       </header>
 
       {/* 視圖切換：每日資金流向與申贖動態 VS 全市場 250+ 標的行情檢索（點進個別 ETF 可看成分股與每日變動） */}

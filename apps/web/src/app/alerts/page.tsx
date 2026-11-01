@@ -247,9 +247,9 @@ export default function AlertsPage() {
                 <div className="flex items-start gap-3 flex-1 min-w-0">
                   <div className="p-2.5 rounded-xl bg-[var(--bg-tertiary)] flex-shrink-0 mt-0.5">
                     {ev.type === "up" ? (
-                      <TrendingUp size={18} className="text-emerald-400" />
+                      <TrendingUp size={18} className="text-rose-400" />
                     ) : ev.type === "down" ? (
-                      <AlertTriangle size={18} className="text-rose-400" />
+                      <AlertTriangle size={18} className="text-emerald-400" />
                     ) : (
                       <Zap size={18} className="text-accent" />
                     )}

@@ -19,13 +19,13 @@ interface IndexCard {
 
 const INDEX_LIST = [
   { id: "TWII", symbol: "^TWII", name: "台股加權指數", market: "TW" as const },
-  { id: "SPX", symbol: "^GSPC", name: "S&P 500", market: "US" as const },
-  { id: "NDX", symbol: "^IXIC", name: "Nasdaq 綜合", market: "US" as const },
-  { id: "SOX", symbol: "^SOX", name: "費城半導體", market: "US" as const },
-  { id: "BTC", symbol: "BTC-USD", name: "比特幣 (BTC)", market: "US" as const },
-  { id: "GOLD", symbol: "GC=F", name: "黃金期貨 (Gold)", market: "US" as const },
-  { id: "USDTWD", symbol: "TWD=X", name: "美元/台幣 (USD/TWD)", market: "US" as const },
-  { id: "US10Y", symbol: "^TNX", name: "美債10年殖利率", market: "US" as const },
+  { id: "SPX", symbol: "^GSPC", name: "S&P 500", market: "TW" as const },
+  { id: "NDX", symbol: "^IXIC", name: "Nasdaq 綜合", market: "TW" as const },
+  { id: "SOX", symbol: "^SOX", name: "費城半導體", market: "TW" as const },
+  { id: "BTC", symbol: "BTC-USD", name: "比特幣 (BTC)", market: "TW" as const },
+  { id: "GOLD", symbol: "GC=F", name: "黃金期貨 (Gold)", market: "TW" as const },
+  { id: "USDTWD", symbol: "TWD=X", name: "美元/台幣 (USD/TWD)", market: "TW" as const },
+  { id: "US10Y", symbol: "^TNX", name: "美債10年殖利率", market: "TW" as const },
 ];
 
 export default function MarketOverview() {

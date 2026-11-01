@@ -111,20 +111,9 @@ function KlineCandleShape(props: any) {
   const bodyHeight = Math.max(Math.abs(yClose - yOpen), 3.5);
   const cx = x + width / 2;
   const candleW = Math.max(Math.min(width * 0.9, 10), 5);
-  // 每日欄位右側分隔線 X 座標，讓每一天的柱狀群與 K 線有清晰視覺分界
-  const dividerX = x + width + 6;
 
   return (
     <g>
-      <line
-        x1={dividerX}
-        y1={0}
-        x2={dividerX}
-        y2={420}
-        stroke="rgba(148, 163, 184, 0.28)"
-        strokeWidth={1}
-        strokeDasharray="4 3"
-      />
       <line
         x1={cx}
         y1={topY}
@@ -549,6 +538,7 @@ export default function InstitutionsPage() {
                       strokeDasharray="3 3"
                       stroke="rgba(148, 163, 184, 0.22)"
                       vertical={true}
+                      horizontal={false}
                     />
                     <XAxis
                       dataKey="date"
@@ -979,6 +969,7 @@ export default function InstitutionsPage() {
                           strokeDasharray="3 3"
                           stroke="rgba(148, 163, 184, 0.22)"
                           vertical={true}
+                          horizontal={false}
                         />
                         <XAxis
                           dataKey="date"

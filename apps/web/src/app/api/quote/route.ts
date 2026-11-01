@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ETF_CATALOG } from "@/lib/etfCatalog";
+import { getCachedTwMarketData } from "../market-rankings/route";
 
 export const dynamic = "force-dynamic";
 
@@ -113,6 +114,47 @@ async function fetchYahooChart(yfSym: string, range: string, interval: string) {
   return result;
 }
 
+async function fetchTwseStockDayBars(code: string) {
+  try {
+    const now = new Date();
+    const yyyymm = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}01`;
+    const url = `https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date=${yyyymm}&stockNo=${encodeURIComponent(
+      code
+    )}&response=json`;
+    const res = await fetch(url, { headers: YF_HEADERS, next: { revalidate: 60 } });
+    if (!res.ok) return [];
+    const json = await res.json();
+    if (!Array.isArray(json?.data)) return [];
+    const bars = [];
+    for (const row of json.data) {
+      // [日期, 成交股數, 成交金額, 開盤價, 最高價, 最低價, 收盤價, 漲跌價差, 成交筆數]
+      const rawDate = String(row[0] || "").trim();
+      const parts = rawDate.split("/");
+      if (parts.length !== 3) continue;
+      const yyyy = Number(parts[0]) + 1911;
+      const dateStr = `${yyyy}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}`;
+      const parseN = (v: any) => parseFloat(String(v || "0").replace(/,/g, ""));
+      const vol = parseN(row[1]);
+      const open = parseN(row[3]);
+      const high = parseN(row[4]);
+      const low = parseN(row[5]);
+      const close = parseN(row[6]);
+      if (!Number.isFinite(close) || close <= 0) continue;
+      bars.push({
+        time: dateStr,
+        open: Number((open || close).toFixed(2)),
+        high: Number((high || close).toFixed(2)),
+        low: Number((low || close).toFixed(2)),
+        close: Number(close.toFixed(2)),
+        volume: Math.round(vol || 0),
+      });
+    }
+    return bars;
+  } catch {
+    return [];
+  }
+}
+
 async function fetchTwseMisNameAndQuote(code: string) {
   try {
     const exCh = `tse_${code}.tw|otc_${code}.tw`;
@@ -219,26 +261,43 @@ export async function GET(req: NextRequest) {
         }
       }
     }
+
+    // Fallback to TWSE STOCK_DAY for newly listed ETFs / Taiwan stocks
+    if (isTw) {
+      const twseBars = await fetchTwseStockDayBars(cleanCode);
+      if (twseBars.length > 0) {
+        return NextResponse.json(twseBars);
+      }
+    }
+
     return NextResponse.json([]);
   }
 
   // 2. Quote Mode (`?symbol=...`)
-  const knownName =
-    COMMON_NAMES[cleanCode] ||
-    COMMON_NAMES[upper] ||
-    ETF_CATALOG[cleanCode]?.name ||
-    ETF_CATALOG[upper]?.name ||
-    "";
-
-  const [twseMis, yfResultPrimary] = await Promise.all([
+  const [twseMis, yfResultPrimary, twMarketData] = await Promise.all([
     isTw ? fetchTwseMisNameAndQuote(cleanCode) : Promise.resolve(null),
     fetchYahooChart(candidateYfSymbols[0], "5d", "1d"),
+    isTw ? getCachedTwMarketData().catch(() => null) : Promise.resolve(null),
   ]);
 
   let yfResult = yfResultPrimary;
   if (!yfResult && candidateYfSymbols.length > 1) {
     yfResult = await fetchYahooChart(candidateYfSymbols[1], "5d", "1d");
   }
+
+  const twMarketHit = twMarketData
+    ? [...twMarketData.twseAll, ...twMarketData.tpexAll].find(
+        (m) => m.symbol.toUpperCase() === cleanCode
+      )
+    : undefined;
+
+  const knownName =
+    COMMON_NAMES[cleanCode] ||
+    COMMON_NAMES[upper] ||
+    ETF_CATALOG[cleanCode]?.name ||
+    ETF_CATALOG[upper]?.name ||
+    twMarketHit?.name ||
+    "";
 
   const meta = yfResult?.meta || {};
   const q = yfResult?.indicators?.quote?.[0] || {};
@@ -267,11 +326,19 @@ export async function GET(req: NextRequest) {
       : Number(meta.chartPreviousClose || meta.previousClose || yfPrice);
 
   const price =
-    twseMis?.hasRealtimePrice && twseMis.price > 0 ? twseMis.price : yfPrice;
+    twseMis?.hasRealtimePrice && twseMis.price > 0
+      ? twseMis.price
+      : yfPrice > 0
+      ? yfPrice
+      : twMarketHit?.price || 0;
   const prevClose =
     twseMis?.hasRealtimePrice && twseMis.prevClose > 0
       ? twseMis.prevClose
-      : yfPrevClose || price;
+      : yfPrevClose > 0
+      ? yfPrevClose
+      : twMarketHit
+      ? Number((twMarketHit.price - twMarketHit.change).toFixed(2))
+      : price;
 
   const change = price > 0 && prevClose > 0 ? Number((price - prevClose).toFixed(2)) : 0;
   const changePct =
@@ -294,7 +361,7 @@ export async function GET(req: NextRequest) {
   const volume =
     (twseMis?.volume && twseMis.volume > 0 ? twseMis.volume : 0) ||
     Number(meta.regularMarketVolume) ||
-    (vols.length > 0 ? Number(vols[vols.length - 1]) : 0);
+    (vols.length > 0 ? Number(vols[vols.length - 1]) : twMarketHit ? twMarketHit.volume_lots * 1000 : 0);
 
   const finalName =
     knownName ||
@@ -315,7 +382,7 @@ export async function GET(req: NextRequest) {
     open: Number(open.toFixed(2)),
     prev_close: Number(prevClose.toFixed(2)),
     market,
-    source: twseMis?.hasRealtimePrice ? "twse" : "yahoo",
+    source: twseMis?.hasRealtimePrice || twMarketHit ? "twse" : "yahoo",
     stale: false,
   });
 }

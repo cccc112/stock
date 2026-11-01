@@ -231,11 +231,18 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                   tabs={[
                     {
                       id: 'kline',
-                      label: 'K線與趨勢畫線',
+                      label: assetType === 'ETF' ? 'K線與成分股追蹤總覽' : 'K線與趨勢畫線',
                       content: (
-                        <div className="pt-2">
-                          <CandlestickChart symbol={canonical} market={market} priceLines={priceLines} />
-                          <AIChartAnalyzer symbol={canonical} onLinesCalculated={setPriceLines} />
+                        <div className="pt-2 space-y-6">
+                          <div>
+                            <CandlestickChart symbol={canonical} market={market} priceLines={priceLines} />
+                            <AIChartAnalyzer symbol={canonical} onLinesCalculated={setPriceLines} />
+                          </div>
+                          {assetType !== 'STOCK' && (
+                            <div className="pt-4 border-t border-[var(--border)]">
+                              <ETFInfoSection key={`inline-${canonical}`} symbol={canonical} />
+                            </div>
+                          )}
                         </div>
                       )
                     },

@@ -148,9 +148,9 @@ export default function WatchlistRadarListener() {
               <div className="flex items-start justify-between gap-2 mb-1.5">
                 <div className="flex items-center gap-2">
                   {toast.type === "up" ? (
-                    <TrendingUp size={16} className="text-emerald-400" />
+                    <TrendingUp size={16} className="text-rose-400" />
                   ) : toast.type === "down" ? (
-                    <AlertTriangle size={16} className="text-rose-400" />
+                    <AlertTriangle size={16} className="text-emerald-400" />
                   ) : (
                     <Zap size={16} className="text-accent" />
                   )}

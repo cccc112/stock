@@ -43,15 +43,6 @@ function StockCandleShape(props: any) {
 
   return (
     <g>
-      <line
-        x1={cx + slotHalfW}
-        y1={0}
-        x2={cx + slotHalfW}
-        y2={420}
-        stroke="rgba(148, 163, 184, 0.22)"
-        strokeWidth={1}
-        strokeDasharray="3 3"
-      />
       <line x1={cx} y1={topY} x2={cx} y2={topY + absH} stroke={color} strokeWidth={1.6} />
       <rect
         x={cx - candleW / 2}
@@ -168,7 +159,7 @@ export default function InstitutionalSection({ symbol }: { symbol: string }) {
               barCategoryGap="28%"
               barGap={2}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.22)" vertical={true} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.22)" vertical={true} horizontal={false} />
               {chartRows.map((d: any, idx: number) =>
                 idx % 2 === 0 ? (
                   <ReferenceArea
@@ -177,8 +168,7 @@ export default function InstitutionalSection({ symbol }: { symbol: string }) {
                     x2={d.date}
                     yAxisId="shares"
                     fill="rgba(148, 163, 184, 0.065)"
-                    stroke="rgba(148, 163, 184, 0.16)"
-                    strokeDasharray="2 2"
+                    strokeOpacity={0}
                   />
                 ) : null
               )}

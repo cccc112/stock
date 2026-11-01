@@ -114,25 +114,46 @@ export default function StockIndexPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     const q = searchQuery.trim();
     if (!q) return;
-    if (suggestions.length > 0) {
-      router.push(`/stock/${encodeURIComponent(suggestions[0].symbol)}`);
+    const upper = q.toUpperCase();
+
+    // 1. 若輸入本身是明確的代號 (台股/ETF如 00982A, 009802, 2330, 0050; 美股如 NVDA, QQQ; 加密如 BTC-USD; 期貨指數如 GC=F, ^TWII)
+    if (/^(00\d{2,4}[A-Z]?|[0-9]\d{3,5}[A-Z]?|[A-Z]{1,5}|\^[A-Z0-9]+|[A-Z0-9]+=[A-Z0-9]+|[A-Z0-9]+-USD)$/i.test(upper)) {
+      setShowDropdown(false);
+      router.push(`/stock/${encodeURIComponent(upper)}`);
       return;
     }
+
+    // 2. 若建議清單中有完全吻合代號或名稱的項目
+    const exactMatch = suggestions.find(
+      (s) => String(s.symbol).toUpperCase() === upper || String(s.name).toUpperCase() === upper
+    );
+    if (exactMatch) {
+      setShowDropdown(false);
+      router.push(`/stock/${encodeURIComponent(exactMatch.symbol)}`);
+      return;
+    }
+
+    // 3. 重新即時查詢最新關鍵字結果（避免 debounce 尚未完成導致跳到舊的 suggestions[0]）
     try {
       const res = await apiStocks.searchStocks(q);
       const list = Array.isArray(res.data) ? res.data : [];
       if (list.length > 0) {
-        router.push(`/stock/${encodeURIComponent(list[0].symbol)}`);
+        const exact = list.find(
+          (s: any) => String(s.symbol).toUpperCase() === upper || String(s.name).toUpperCase() === upper
+        );
+        setShowDropdown(false);
+        router.push(`/stock/${encodeURIComponent((exact || list[0]).symbol)}`);
         return;
       }
     } catch {
       // fallback
     }
-    router.push(`/stock/${encodeURIComponent(q)}`);
+    setShowDropdown(false);
+    router.push(`/stock/${encodeURIComponent(upper)}`);
   };
 
   const handleSelect = (symbol: string) => {
@@ -243,6 +264,13 @@ export default function StockIndexPage() {
           onChange={(e) => {
             setSearchQuery(e.target.value);
             setShowDropdown(true);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              if (e.nativeEvent.isComposing || (e as any).keyCode === 229) return;
+              e.preventDefault();
+              handleSearch();
+            }
           }}
           onFocus={() => {
             if (suggestions.length > 0) setShowDropdown(true);

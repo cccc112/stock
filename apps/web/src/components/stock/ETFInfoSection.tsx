@@ -206,50 +206,82 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
           : [];
       const quote = quoteRes.status === "fulfilled" ? quoteRes.value?.data : null;
       const navItem =
-        navRes.status === "fulfilled" && Number(navRes.value?.data?.nav) > 0
+        navRes.status === "fulfilled" && navRes.value?.data
           ? navRes.value.data
           : null;
 
-      if (navItem) {
+      if (navItem && Number(navItem.nav) > 0) {
         setEtfNav(navItem);
-      } else if (quote?.price) {
+      } else if (quote?.price || (navItem && Number(navItem.price) > 0)) {
+        const p = Number(quote?.price || navItem?.price || 0);
         setEtfNav({
           symbol: code,
-          name: quote.name || code,
-          price: Number(quote.price),
-          nav: Number(quote.price),
-          discount_pct: 0.0,
-          shares_net: 0,
-          status: "平價",
+          name: quote?.name || navItem?.name || code,
+          price: p,
+          nav: Number(navItem?.nav || p),
+          discount_pct: Number(navItem?.discount_pct || 0),
+          shares_net: Number(navItem?.shares_net || 0),
+          status: navItem?.status || "平價",
         });
       }
 
-      const fallbackSeed = resolveETFProfile(symbol, quote?.name);
+      const fallbackSeed = resolveETFProfile(symbol, quote?.name || navItem?.name);
+      const liveProf = navItem?.profile;
+      const liveHoldings = Array.isArray(navItem?.holdings) && navItem.holdings.length > 0 ? navItem.holdings : null;
+      const liveSectors = Array.isArray(navItem?.sector_weights) && navItem.sector_weights.length > 0 ? navItem.sector_weights : null;
+      const liveDivs = Array.isArray(navItem?.dividends) && navItem.dividends.length > 0 ? navItem.dividends : null;
+
       const isCuratedInCatalog = Boolean(ETF_CATALOG[code] || ETF_CATALOG[s]);
+      const resolvedFreq = liveProf?.dividend_freq || fallbackSeed.dividend_freq;
       const isNoDividend =
-        String(fallbackSeed.dividend_freq || "").includes("不配息") ||
-        String(fallbackSeed.dividend_freq || "").includes("無配息");
+        String(resolvedFreq || "").includes("不配息") ||
+        String(resolvedFreq || "").includes("無配息");
       const clientPerf = computePerfFromBars(bars);
+
+      // Seed liveQuotes immediately from navItem.holdings so all 50+ TWSE/TPEx holdings have instant real prices
+      if (liveHoldings) {
+        const instantQuotes: Record<string, { price: number; change_pct: number; market: "TW" | "US" }> = {};
+        for (const h of liveHoldings) {
+          if (h.symbol && Number(h.price) > 0) {
+            instantQuotes[h.symbol] = {
+              price: Number(h.price),
+              change_pct: Number(h.change_pct) || 0,
+              market: /^\d/.test(h.symbol) ? "TW" : "US",
+            };
+          }
+        }
+        if (Object.keys(instantQuotes).length > 0) {
+          setLiveQuotes((prev) => ({ ...prev, ...instantQuotes }));
+        }
+      }
 
       setData((prev) => ({
         ...prev,
-        name: isCuratedInCatalog ? fallbackSeed.name : quote?.name || fallbackSeed.name || symbol,
+        name: liveProf?.name || (isCuratedInCatalog ? fallbackSeed.name : quote?.name || navItem?.name || fallbackSeed.name || symbol),
         market: isTw ? "TW" : "US",
-        category: fallbackSeed.category,
-        issuer: fallbackSeed.issuer,
-        tracking_index: fallbackSeed.tracking_index,
-        expense_ratio: fallbackSeed.expense_ratio,
-        dividend_freq: fallbackSeed.dividend_freq,
-        aum: fallbackSeed.aum,
-        dividend_yield: isNoDividend ? null : (fallbackSeed.dividend_yield_est ?? null),
+        category: liveProf?.category || fallbackSeed.category,
+        issuer: liveProf?.issuer || fallbackSeed.issuer,
+        tracking_index: liveProf?.tracking_index || fallbackSeed.tracking_index,
+        expense_ratio: liveProf?.expense_ratio ? `${liveProf.expense_ratio}%` : fallbackSeed.expense_ratio,
+        dividend_freq: resolvedFreq,
+        aum: liveProf?.aum_billion && liveProf.aum_billion > 0 ? `${liveProf.aum_billion} 億台幣` : fallbackSeed.aum,
+        dividend_yield: isNoDividend ? null : (liveProf?.yield_pct && liveProf.yield_pct > 0 ? liveProf.yield_pct : fallbackSeed.dividend_yield_est ?? null),
         performance: clientPerf,
         dividends: isNoDividend
           ? []
+          : liveDivs
+          ? liveDivs
           : Array.isArray(fallbackSeed.dividends)
           ? fallbackSeed.dividends
           : [],
-        holdings: Array.isArray(fallbackSeed.holdings) ? fallbackSeed.holdings : [],
-        sector_weights: Array.isArray(fallbackSeed.sector_weights)
+        holdings: liveHoldings
+          ? liveHoldings
+          : Array.isArray(fallbackSeed.holdings)
+          ? fallbackSeed.holdings
+          : [],
+        sector_weights: liveSectors
+          ? liveSectors
+          : Array.isArray(fallbackSeed.sector_weights)
           ? fallbackSeed.sector_weights
           : [],
         focus_points: Array.isArray(fallbackSeed.focus_points) ? fallbackSeed.focus_points : [],
@@ -267,13 +299,13 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
         setData((prev) => ({
           ...prev,
           holdings:
-            Array.isArray(remote.holdings) && remote.holdings.length > 0 && !isCuratedInCatalog
+            prev.holdings.length === 0 && Array.isArray(remote.holdings) && remote.holdings.length > 0
               ? remote.holdings
               : prev.holdings,
           dividends:
             isNoDividend
               ? []
-              : Array.isArray(remote.dividends) && remote.dividends.length > 0
+              : prev.dividends.length === 0 && Array.isArray(remote.dividends) && remote.dividends.length > 0
               ? remote.dividends
               : prev.dividends,
         }));
@@ -288,14 +320,18 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
     };
   }, [symbol]);
 
-  // 載入本檔 ETF 成分股的即時現價與漲跌幅
+  // 載入本檔 ETF 成分股的即時現價與漲跌幅（僅針對尚未在伺服器端合併報價的海外或特殊成分股補充）
   useEffect(() => {
     let alive = true;
     const holdingsList = Array.isArray(data.holdings) ? data.holdings : [];
     if (holdingsList.length === 0) return;
 
     const fetchHoldingQuotes = async () => {
-      const syms = holdingsList.slice(0, 15).map((h) => h.symbol).filter(Boolean);
+      const syms = holdingsList
+        .filter((h: any) => !h.price && h.symbol && /^[0-9A-Za-z.\-]+$/.test(h.symbol))
+        .slice(0, 12)
+        .map((h) => h.symbol);
+      if (syms.length === 0) return;
       const results = await Promise.allSettled(syms.map((sym) => apiStocks.getQuote(sym)));
       if (!alive) return;
       const nextQuotes: Record<string, { price: number; change_pct: number; market: "TW" | "US" }> = {};
@@ -331,11 +367,12 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
         ? Math.max(1.2, aumB * 0.004)
         : -Math.max(0.8, aumB * 0.0025);
 
-    return rawHoldings.map((h, idx) => {
+    return rawHoldings.map((h: any, idx) => {
       const weight = Number(h?.weight) || 0;
       const live = liveQuotes[h.symbol];
-      const stockPrice = live?.price || (/^\d/.test(h.symbol) ? 120 : 180);
-      const changePct = live?.change_pct ?? 0;
+      const finalPrice = live?.price || Number(h?.price) || 0;
+      const stockPrice = finalPrice > 0 ? finalPrice : (/^\d/.test(h.symbol) ? 120 : 180);
+      const changePct = live?.change_pct ?? Number(h?.change_pct) ?? 0;
       const stockMarket: "TW" | "US" = live?.market || (/^\d/.test(h.symbol) ? "TW" : "US");
 
       // 前幾大權重股隨申購加碼，末位權重或折價贖回時呈現動態再平衡調節
@@ -344,8 +381,13 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
 
       const rawAmountM = Math.max(1, Math.round(Math.abs(etfDailyFlowB * 100) * (weight / 100) * 10) / 10);
       const signedAmountM = action === "BUY" ? rawAmountM : -rawAmountM;
+      const officialLots = Number(h?.shares_lots) || 0;
       const sharesHeld =
-        stockPrice > 0 ? Math.max(100, Math.round(((aumB * 100 * (weight / 100)) * 1000) / stockPrice)) : Math.round(weight * 2500);
+        officialLots > 0
+          ? officialLots
+          : stockPrice > 0
+          ? Math.max(100, Math.round(((aumB * 100 * (weight / 100)) * 1000) / stockPrice))
+          : Math.round(weight * 2500);
       const rawSharesDelta =
         stockPrice > 0 ? Math.max(10, Math.round((rawAmountM * 1000) / stockPrice)) : Math.round(weight * 35);
       const signedSharesChange = action === "BUY" ? rawSharesDelta : -rawSharesDelta;
@@ -355,9 +397,13 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
         action === "BUY"
           ? netCreationLots > 0
             ? "初級市場淨申購被動加買"
+            : /A$/i.test(cleanCode)
+            ? "經理人主動選股配置加碼"
             : "指數成分權重配置加碼"
           : netCreationLots < 0
           ? "初級市場贖回被動調節"
+          : /A$/i.test(cleanCode)
+          ? "經理人主動換股調節"
           : "成分股權重動態再平衡調節";
 
       return {
@@ -370,9 +416,9 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
         change_amount_m: signedAmountM,
         reason,
         action,
-        price: live?.price || 0,
+        price: finalPrice,
         change_pct: changePct,
-        has_live_price: Boolean(live?.price),
+        has_live_price: finalPrice > 0,
         market: stockMarket,
       };
     });
@@ -604,6 +650,14 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
       </div>
 
       {/* 2. 核心成分股持股與每日資產變動明細 (整合進個別 ETF 成分股內) */}
+      {syncing && enrichedHoldings.length === 0 && (
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)] p-5 space-y-3 animate-pulse">
+          <div className="h-5 w-72 rounded bg-[var(--bg-tertiary)]" />
+          <div className="h-4 w-96 rounded bg-[var(--bg-tertiary)]" />
+          <div className="h-48 w-full rounded-xl bg-[var(--bg-tertiary)] mt-2" />
+        </div>
+      )}
+
       {enrichedHoldings.length > 0 && (
         <div className="space-y-6">
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4 sm:p-5">
@@ -815,6 +869,16 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {!syncing && enrichedHoldings.length === 0 && (
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)] p-6 text-center text-secondary">
+          <ShoppingBag size={28} className="mx-auto mb-2 text-muted opacity-60" />
+          <p className="text-sm font-semibold text-primary">本檔標的暫無股票型成分明細</p>
+          <p className="text-xs text-secondary mt-1 max-w-md mx-auto">
+            若為新募集掛牌、期貨反向、商品契約或現金部位，投信主管機關可能尚未公告每日個股持股清冊。系統將於每日投信申購贖回結算後自動同步最新持股。
+          </p>
         </div>
       )}
 

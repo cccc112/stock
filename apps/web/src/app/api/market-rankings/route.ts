@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-interface RankedStockItem {
+export interface RankedStockItem {
   symbol: string;
   name: string;
   market: "TWSE" | "TPEx";
@@ -14,6 +14,7 @@ interface RankedStockItem {
   turnover_b: number;
   date: string;
   stale: boolean;
+  is_etf?: boolean;
 }
 
 let cachedData: {
@@ -39,7 +40,6 @@ function parseNum(val: unknown): number {
 
 function formatRocDate(raw: unknown): string {
   const s = String(raw || "").trim();
-  // e.g. "1151030" -> 2026-10-30
   if (/^\d{7}$/.test(s)) {
     const rocYear = parseInt(s.slice(0, 3), 10);
     const yyyy = rocYear + 1911;
@@ -51,6 +51,11 @@ function formatRocDate(raw: unknown): string {
     return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
   }
   return s;
+}
+
+function isValidStockOrEtfCode(code: string): boolean {
+  // 4 碼普通股 (1000~9999) 或 全市場台股 ETF (0050, 00679B, 00980A, 00982A, 00981T, 00982D, 009802 等)
+  return /^[1-9]\d{3}$/.test(code) || /^00\d{2,4}[A-Z]?$/i.test(code);
 }
 
 async function fetchTwseAll(): Promise<RankedStockItem[]> {
@@ -71,15 +76,14 @@ async function fetchTwseAll(): Promise<RankedStockItem[]> {
 
   const items: RankedStockItem[] = [];
   for (const row of rows) {
-    const code = String(row?.Code || "").trim();
-    // 僅納入上市 4 碼普通股 (1000~9999)，排除權證與 00 開頭 ETF
-    if (!/^[1-9]\d{3}$/.test(code)) continue;
+    const code = String(row?.Code || "").trim().toUpperCase();
+    if (!isValidStockOrEtfCode(code)) continue;
 
     const price = parseNum(row?.ClosingPrice);
     const volShares = Math.round(parseNum(row?.TradeVolume));
     const valNtd = parseNum(row?.TradeValue);
     const chg = parseNum(row?.Change);
-    if (price <= 0 || volShares <= 0) continue;
+    if (price <= 0) continue;
 
     const prev = price - chg;
     const chgPct = prev > 0 ? Number(((chg / prev) * 100).toFixed(2)) : 0;
@@ -97,6 +101,7 @@ async function fetchTwseAll(): Promise<RankedStockItem[]> {
       turnover_b: Number((valNtd / 1e8).toFixed(2)),
       date: dateStr,
       stale: false,
+      is_etf: code.startsWith("00"),
     });
   }
   return items;
@@ -120,15 +125,14 @@ async function fetchTpexAll(): Promise<RankedStockItem[]> {
 
   const items: RankedStockItem[] = [];
   for (const row of rows) {
-    const code = String(row?.SecuritiesCompanyCode || "").trim();
-    // 僅納入上櫃 4 碼普通股 (1000~9999)，排除權證與債券 ETF
-    if (!/^[1-9]\d{3}$/.test(code)) continue;
+    const code = String(row?.SecuritiesCompanyCode || "").trim().toUpperCase();
+    if (!isValidStockOrEtfCode(code)) continue;
 
     const price = parseNum(row?.Close);
     const volShares = Math.round(parseNum(row?.TradingShares));
     const valNtd = parseNum(row?.TransactionAmount);
     const chg = parseNum(row?.Change);
-    if (price <= 0 || volShares <= 0) continue;
+    if (price <= 0) continue;
 
     const prev = price - chg;
     const chgPct = prev > 0 ? Number(((chg / prev) * 100).toFixed(2)) : 0;
@@ -146,6 +150,7 @@ async function fetchTpexAll(): Promise<RankedStockItem[]> {
       turnover_b: Number((valNtd / 1e8).toFixed(2)),
       date: dateStr,
       stale: false,
+      is_etf: code.startsWith("00"),
     });
   }
   return items;
@@ -156,7 +161,7 @@ function sortRankings(
   sortBy: string,
   limit: number
 ): RankedStockItem[] {
-  const copy = [...list];
+  const copy = list.filter((x) => !x.is_etf && x.volume > 0);
   if (sortBy === "turnover") {
     copy.sort((a, b) => b.turnover_b - a.turnover_b || b.volume - a.volume);
   } else if (sortBy === "gainers") {
@@ -167,13 +172,7 @@ function sortRankings(
   return copy.slice(0, limit);
 }
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const type = (searchParams.get("type") || "").trim().toLowerCase();
-  const q = (searchParams.get("q") || "").trim().toLowerCase();
-  const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 16)));
-  const sortBy = searchParams.get("sort_by") || "volume";
-
+export async function getCachedTwMarketData() {
   const now = Date.now();
   if (!cachedData || now - cachedData.ts > CACHE_TTL_MS || cachedData.twseAll.length === 0) {
     const [twseRes, tpexRes] = await Promise.allSettled([
@@ -191,20 +190,22 @@ export async function GET(req: NextRequest) {
       };
     }
   }
+  return cachedData;
+}
 
-  const allTw = [...(cachedData?.twseAll || []), ...(cachedData?.tpexAll || [])];
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const type = (searchParams.get("type") || "").trim().toLowerCase();
+  const q = (searchParams.get("q") || "").trim().toLowerCase();
+  const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 16)));
+  const sortBy = searchParams.get("sort_by") || "volume";
 
-  // 快速搜尋支援 (供頂部 Ctrl+K 全域搜尋與 ETF/個股搜尋即時毫秒回應)
+  const marketCache = await getCachedTwMarketData();
+  const allTw = [...(marketCache?.twseAll || []), ...(marketCache?.tpexAll || [])];
+
+  // 快速搜尋支援 (涵蓋全市場 1,900+ 上市櫃個股 + 全市場 362 檔主動/被動/債券 ETF + 美股與跨資產)
   if (q) {
     const EXTRA_ASSETS = [
-      { symbol: "0050", name: "元大台灣50", market: "TW", industry: "市值型 ETF" },
-      { symbol: "0056", name: "元大高股息", market: "TW", industry: "高股息 ETF" },
-      { symbol: "00878", name: "國泰永續高股息", market: "TW", industry: "高股息 ETF" },
-      { symbol: "00919", name: "群益台灣精選高息", market: "TW", industry: "高股息 ETF" },
-      { symbol: "00929", name: "復華台灣科技優息", market: "TW", industry: "月配科技 ETF" },
-      { symbol: "006208", name: "富邦台50", market: "TW", industry: "市值型 ETF" },
-      { symbol: "00679B", name: "元大美債20年", market: "TW", industry: "長天期美債 ETF" },
-      { symbol: "00631L", name: "元大台灣50正2", market: "TW", industry: "槓桿型 ETF" },
       { symbol: "NVDA", name: "NVIDIA (輝達)", market: "US", industry: "AI 半導體" },
       { symbol: "AAPL", name: "Apple (蘋果)", market: "US", industry: "消費電子" },
       { symbol: "TSLA", name: "Tesla (特斯拉)", market: "US", industry: "電動車與機器人" },
@@ -218,31 +219,78 @@ export async function GET(req: NextRequest) {
       { symbol: "PLTR", name: "Palantir", market: "US", industry: "AI 大數據" },
       { symbol: "QQQ", name: "Invesco 那斯達克100 ETF", market: "US", industry: "美股科技 ETF" },
       { symbol: "SPY", name: "SPDR 標普500 ETF", market: "US", industry: "美股大盤 ETF" },
+      { symbol: "VOO", name: "Vanguard 標普500 ETF", market: "US", industry: "美股大盤 ETF" },
       { symbol: "SMH", name: "VanEck 半導體 ETF", market: "US", industry: "半導體 ETF" },
       { symbol: "SOXX", name: "iShares 半導體 ETF", market: "US", industry: "半導體 ETF" },
       { symbol: "TLT", name: "iShares 20+年美債 ETF", market: "US", industry: "美債 ETF" },
+      { symbol: "IBIT", name: "iShares 比特幣現貨 ETF", market: "US", industry: "加密貨幣 ETF" },
+      { symbol: "GLD", name: "SPDR 黃金現貨 ETF", market: "US", industry: "黃金 ETF" },
       { symbol: "BTC-USD", name: "比特幣 (Bitcoin)", market: "US", industry: "加密貨幣" },
+      { symbol: "ETH-USD", name: "以太坊 (Ethereum)", market: "US", industry: "加密貨幣" },
       { symbol: "GC=F", name: "黃金期貨 (Gold)", market: "US", industry: "貴金屬期貨" },
+      { symbol: "CL=F", name: "西德州原油期貨 (WTI)", market: "US", industry: "能源期貨" },
+      { symbol: "TWD=X", name: "美元/台幣 (USD/TWD)", market: "US", industry: "外匯匯率" },
+      { symbol: "^TWII", name: "台股加權指數", market: "TW", industry: "大盤指數" },
     ];
 
-    const matched: any[] = [];
-    for (const a of EXTRA_ASSETS) {
-      if (a.symbol.toLowerCase().includes(q) || a.name.toLowerCase().includes(q)) {
-        matched.push(a);
-      }
-    }
+    const seen = new Set<string>();
+    const candidates: { symbol: string; name: string; market: string; industry: string; score: number }[] = [];
+
+    const scoreItem = (sym: string, name: string): number => {
+      const sLow = sym.toLowerCase();
+      const nLow = name.toLowerCase();
+      if (sLow === q || nLow === q) return 0; // 完全相符永遠排第一
+      if (sLow.startsWith(q)) return 1;
+      if (nLow.startsWith(q)) return 2;
+      if (sLow.includes(q)) return 3;
+      if (nLow.includes(q)) return 4;
+      return 99;
+    };
+
     for (const s of allTw) {
-      if (s.symbol.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)) {
-        matched.push({
+      const sc = scoreItem(s.symbol, s.name);
+      if (sc < 99 && !seen.has(s.symbol)) {
+        seen.add(s.symbol);
+        let ind = s.market === "TPEx" ? "上櫃股票" : "上市股票";
+        if (s.is_etf) {
+          ind = s.symbol.endsWith("A")
+            ? "主動式台股 ETF"
+            : s.symbol.endsWith("D")
+            ? "主動式債券 ETF"
+            : s.symbol.endsWith("T")
+            ? "平衡型 ETF"
+            : s.symbol.endsWith("B")
+            ? "債券型 ETF"
+            : "台股 ETF";
+        }
+        candidates.push({
           symbol: s.symbol,
           name: s.name,
           market: "TW",
-          industry: s.market === "TPEx" ? "上櫃股票" : "上市股票",
+          industry: ind,
+          score: sc,
         });
-        if (matched.length >= 20) break;
       }
     }
-    return NextResponse.json(matched.slice(0, 20));
+
+    for (const a of EXTRA_ASSETS) {
+      const sc = scoreItem(a.symbol, a.name);
+      if (sc < 99 && !seen.has(a.symbol)) {
+        seen.add(a.symbol);
+        candidates.push({ ...a, score: sc });
+      }
+    }
+
+    candidates.sort((a, b) => a.score - b.score || a.symbol.length - b.symbol.length || a.symbol.localeCompare(b.symbol));
+
+    return NextResponse.json(
+      candidates.slice(0, 25).map(({ symbol, name, market, industry }) => ({
+        symbol,
+        name,
+        market,
+        industry,
+      }))
+    );
   }
 
   // 權值股與熱門 ETF 資金流向散佈圖資料
@@ -268,6 +316,8 @@ export async function GET(req: NextRequest) {
       { symbol: "00919", name: "群益台灣精選高息", fallbackPrice: 23.85, fallbackPct: 0.25, fallbackVol: 95000, is_etf: true, flowM: 4210 },
       { symbol: "00929", name: "復華台灣科技優息", fallbackPrice: 18.2, fallbackPct: -0.65, fallbackVol: 74000, is_etf: true, flowM: -1280 },
       { symbol: "0056", name: "元大高股息", fallbackPrice: 37.6, fallbackPct: -0.3, fallbackVol: 51000, is_etf: true, flowM: 1850 },
+      { symbol: "00981A", name: "主動統一台股增長", fallbackPrice: 26.66, fallbackPct: 1.15, fallbackVol: 65000, is_etf: true, flowM: 3120 },
+      { symbol: "00982A", name: "主動群益台灣強棒", fallbackPrice: 20.66, fallbackPct: 0.85, fallbackVol: 33200, is_etf: true, flowM: 1680 },
       { symbol: "00679B", name: "元大美債20年", fallbackPrice: 29.4, fallbackPct: 0.68, fallbackVol: 68000, is_etf: true, flowM: 1940 },
     ];
 
@@ -276,7 +326,6 @@ export async function GET(req: NextRequest) {
       const price = live?.price || t.fallbackPrice;
       const change_pct = live?.change_pct ?? t.fallbackPct;
       const volume = live?.volume_lots || t.fallbackVol;
-      // 根據實際成交金額 (億 -> 百萬) 與漲跌方向計算當日主動資金淨流向
       const turnoverM = live ? live.turnover_b * 100 : (price * volume) / 1000;
       const net_flow =
         typeof (t as any).flowM === "number"
@@ -296,12 +345,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(flowItems);
   }
 
-  const twse = sortRankings(cachedData?.twseAll || [], sortBy, limit);
-  const tpex = sortRankings(cachedData?.tpexAll || [], sortBy, limit);
+  const twse = sortRankings(marketCache?.twseAll || [], sortBy, limit);
+  const tpex = sortRankings(marketCache?.tpexAll || [], sortBy, limit);
 
   return NextResponse.json({
     twse,
     tpex,
-    date: cachedData?.date || "",
+    date: marketCache?.date || "",
   });
 }
