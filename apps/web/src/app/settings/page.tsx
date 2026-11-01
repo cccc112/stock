@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
+import LineBindingCard from "@/components/ui/LineBindingCard";
 import { Server, Bell, Trash2, CheckCircle2, ShieldCheck, ChevronDown, ChevronUp, Palette } from "lucide-react";
 import { useColorPreference } from "@/hooks/useColorPreference";
 import { getCurrentUserNamespace } from "@/hooks/useAuth";
@@ -90,6 +91,9 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold">網站個人設定</h1>
         <p className="text-secondary text-sm">系統主機連線、即時推播與個人化參數配置</p>
       </div>
+
+      {/* LINE 官方推播綁定與 Pro 會員 */}
+      <LineBindingCard />
 
       {/* 漲跌顏色偏好設定 (紅漲綠跌 vs 綠漲紅跌) */}
       <Card title="漲跌顏色偏好設定 (Price Color Scheme)">

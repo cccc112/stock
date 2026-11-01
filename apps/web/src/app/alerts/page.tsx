@@ -5,6 +5,7 @@ import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
+import LineBindingCard from "@/components/ui/LineBindingCard";
 import {
   Bell,
   Plus,
@@ -176,6 +177,9 @@ export default function AlertsPage() {
           </Button>
         </div>
       </div>
+
+      {/* LINE 官方帳號推播綁定與 14 天 Pro 試用 */}
+      <LineBindingCard />
 
       {/* 1. 全自選股池自動雷達狀態卡 */}
       <Card className="p-5 border-accent/40 bg-gradient-to-r from-[var(--bg-secondary)] via-[var(--bg-secondary)] to-accent/5">
