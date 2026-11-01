@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import Card from "@/components/ui/Card";
@@ -16,21 +16,22 @@ import {
   Flame,
   Zap,
   Image as ImageIcon,
+  BellRing,
 } from "lucide-react";
 import type { CelebrityPostItem } from "@/app/api/celebrity-feed/route";
 
 const CELEBRITIES = [
   {
-    id: "TRUMP",
-    name: "川普 Donald Trump",
-    sub: "@realDonaldTrump · Truth Social 全量貼文",
-    badge: "🇺🇸 全部發文追蹤",
-  },
-  {
     id: "ALL",
     name: "全部名人雷達",
     sub: "川普 · 馬斯克 · 黃仁勳 · 鮑爾",
     badge: "🔥 全域監控",
+  },
+  {
+    id: "TRUMP",
+    name: "川普 Donald Trump",
+    sub: "@realDonaldTrump · 僅限財經/關稅/政策",
+    badge: "🇺🇸 關稅/晶片/總經",
   },
   {
     id: "MUSK",
@@ -71,11 +72,12 @@ function formatRelativeTime(timestamp: number) {
 }
 
 export default function CelebrityRadar() {
-  // 預設直接進入川普全量貼文追蹤（亦可隨時切換全部名人或馬斯克等）
   const [selectedPerson, setSelectedPerson] = useState<string>("TRUMP");
-  const [trumpTypeFilter, setTrumpTypeFilter] = useState<"ALL" | "ORIGINAL" | "REPOST">("ALL");
   const [items, setItems] = useState<CelebrityPostItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [lastSyncTime, setLastSyncTime] = useState<string>("");
+  const [newPostBanner, setNewPostBanner] = useState<string | null>(null);
+  const seenIdsRef = useRef<Set<string>>(new Set());
 
   // 單篇展開 AI 深度報告狀態
   const [expandedReports, setExpandedReports] = useState<Record<string, string>>({});
@@ -87,42 +89,55 @@ export default function CelebrityRadar() {
   const [customLoading, setCustomLoading] = useState<boolean>(false);
   const [customResult, setCustomResult] = useState<any | null>(null);
 
-  const fetchFeed = useCallback(async (person: string) => {
-    setLoading(true);
+  const fetchFeed = useCallback(async (person: string, silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await fetch(`/api/celebrity-feed?person=${encodeURIComponent(person)}`, {
         cache: "no-store",
       });
       if (res.ok) {
         const json = await res.json();
-        setItems(Array.isArray(json.data) ? json.data : []);
+        const incoming: CelebrityPostItem[] = Array.isArray(json.data) ? json.data : [];
+
+        // 檢查是否有新發布的財經貼文
+        if (seenIdsRef.current.size > 0 && incoming.length > 0) {
+          const brandNew = incoming.filter((it) => !seenIdsRef.current.has(it.id));
+          if (brandNew.length > 0) {
+            const latestNew = brandNew[0];
+            setNewPostBanner(`偵測到 ${latestNew.personName} 最新財經動態：「${latestNew.headline.slice(0, 38)}...」`);
+            if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+              new Notification(`🎙️ ${latestNew.personName} 最新財經貼文`, {
+                body: `${latestNew.headline}\nAI 建議：${latestNew.actionableAdvice}`,
+              });
+            }
+          }
+        }
+
+        incoming.forEach((it) => seenIdsRef.current.add(it.id));
+        setItems(incoming);
+        setLastSyncTime(
+          new Date().toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
+        );
       }
     } catch (e) {
       console.error("Failed to fetch celebrity feed:", e);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchFeed(selectedPerson);
+    seenIdsRef.current.clear();
+    fetchFeed(selectedPerson, false);
   }, [selectedPerson, fetchFeed]);
 
-  // 每 60 秒自動輪詢川普最新 Truth Social 貼文
+  // 每 30 秒背景靜默掃描最新財經貼文（不閃爍畫面，有新發文立即置頂推播）
   useEffect(() => {
     const timer = setInterval(() => {
-      fetchFeed(selectedPerson);
-    }, 60000);
+      fetchFeed(selectedPerson, true);
+    }, 30000);
     return () => clearInterval(timer);
   }, [selectedPerson, fetchFeed]);
-
-  const filteredItems = useMemo(() => {
-    if (selectedPerson !== "TRUMP" || trumpTypeFilter === "ALL") return items;
-    if (trumpTypeFilter === "ORIGINAL") {
-      return items.filter((i) => i.postType === "original" || i.postType === "news");
-    }
-    return items.filter((i) => i.postType === "quote" || i.postType === "repost");
-  }, [items, selectedPerson, trumpTypeFilter]);
 
   // 觸發單篇貼文的 AI 深度推演報告
   const handleGenerateDeepReport = async (item: CelebrityPostItem) => {
@@ -220,6 +235,22 @@ export default function CelebrityRadar() {
 
   return (
     <div className="space-y-5 animate-fade-in">
+      {/* 新貼文即時推播通知橫幅 */}
+      {newPostBanner && (
+        <div className="p-3 rounded-xl bg-accent/15 border border-accent/40 text-xs text-primary flex items-center justify-between gap-2 animate-fade-in">
+          <div className="flex items-center gap-2">
+            <BellRing size={15} className="text-accent animate-bounce" />
+            <span className="font-semibold">{newPostBanner}</span>
+          </div>
+          <button
+            onClick={() => setNewPostBanner(null)}
+            className="text-secondary hover:text-primary text-xs cursor-pointer whitespace-nowrap"
+          >
+            關閉
+          </button>
+        </div>
+      )}
+
       {/* 1. 頂部名人選擇器 */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 w-full">
         {CELEBRITIES.map((cel) => {
@@ -262,7 +293,7 @@ export default function CelebrityRadar() {
               onClick={() => {
                 setCustomPerson("TRUMP");
                 setCustomText(
-                  "川普發文表示將對進口半導體與汽車課徵高關稅，要求企業在美國本土密西根與亞利桑那州擴大設廠生產。"
+                  "川普發文表示將對進口半導體與汽車課徵高關稅，要求企業在美國本土擴大設廠生產。"
                 );
               }}
               className="px-2 py-0.5 rounded bg-[var(--bg-tertiary)] hover:text-accent cursor-pointer"
@@ -366,68 +397,46 @@ export default function CelebrityRadar() {
         )}
       </Card>
 
-      {/* 3. 即時名人貼文串流標題與川普全量貼文篩選器 */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
+      {/* 3. 即時名人財經貼文串流標題（已自動過濾選舉催票與非財經雜訊） */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-2 text-sm font-bold text-primary">
             <MessageSquareQuote size={18} className="text-accent" />
             <span>
               {selectedPerson === "TRUMP"
-                ? `川普 (@realDonaldTrump) Truth Social 全量發文即時追蹤 (${filteredItems.length} 則)`
-                : `名人最新貼文 / 發言追蹤與 AI 投顧建議 (${filteredItems.length} 則)`}
+                ? `川普財經與政策發文即時追蹤 (${items.length} 則 · 已自動過濾選舉造勢雜訊)`
+                : `名人財經貼文與發言即時追蹤 (${items.length} 則)`}
             </span>
           </div>
-
-          {selectedPerson === "TRUMP" && (
-            <div className="flex bg-[var(--bg-secondary)] p-0.5 rounded-lg border border-[var(--border)] text-xs">
-              <button
-                onClick={() => setTrumpTypeFilter("ALL")}
-                className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer transition-all ${
-                  trumpTypeFilter === "ALL" ? "bg-accent text-white" : "text-secondary hover:text-primary"
-                }`}
-              >
-                全部發文 ({items.length})
-              </button>
-              <button
-                onClick={() => setTrumpTypeFilter("ORIGINAL")}
-                className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer transition-all ${
-                  trumpTypeFilter === "ORIGINAL" ? "bg-accent text-white" : "text-secondary hover:text-primary"
-                }`}
-              >
-                原創貼文 ({items.filter((i) => i.postType === "original" || i.postType === "news").length})
-              </button>
-              <button
-                onClick={() => setTrumpTypeFilter("REPOST")}
-                className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer transition-all ${
-                  trumpTypeFilter === "REPOST" ? "bg-accent text-white" : "text-secondary hover:text-primary"
-                }`}
-              >
-                引用與轉發 ({items.filter((i) => i.postType === "quote" || i.postType === "repost").length})
-              </button>
-            </div>
-          )}
         </div>
 
-        <button
-          onClick={() => fetchFeed(selectedPerson)}
-          className="px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-secondary hover:text-primary flex items-center gap-1.5 cursor-pointer"
-        >
-          <RefreshCw size={13} className={loading ? "animate-spin text-accent" : ""} />
-          <span>同步最新貼文</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {lastSyncTime && (
+            <span className="text-[11px] text-secondary hidden sm:inline">
+              每 30 秒自動監控 · 最後掃描 {lastSyncTime}
+            </span>
+          )}
+          <button
+            onClick={() => fetchFeed(selectedPerson, false)}
+            className="px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-secondary hover:text-primary flex items-center gap-1.5 cursor-pointer"
+          >
+            <RefreshCw size={13} className={loading ? "animate-spin text-accent" : ""} />
+            <span>立即掃描</span>
+          </button>
+        </div>
       </div>
 
       {loading ? (
         <div className="py-16 text-center text-secondary text-sm animate-pulse">
-          正在即時同步 @realDonaldTrump Truth Social 全量貼文、自動翻譯繁體中文並執行 AI 因果推演...
+          正在即時掃描最新財經貼文、過濾非財經雜訊並執行 AI 因果推演...
         </div>
-      ) : filteredItems.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="py-16 text-center text-secondary text-sm">
-          暫無相關名人動態，請點擊右上角重新整理
+          暫無相關名人財經動態，請點擊右上角重新整理
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {filteredItems.map((item) => {
+          {items.map((item) => {
             const isExpanded = Boolean(expandedReports[item.id]);
             const isGenerating = loadingReportId === item.id;
 
@@ -439,7 +448,7 @@ export default function CelebrityRadar() {
                 {/* 頂部：名人資訊 + 情緒定調 + 衝擊分數 */}
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center font-bold text-accent text-xs">
+                    <div className="w-9 h-9 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center font-bold text-accent text-xs flex-shrink-0">
                       {item.personId === "TRUMP"
                         ? "DT"
                         : item.personId === "MUSK"
@@ -456,7 +465,7 @@ export default function CelebrityRadar() {
                           {item.platform}
                         </span>
                       </div>
-                      <div className="text-[11px] text-secondary flex items-center gap-2 mt-0.5">
+                      <div className="text-[11px] text-secondary flex flex-wrap items-center gap-1.5 mt-0.5">
                         <span>{item.source}</span>
                         <span>•</span>
                         <span className="text-accent font-medium">{formatRelativeTime(item.timestamp)}</span>
@@ -491,7 +500,7 @@ export default function CelebrityRadar() {
                   </div>
                 </div>
 
-                {/* 貼文內容：繁體中文翻譯 + Truth Social 英文原文對照 + 原貼文連結 */}
+                {/* 貼文內容：繁體中文翻譯 + 原文對照 + 原貼文連結 */}
                 <div className="p-3.5 rounded-xl bg-[var(--bg-tertiary)]/75 border border-[var(--border)] space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="font-bold text-sm sm:text-base text-primary leading-relaxed">
@@ -501,9 +510,9 @@ export default function CelebrityRadar() {
                       href={item.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-[11px] text-accent hover:underline flex-shrink-0 bg-accent/10 px-2 py-1 rounded font-medium"
+                      className="flex items-center gap-1 text-[11px] text-accent hover:underline flex-shrink-0 bg-accent/10 px-2 py-1 rounded font-medium whitespace-nowrap"
                     >
-                      <span>原貼文</span>
+                      <span>來源</span>
                       <ExternalLink size={12} />
                     </a>
                   </div>
@@ -511,7 +520,7 @@ export default function CelebrityRadar() {
                   {item.originalText && item.originalText !== item.headline && (
                     <div className="text-xs text-secondary font-mono bg-[var(--bg-secondary)]/80 p-2.5 rounded-lg border border-[var(--border)]/60 leading-relaxed">
                       <span className="text-[10px] text-accent font-sans font-semibold mr-1.5">
-                        [Truth Social 原文]
+                        [英文原文]
                       </span>
                       {item.originalText}
                     </div>
@@ -526,7 +535,7 @@ export default function CelebrityRadar() {
                         className="inline-flex items-center gap-1.5 text-xs text-sky-400 hover:underline bg-sky-500/10 border border-sky-500/20 px-2.5 py-1 rounded-md"
                       >
                         <ImageIcon size={13} />
-                        <span>查看川普貼文附帶之原始媒體 ({item.mediaType || "image"})</span>
+                        <span>查看貼文附帶媒體 ({item.mediaType || "image"})</span>
                       </a>
                     </div>
                   )}
@@ -584,13 +593,13 @@ export default function CelebrityRadar() {
                   </div>
                 </div>
 
-                {/* 底部：展開完整 AI 深度推演報告按鈕 */}
-                <div className="pt-2 border-t border-[var(--border)] flex items-center justify-between">
+                {/* 底部：展開完整 AI 深度推演報告按鈕 (修正手機版換行擠壓) */}
+                <div className="pt-2.5 border-t border-[var(--border)] flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap gap-1.5">
                     {item.sectors.map((sec) => (
                       <span
                         key={sec}
-                        className="text-[10px] px-2 py-0.5 rounded bg-[var(--bg-tertiary)] text-secondary"
+                        className="text-[10px] px-2 py-0.5 rounded bg-[var(--bg-tertiary)] text-secondary whitespace-nowrap"
                       >
                         #{sec}
                       </span>
@@ -601,7 +610,7 @@ export default function CelebrityRadar() {
                     type="button"
                     onClick={() => handleGenerateDeepReport(item)}
                     disabled={isGenerating}
-                    className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 cursor-pointer whitespace-nowrap ml-auto"
                   >
                     <Sparkles size={13} />
                     <span>
