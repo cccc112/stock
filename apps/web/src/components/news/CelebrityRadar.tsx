@@ -73,6 +73,7 @@ function formatRelativeTime(timestamp: number) {
 
 export default function CelebrityRadar() {
   const [selectedPerson, setSelectedPerson] = useState<string>("TRUMP");
+  const [showAllTrumpPosts, setShowAllTrumpPosts] = useState<boolean>(false);
   const [items, setItems] = useState<CelebrityPostItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [lastSyncTime, setLastSyncTime] = useState<string>("");
@@ -89,10 +90,11 @@ export default function CelebrityRadar() {
   const [customLoading, setCustomLoading] = useState<boolean>(false);
   const [customResult, setCustomResult] = useState<CelebrityPostAnalysis | null>(null);
 
-  const fetchFeed = useCallback(async (person: string, silent = false) => {
+  const fetchFeed = useCallback(async (person: string, includeAll: boolean, silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const res = await fetch(`/api/celebrity-feed?person=${encodeURIComponent(person)}`, {
+      const filterParam = includeAll ? "&filter=all" : "&filter=financial";
+      const res = await fetch(`/api/celebrity-feed?person=${encodeURIComponent(person)}${filterParam}`, {
         cache: "no-store",
       });
       if (res.ok) {
@@ -104,14 +106,14 @@ export default function CelebrityRadar() {
           if (brandNew.length > 0) {
             const latestNew = brandNew[0];
             setNewPostBanner(
-              `偵測到 ${latestNew.personName} 最新財經動態：「${latestNew.headline.slice(0, 40)}...」`
+              `偵測到 ${latestNew.personName} 最新原始貼文：「${latestNew.headline.slice(0, 40)}...」`
             );
             if (
               typeof window !== "undefined" &&
               "Notification" in window &&
               Notification.permission === "granted"
             ) {
-              new Notification(`🎙️ ${latestNew.personName} 最新財經貼文`, {
+              new Notification(`🎙️ ${latestNew.personName} 最新原始貼文`, {
                 body: latestNew.headline,
               });
             }
@@ -138,16 +140,16 @@ export default function CelebrityRadar() {
 
   useEffect(() => {
     seenIdsRef.current.clear();
-    fetchFeed(selectedPerson, false);
-  }, [selectedPerson, fetchFeed]);
+    fetchFeed(selectedPerson, showAllTrumpPosts, false);
+  }, [selectedPerson, showAllTrumpPosts, fetchFeed]);
 
   // 每 30 秒背景靜默掃描最新財經貼文
   useEffect(() => {
     const timer = setInterval(() => {
-      fetchFeed(selectedPerson, true);
+      fetchFeed(selectedPerson, showAllTrumpPosts, true);
     }, 30000);
     return () => clearInterval(timer);
-  }, [selectedPerson, fetchFeed]);
+  }, [selectedPerson, showAllTrumpPosts, fetchFeed]);
 
   // 點擊「AI 分析此貼文並給出建議」時才針對該篇貼文執行分析
   const handleAnalyzePost = async (item: CelebrityPostItem) => {
@@ -417,19 +419,32 @@ export default function CelebrityRadar() {
           <MessageSquareQuote size={18} className="text-accent" />
           <span>
             {selectedPerson === "TRUMP"
-              ? `川普財經與政策動態即時追蹤 (${items.length} 則 · 點擊單篇按鍵執行 AI 分析)`
-              : `名人財經貼文與發言即時追蹤 (${items.length} 則 · 點擊單篇按鍵執行 AI 分析)`}
+              ? `川普 Truth Social (@realDonaldTrump) 原始貼文即時追蹤 (${items.length} 則)`
+              : `名人原始貼文與發言即時追蹤 (${items.length} 則)`}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {(selectedPerson === "TRUMP" || selectedPerson === "ALL") && (
+            <button
+              type="button"
+              onClick={() => setShowAllTrumpPosts((prev) => !prev)}
+              className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-all ${
+                showAllTrumpPosts
+                  ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
+                  : "bg-accent/15 border-accent/40 text-accent"
+              }`}
+            >
+              {showAllTrumpPosts ? "目前：顯示全部原始貼文 (含選舉)" : "目前：僅顯示財經/政策原始貼文"}
+            </button>
+          )}
           {lastSyncTime && (
             <span className="text-[11px] text-secondary hidden sm:inline">
               每 30 秒自動監控 · 最後掃描 {lastSyncTime}
             </span>
           )}
           <button
-            onClick={() => fetchFeed(selectedPerson, false)}
+            onClick={() => fetchFeed(selectedPerson, showAllTrumpPosts, false)}
             className="px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-secondary hover:text-primary flex items-center gap-1.5 cursor-pointer"
           >
             <RefreshCw size={13} className={loading ? "animate-spin text-accent" : ""} />

@@ -91,10 +91,16 @@ function decodeHtmlEntities(str: string): string {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    .replace(/&#0?39;/g, "'")
+    .replace(/&apos;/g, "'")
     .replace(/&nbsp;/g, " ")
     .replace(/&#8211;/g, "–")
-    .replace(/&#8212;/g, "—");
+    .replace(/&#8212;/g, "—")
+    .replace(/&#8216;/g, "‘")
+    .replace(/&#8217;/g, "’")
+    .replace(/&#8220;/g, "“")
+    .replace(/&#8221;/g, "”")
+    .replace(/&#8230;/g, "…");
 }
 
 function stripHtmlTags(html: string): string {
@@ -109,16 +115,17 @@ function stripHtmlTags(html: string): string {
 }
 
 /**
- * 嚴格過濾器：徹底剔除選舉投票、候選人背書、造勢大會、電視轉播等與財經無關之貼文
+ * 嚴格剔除選舉催票、候選人背書、造勢行程、空白轉推與純政治八卦雜訊
  */
 const NON_FINANCIAL_ELECTION_REGEX =
-  /endorse|endorsement|get out and vote|telerally|early voting|swampthevote|voting location|polling|running for|re-elect|rally to elect|for u\.s\. senate|for governor|for congress|congressman|congresswoman|representative for|tremendous champion|ballot|absentee|image post from|video post from|quote post from|^rt\s*@realdonaldtrump\s*$|watching right side|air force one|發布了一則圖片|發布了一則實況影片|催票|造勢|選民|投票|背書|參選人|候選人/i;
+  /Honor to endorse|has my Complete and Total Endorsement|GET OUT AND VOTE|MAKE A PLAN TO VOTE|Early Voting|swampthevoteusa|TeleRally|BIG RALLY|Watching Right Side|Right Side Broadcasting|RSBN|Image post from|Video post from|Quote post from|^rt\s*@realdonaldtrump\s*$|live radio interview|Heading into Corpus|Heading to Corpus|Heading to Florida|Heading to Michigan|Big Rally in|See you at 7 P\.M|Looking forward to being with you|Election Fraud|Illegal Votes|Rigged and Stolen|CROOKED ELECTION|Dan Sullivan|Mary Peltola|Lisa Murkowski|Ranked Choice Voting|GREGG JARRETT|Ex-Obama spy chief|Golf Course|Tim Walz|Bill Maher|National Park|Freedom Caucus Fund|Reuters \(One of the Worst|Congratulations to Paul St-Pierre|Congratulations to Lorne Doerkson|Daylight Saving|Nurses for Nursing Homes|Voter Fraud|Gender Fluidity|Adam Hamilton|Rob Carson|Hillary Clinton|Horse-drawn Carriage|Vivek Ramaswamy put up|OPPONENTS of Republican Party Candidates|發布了一則圖片|發布了一則實況影片|催票|造勢|選民|投票|背書|參選人|候選人/i;
 
 const FINANCIAL_MARKET_RELEVANT_REGEX =
-  /tariff|trade|china|taiwan|tsmc|chip|semiconductor|nvidia|apple|tesla|tech|ai|tax|rate|fed|powell|inflation|economy|economic|market|stock|dow|nasdaq|s&p|dollar|currency|treasury|bond|debt|deficit|oil|gas|energy|drill|crypto|bitcoin|btc|bank|deregulat|manufacturing|factory|auto|car|ev|steel|aluminum|mexico|canada|europe|sanction|iran|russia|ukraine|israel|middle east|defense|boeing|musk|doge|budget|spending|price|export|import|關稅|貿易|晶片|半導體|台積電|輝達|蘋果|特斯拉|科技|人工智慧|減稅|稅率|降息|升息|聯準會|鮑爾|通膨|經濟|股市|美股|台股|道瓊|那斯達克|費半|美元|匯率|美債|公債|石油|能源|天然氣|比特幣|加密|銀行|金融|製造業|汽車|電動車|鋼鐵|制裁|軍工|國防|預算|開支|供應鏈|設廠|物價|出口|進口/i;
+  /\b(tariff|tariffs|trade|china|taiwan|tsmc|chip|chips|semiconductor|nvidia|apple|tesla|tech|ai|super intelligence|artificial intelligence|tax|taxes|rate|rates|fed|powell|inflation|economy|economic|gdp|consumer|business investment|equipment|factories|factory|market|markets|stock|stocks|dow|nasdaq|s&p|dollar|currency|treasury|bond|bonds|debt|deficit|oil|barrels|gas|energy|drill|crypto|bitcoin|btc|bank|banks|deregulation|manufacturing|auto|car|cars|ev|steel|aluminum|mexico|canada|europe|sanction|sanctions|iran|nukes|nuclear|russia|ukraine|israel|netanyahu|middle east|defense|boeing|musk|doge|budget|spending|prices|price|export|exports|import|imports|pharma|pharmaceutical|drug prices|onshoring|income|companies|capitalism|wealth)\b|關稅|貿易|晶片|半導體|台積電|輝達|蘋果|特斯拉|科技|人工智慧|減稅|稅率|降息|升息|聯準會|鮑爾|通膨|經濟|股市|美股|台股|道瓊|那斯達克|費半|美元|匯率|美債|公債|石油|能源|天然氣|比特幣|加密|銀行|金融|製造業|汽車|電動車|鋼鐵|制裁|軍工|國防|預算|開支|供應鏈|設廠|物價|出口|進口/i;
 
 function isMarketRelevantPost(text: string): boolean {
-  if (!text || text.length < 12) return false;
+  if (!text || text.length < 20) return false;
+  if (/^https?:\/\/\S+$/i.test(text.trim())) return false;
   if (NON_FINANCIAL_ELECTION_REGEX.test(text)) return false;
   return FINANCIAL_MARKET_RELEVANT_REGEX.test(text);
 }
@@ -463,22 +470,12 @@ ${stockLines}
 }
 
 /**
- * 即時掃描川普 Truth Social 官方同步流，嚴格過濾非財經雜訊，僅回傳乾淨貼文本身（不預先塞入重複 AI 模板）
+ * 即時掃描川普 Truth Social (@realDonaldTrump) 100% 原始貼文：
+ * 同時串接即時 RSS 流 (/feed) 與完整歷史時間軸 (/search?sort=date_desc)，
+ * 絕不混入第三方新聞媒體報導！
  */
-async function fetchTrumpTruthSocialFinancialOnly(): Promise<CelebrityPostItem[]> {
+async function fetchTrumpTruthSocialOriginalPosts(includeAll = false): Promise<CelebrityPostItem[]> {
   try {
-    const resp = await fetch("https://trumpstruth.org/feed", {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      },
-      cache: "no-store",
-    });
-    if (!resp.ok) return [];
-    const xml = await resp.text();
-    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-    let match: RegExpExecArray | null;
-
     const rawEntries: Array<{
       id: string;
       originalText: string;
@@ -488,80 +485,151 @@ async function fetchTrumpTruthSocialFinancialOnly(): Promise<CelebrityPostItem[]
       mediaUrl?: string;
       mediaType?: string;
     }> = [];
+    const seenKeys = new Set<string>();
 
-    while ((match = itemRegex.exec(xml)) !== null) {
-      const block = match[1];
-      const titleMatch = block.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/);
-      const descMatch = block.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/);
-      const pubDateMatch = block.match(/<pubDate>([\s\S]*?)<\/pubDate>/);
-      const origUrlMatch = block.match(/<truth:originalUrl>([\s\S]*?)<\/truth:originalUrl>/);
-      const origIdMatch = block.match(/<truth:originalId>([\s\S]*?)<\/truth:originalId>/);
-      const postTypeMatch = block.match(/<archive:postType>([\s\S]*?)<\/archive:postType>/);
-      const mediaMatch = block.match(/<media:content\s+url="([^"]+)"(?:\s+medium="([^"]+)")?/);
+    const headers = {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    };
 
-      let text = titleMatch ? stripHtmlTags(titleMatch[1]) : "";
-      if (!text || text.startsWith("[No Title]")) {
-        text = descMatch ? stripHtmlTags(descMatch[1]) : "";
+    // 1. 平行抓取即時 RSS (/feed) 與最近 6 頁原始貼文時間軸 (/search?sort=date_desc)
+    const [feedResp, ...pageResps] = await Promise.allSettled([
+      fetch("https://trumpstruth.org/feed", { headers, cache: "no-store" }),
+      ...[1, 2, 3, 4, 5, 6].map((page) =>
+        fetch(
+          `https://www.trumpstruth.org/search?per_page=100&sort=date_desc&start_date=2026-09-01&end_date=2026-12-31&page=${page}`,
+          { headers, cache: "no-store" }
+        )
+      ),
+    ]);
+
+    // 解析即時 RSS (/feed)
+    if (feedResp.status === "fulfilled" && feedResp.value.ok) {
+      const xml = await feedResp.value.text();
+      const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+      let match: RegExpExecArray | null;
+
+      while ((match = itemRegex.exec(xml)) !== null) {
+        const block = match[1];
+        const titleMatch = block.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/);
+        const descMatch = block.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/);
+        const pubDateMatch = block.match(/<pubDate>([\s\S]*?)<\/pubDate>/);
+        const origUrlMatch = block.match(/<truth:originalUrl>([\s\S]*?)<\/truth:originalUrl>/);
+        const origIdMatch = block.match(/<truth:originalId>([\s\S]*?)<\/truth:originalId>/);
+        const postTypeMatch = block.match(/<archive:postType>([\s\S]*?)<\/archive:postType>/);
+        const mediaMatch = block.match(/<media:content\s+url="([^"]+)"(?:\s+medium="([^"]+)")?/);
+
+        let text = titleMatch ? stripHtmlTags(titleMatch[1]) : "";
+        if (!text || text.startsWith("[No Title]")) {
+          text = descMatch ? stripHtmlTags(descMatch[1]) : "";
+        }
+        text = text
+          .replace(/^RT\s*@realDonaldTrump\s*/i, "")
+          .replace(/RT:\s*https:\/\/truthsocial\.com\/[^\s]+/gi, "")
+          .replace(/View image|View video/gi, "")
+          .trim();
+
+        if (!text || text.length < 15 || /^https?:\/\/\S+$/i.test(text)) continue;
+        if (/^(Image|Video|Quote) post from/i.test(text)) continue;
+        if (!includeAll && !isMarketRelevantPost(text)) continue;
+
+        const dedupKey = text.slice(0, 65).toLowerCase();
+        if (seenKeys.has(dedupKey)) continue;
+        seenKeys.add(dedupKey);
+
+        const postTypeRaw = (postTypeMatch ? postTypeMatch[1].trim() : "original") as
+          | "original"
+          | "quote"
+          | "repost";
+        const mediaUrl = mediaMatch ? mediaMatch[1] : undefined;
+        const mediaType = mediaMatch ? mediaMatch[2] || "image" : undefined;
+
+        const pubDateStr = pubDateMatch ? pubDateMatch[1].trim() : "";
+        const parsedTime = pubDateStr ? Date.parse(pubDateStr) : Date.now();
+        const timestamp = isNaN(parsedTime) ? Date.now() : parsedTime;
+        const truthLink = origUrlMatch
+          ? origUrlMatch[1].trim()
+          : "https://truthsocial.com/@realDonaldTrump";
+        const id = origIdMatch
+          ? `TRUMP-TS-${origIdMatch[1].trim()}`
+          : `TRUMP-TS-${timestamp}-${rawEntries.length}`;
+
+        rawEntries.push({
+          id,
+          originalText: text,
+          postType: postTypeRaw,
+          link: truthLink,
+          timestamp,
+          mediaUrl,
+          mediaType,
+        });
       }
-      text = text
-        .replace(/^RT\s*@realDonaldTrump\s*/i, "")
-        .replace(/RT:\s*https:\/\/truthsocial\.com\/[^\s]+/gi, "")
-        .replace(/View image|View video/gi, "")
-        .trim();
-
-      if (!isMarketRelevantPost(text)) {
-        continue;
-      }
-
-      const postTypeRaw = (postTypeMatch ? postTypeMatch[1].trim() : "original") as
-        | "original"
-        | "quote"
-        | "repost";
-      const mediaUrl = mediaMatch ? mediaMatch[1] : undefined;
-      const mediaType = mediaMatch ? mediaMatch[2] || "image" : undefined;
-
-      const pubDateStr = pubDateMatch ? pubDateMatch[1].trim() : "";
-      const parsedTime = pubDateStr ? Date.parse(pubDateStr) : Date.now();
-      const timestamp = isNaN(parsedTime) ? Date.now() : parsedTime;
-      const truthLink = origUrlMatch
-        ? origUrlMatch[1].trim()
-        : "https://truthsocial.com/@realDonaldTrump";
-      const id = origIdMatch
-        ? `TRUMP-TS-${origIdMatch[1].trim()}`
-        : `TRUMP-TS-${timestamp}-${rawEntries.length}`;
-
-      rawEntries.push({
-        id,
-        originalText: text,
-        postType: postTypeRaw,
-        link: truthLink,
-        timestamp,
-        mediaUrl,
-        mediaType,
-      });
     }
 
-    const translatedList = await batchTranslateToZhTw(rawEntries.map((e) => e.originalText));
+    // 解析完整原始貼文時間軸 (/search?sort=date_desc)
+    const searchItemRegex =
+      /<a class="search-result" id="search-result-(\d+)"[^>]*href="([^"#]+)[^"]*"[\s\S]*?<span class="status-info__meta-item">@realDonaldTrump<\/span>\s*[^\s<]*\s*<span class="status-info__meta-item">([^<]+)<\/span>[\s\S]*?<div class="snippet-clean-content">([\s\S]*?)<\/div>/g;
 
-    return rawEntries.map((entry, idx) => ({
+    for (const resItem of pageResps) {
+      if (resItem.status !== "fulfilled" || !resItem.value.ok) continue;
+      const html = await resItem.value.text();
+      let m: RegExpExecArray | null;
+      searchItemRegex.lastIndex = 0;
+
+      while ((m = searchItemRegex.exec(html)) !== null) {
+        const statusId = m[1].trim();
+        const statusUrl = m[2].trim();
+        const dateStr = m[3].trim();
+        let text = stripHtmlTags(m[4])
+          .replace(/^RT\s*@realDonaldTrump\s*/i, "")
+          .replace(/RT:\s*https:\/\/truthsocial\.com\/[^\s]+/gi, "")
+          .trim();
+
+        if (!text || text.length < 15 || /^https?:\/\/\S+$/i.test(text)) continue;
+        if (!includeAll && !isMarketRelevantPost(text)) continue;
+
+        const dedupKey = text.slice(0, 65).toLowerCase();
+        if (seenKeys.has(dedupKey)) continue;
+        seenKeys.add(dedupKey);
+
+        const parsedTime = Date.parse(`${dateStr} UTC`);
+        const timestamp = isNaN(parsedTime) ? Date.parse(dateStr) || Date.now() : parsedTime;
+
+        rawEntries.push({
+          id: `TRUMP-TS-${statusId}`,
+          originalText: text,
+          postType: /^RT\s*@/i.test(text) ? "repost" : "original",
+          link: statusUrl || "https://truthsocial.com/@realDonaldTrump",
+          timestamp,
+        });
+      }
+    }
+
+    const sortedEntries = rawEntries
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 30);
+
+    const translatedList = await batchTranslateToZhTw(sortedEntries.map((e) => e.originalText));
+
+    return sortedEntries.map((entry, idx) => ({
       id: entry.id,
       personId: "TRUMP",
       personName: CELEBRITY_META.TRUMP.personName,
       personTitle: CELEBRITY_META.TRUMP.personTitle,
       handle: "@realDonaldTrump",
-      platform: "Truth Social 財經原貼文",
+      platform: "Truth Social 原始貼文",
       postType: entry.postType,
       headline: translatedList[idx] || entry.originalText,
       originalText: entry.originalText,
       mediaUrl: entry.mediaUrl,
       mediaType: entry.mediaType,
-      source: "Truth Social (@realDonaldTrump)",
+      source: "Truth Social (@realDonaldTrump 原始貼文)",
       link: entry.link,
       date: new Date(entry.timestamp).toISOString(),
       timestamp: entry.timestamp,
     }));
   } catch (e) {
-    console.warn("Failed to fetch Trump Truth Social direct feed:", e);
+    console.warn("Failed to fetch Trump Truth Social original posts:", e);
     return [];
   }
 }
@@ -671,28 +739,23 @@ async function fetchRssForPerson(personKey: keyof typeof CELEBRITY_META): Promis
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const person = (searchParams.get("person") || "ALL").toUpperCase();
+  const includeAll = searchParams.get("filter") === "all";
 
   try {
     if (person === "TRUMP") {
-      const [directFinancialTruths, trumpFinancialFeed] = await Promise.all([
-        fetchTrumpTruthSocialFinancialOnly(),
-        fetchRssForPerson("TRUMP"),
-      ]);
-      const combined = [...directFinancialTruths, ...trumpFinancialFeed].sort(
-        (a, b) => b.timestamp - a.timestamp
-      );
-      return NextResponse.json({ data: combined });
+      // 100% 追蹤川普在 Truth Social (@realDonaldTrump) 的原始貼文，絕不混入第三方新聞媒體標題
+      const originalTruths = await fetchTrumpTruthSocialOriginalPosts(includeAll);
+      return NextResponse.json({ data: originalTruths });
     }
 
     if (person === "ALL") {
-      const [directFinancialTruths, trumpFeed, muskList, huangList, powellList] = await Promise.all([
-        fetchTrumpTruthSocialFinancialOnly(),
-        fetchRssForPerson("TRUMP"),
+      const [originalTruths, muskList, huangList, powellList] = await Promise.all([
+        fetchTrumpTruthSocialOriginalPosts(includeAll),
         fetchRssForPerson("MUSK"),
         fetchRssForPerson("HUANG"),
         fetchRssForPerson("POWELL"),
       ]);
-      const merged = [...directFinancialTruths, ...trumpFeed, ...muskList, ...huangList, ...powellList]
+      const merged = [...originalTruths, ...muskList, ...huangList, ...powellList]
         .sort((a, b) => b.timestamp - a.timestamp)
         .slice(0, 40);
       return NextResponse.json({ data: merged });
