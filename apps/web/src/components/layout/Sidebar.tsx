@@ -32,7 +32,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
       { name: "戰情總覽", href: "/dashboard", matchPrefixes: ["/dashboard"], icon: LayoutDashboard },
       { name: "個股與跨資產", href: "/stock", matchPrefixes: ["/stock"], icon: LineChart },
       { name: "多元資產與 ETF", href: "/etf", matchPrefixes: ["/etf"], icon: PieChart },
-      { name: "即時財經新聞", href: "/news", matchPrefixes: ["/news"], icon: Newspaper },
+      { name: "即時新聞與名人動態", href: "/news", matchPrefixes: ["/news"], icon: Newspaper },
     ],
   },
   {
