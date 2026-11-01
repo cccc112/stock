@@ -73,9 +73,10 @@ export default function TrendingPanel() {
   const [board, setBoard] = useState<"twse" | "tpex">("twse");
   const [sortType, setSortType] = useState<"volume" | "turnover" | "gainers">("volume");
   const [rankings, setRankings] = useState<{ twse: RankedStock[]; tpex: RankedStock[] }>({
-    twse: DEFAULT_TWSE,
-    tpex: DEFAULT_TPEX,
+    twse: [],
+    tpex: [],
   });
+  const [tradeDate, setTradeDate] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>("");
@@ -85,111 +86,23 @@ export default function TrendingPanel() {
     else if (!lastUpdated) setLoading(true);
 
     try {
-      // 1. 優先嘗試後端真實全市場 OpenAPI rankings 端點
       const res = await apiMarket.getRankings(16, sortType).catch(() => null);
       const data = res?.data;
-      let twseList: RankedStock[] =
+      const twseList: RankedStock[] =
         data?.twse && Array.isArray(data.twse) && data.twse.length > 0 ? data.twse : [];
-      let tpexList: RankedStock[] =
+      const tpexList: RankedStock[] =
         data?.tpex && Array.isArray(data.tpex) && data.tpex.length > 0 ? data.tpex : [];
 
-      // 2. 若後端伺服器版本未收錄 rankings，自動降級調用熱門 trending 端點
-      if (twseList.length === 0 || twseList.every((s) => !s.price || s.price === 0)) {
-        try {
-          const trendingRes = await apiMarket.getTrending().catch(() => null);
-          if (trendingRes?.data && Array.isArray(trendingRes.data) && trendingRes.data.length > 0) {
-            twseList = trendingRes.data
-              .map((q: any) => ({
-                symbol: q.symbol,
-                name: STOCK_NAMES[q.symbol] || q.name || q.symbol,
-                market: "TWSE" as const,
-                price: Number(q.price) || 0,
-                change: Number(q.change) || 0,
-                change_pct: Number(q.change_pct) || 0,
-                volume: Number(q.volume) || 0,
-                turnover_b:
-                  Math.round(
-                    (((Number(q.price) || 0) * (Number(q.volume) || 0)) / 1e8) * 100
-                  ) / 100,
-              }))
-              .filter((s: RankedStock) => s.price > 0)
-              .sort((a: RankedStock, b: RankedStock) => (b.volume || 0) - (a.volume || 0));
-          }
-        } catch (e) {
-          console.error("Trending fallback error:", e);
-        }
+      if (data?.date) {
+        setTradeDate(data.date);
       }
 
-      // 3. 自動同步上市熱門股即時撮合價 (無論手動或定時自動輪詢皆更新)
-      if (twseList.length === 0 || twseList.every((s) => !s.price || s.price === 0)) {
-        const poolToFetch = TWSE_POOLS.slice(0, 16);
-        const quotes = await Promise.allSettled(
-          poolToFetch.map((sym) => apiStocks.getQuote(sym))
-        );
-        const loaded: RankedStock[] = [];
-        quotes.forEach((r, idx) => {
-          if (r.status === "fulfilled" && r.value?.data && r.value.data.price > 0) {
-            const q = r.value.data;
-            const sym = poolToFetch[idx];
-            loaded.push({
-              symbol: sym,
-              name: STOCK_NAMES[sym] || q.name || sym,
-              market: "TWSE",
-              price: q.price,
-              change: q.change || 0,
-              change_pct: q.change_pct || 0,
-              volume: q.volume || 0,
-              turnover_b: Math.round(((q.price * (q.volume || 0)) / 1e8) * 100) / 100,
-            });
-          }
+      if (twseList.length > 0 || tpexList.length > 0) {
+        setRankings({
+          twse: twseList,
+          tpex: tpexList,
         });
-        if (loaded.length > 0) {
-          twseList = loaded;
-        }
       }
-
-      // 4. 對 TPEx (上櫃) 並行同步即時報價池
-      if (tpexList.length === 0 || tpexList.every((s) => !s.price || s.price === 0)) {
-        const tpexPoolToFetch = TPEX_POOLS.slice(0, 14);
-        const tpexQuotes = await Promise.allSettled(
-          tpexPoolToFetch.map((sym) => apiStocks.getQuote(sym))
-        );
-        const loadedTpex: RankedStock[] = [];
-        tpexQuotes.forEach((r, idx) => {
-          if (r.status === "fulfilled" && r.value?.data && r.value.data.price > 0) {
-            const q = r.value.data;
-            const sym = tpexPoolToFetch[idx];
-            loadedTpex.push({
-              symbol: sym,
-              name: STOCK_NAMES[sym] || q.name || sym,
-              market: "TPEx",
-              price: q.price,
-              change: q.change || 0,
-              change_pct: q.change_pct || 0,
-              volume: q.volume || 0,
-              turnover_b: Math.round(((q.price * (q.volume || 0)) / 1e8) * 100) / 100,
-            });
-          }
-        });
-        if (loadedTpex.length > 0) {
-          tpexList = loadedTpex;
-        }
-      }
-
-      // 5. 確保個股中文名稱 100% 正確顯示
-      twseList = twseList.map((s) => ({
-        ...s,
-        name: STOCK_NAMES[s.symbol] || s.name || s.symbol,
-      }));
-      tpexList = tpexList.map((s) => ({
-        ...s,
-        name: STOCK_NAMES[s.symbol] || s.name || s.symbol,
-      }));
-
-      setRankings({
-        twse: twseList.length ? twseList : DEFAULT_TWSE,
-        tpex: tpexList.length ? tpexList : DEFAULT_TPEX,
-      });
       setLastUpdated(
         new Date().toLocaleTimeString("zh-TW", {
           hour: "2-digit",
@@ -229,7 +142,11 @@ export default function TrendingPanel() {
   return (
     <Card
       title={<Term k="twse_tpex" label="台股真實熱門成交排行" />}
-      subtitle="即時連線證交所與櫃買中心成交動態，支援成交量、成交值與強勢榜切換"
+      subtitle={
+        tradeDate
+          ? `即時連線證交所與櫃買中心 (${tradeDate} 交易日真實量價)`
+          : "即時連線證交所與櫃買中心成交動態，支援成交量、成交值與強勢榜切換"
+      }
       headerAction={
         <div className="flex items-center gap-2">
           {lastUpdated && (
@@ -377,7 +294,8 @@ export default function TrendingPanel() {
                     <td className="text-right">
                       <div className="flex flex-col items-end gap-1">
                         <span className="font-mono text-xs text-secondary">
-                          {formatVolume(stock.volume)}
+                          {Math.round((stock.volume || 0) / 1000).toLocaleString()} 張
+                          {stock.turnover_b ? ` (${stock.turnover_b}億)` : ""}
                         </span>
                         <div className="w-20 h-1.5 bg-[var(--bg-primary)] rounded-full overflow-hidden">
                           <div

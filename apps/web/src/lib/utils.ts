@@ -30,20 +30,12 @@ export function formatVolume(value: number) {
   return value.toString();
 }
 
-export function getChangeColorClass(change: number, market: 'TW' | 'US' = 'TW') {
+export function getChangeColorClass(change: number, _market: 'TW' | 'US' = 'TW') {
   if (change === 0) return 'text-secondary';
-  if (market === 'TW') {
-    return change > 0 ? 'text-up-tw' : 'text-down-tw';
-  } else {
-    return change > 0 ? 'text-up-us' : 'text-down-us';
-  }
+  return change > 0 ? 'text-up-tw' : 'text-down-tw';
 }
 
-export function getChangeColor(change: number, market: 'TW' | 'US' = 'TW') {
+export function getChangeColor(change: number, _market: 'TW' | 'US' = 'TW') {
   if (change === 0) return '#8b8f9a'; // text-secondary
-  if (market === 'TW') {
-    return change > 0 ? '#ef4444' : '#22c55e'; // up-tw, down-tw
-  } else {
-    return change > 0 ? '#22c55e' : '#ef4444'; // up-us, down-us
-  }
+  return change > 0 ? '#ef4444' : '#22c55e'; // 全站統一紅漲綠跌
 }

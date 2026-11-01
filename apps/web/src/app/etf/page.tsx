@@ -207,7 +207,7 @@ const ASSET_CATEGORIES: Record<
 const ALL_CATALOG_ITEMS = Object.values(ASSET_CATEGORIES).flatMap((cat) => cat.items);
 
 export default function EtfAndMultiAssetPage() {
-  const [mainView, setMainView] = useState<"flow" | "holdings" | "catalog">("flow");
+  const [mainView, setMainView] = useState<"flow" | "catalog">("flow");
   const [quotes, setQuotes] = useState<Record<string, AssetQuote>>({});
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("tw_market");
@@ -404,7 +404,7 @@ export default function EtfAndMultiAssetPage() {
         </div>
       </header>
 
-      {/* 視圖切換：每日資金流向與申贖動態 VS 每日成分股持股穿透 VS 全市場 250+ 標的行情檢索 */}
+      {/* 視圖切換：每日資金流向與申贖動態 VS 全市場 250+ 標的行情檢索（點進個別 ETF 可看成分股與每日變動） */}
       <div className="flex border-b border-[var(--border)] gap-2 pb-1 overflow-x-auto hide-scrollbar">
         <button
           onClick={() => setMainView("flow")}
@@ -419,18 +419,6 @@ export default function EtfAndMultiAssetPage() {
         </button>
 
         <button
-          onClick={() => setMainView("holdings")}
-          className={`px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
-            mainView === "holdings" && !searchQuery.trim()
-              ? "bg-accent text-white shadow-sm"
-              : "text-secondary hover:text-primary hover:bg-[var(--bg-secondary)]"
-          }`}
-        >
-          <ShoppingBag size={16} />
-          <span>每日追蹤 ETF 成分股持股與增減</span>
-        </button>
-
-        <button
           onClick={() => setMainView("catalog")}
           className={`px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             mainView === "catalog" || searchQuery.trim()
@@ -439,14 +427,12 @@ export default function EtfAndMultiAssetPage() {
           }`}
         >
           <Layers size={16} />
-          <span>全市場 250+ 標的即時報價總覽</span>
+          <span>全市場 250+ 標的即時報價總覽（點擊個別 ETF 查看成分股與每日變動）</span>
         </button>
       </div>
 
       {mainView === "flow" && !searchQuery.trim() ? (
         <EtfCapitalFlowTracker key="flow" defaultSubView="flow" hideSubViewTabs={true} />
-      ) : mainView === "holdings" && !searchQuery.trim() ? (
-        <EtfCapitalFlowTracker key="holdings" defaultSubView="holdings" hideSubViewTabs={true} />
       ) : (
         <Card className="w-full">
         <div className="border-b border-[var(--border)] flex gap-2 overflow-x-auto hide-scrollbar pb-2 mb-4">
@@ -506,12 +492,13 @@ export default function EtfAndMultiAssetPage() {
                 <th className="text-right">漲跌</th>
                 <th className="text-right">漲跌幅</th>
                 <th className="text-right">成交量</th>
+                <th className="text-right">成分股與變動</th>
               </tr>
             </thead>
             <tbody className={loading && Object.keys(quotes).length === 0 ? "opacity-50" : ""}>
               {displayedItems.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-8 text-secondary">
+                  <td colSpan={8} className="text-center py-8 text-secondary">
                     找不到符合條件的投資標的，請嘗試輸入代號或名稱
                   </td>
                 </tr>
@@ -559,6 +546,14 @@ export default function EtfAndMultiAssetPage() {
                     </td>
                     <td className="text-right font-mono tabular-nums text-secondary">
                       {item.volume > 0 ? formatVolume(item.volume) : "—"}
+                    </td>
+                    <td className="text-right">
+                      <Link
+                        href={`/stock/${encodeURIComponent(item.symbol)}?tab=etf-info`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-accent/15 text-accent hover:bg-accent hover:text-white text-xs font-semibold transition-colors whitespace-nowrap"
+                      >
+                        成分股與每日變動
+                      </Link>
                     </td>
                   </tr>
                 ))

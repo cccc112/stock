@@ -51,76 +51,40 @@ export default function StockIndexPage() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [twseTop, setTwseTop] = useState<RankedItem[]>([]);
   const [tpexTop, setTpexTop] = useState<RankedItem[]>([]);
+  const [rankDate, setRankDate] = useState<string>("");
+  const [rankSort, setRankSort] = useState<"volume" | "turnover" | "gainers">("volume");
   const [loadingRankings, setLoadingRankings] = useState(true);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let alive = true;
     const loadRankings = async () => {
+      setLoadingRankings(true);
       try {
-        const res = await apiMarket.getRankings(6).catch(() => null);
+        const res = await apiMarket.getRankings(6, rankSort).catch(() => null);
+        if (!alive) return;
         if (res?.data?.twse && res.data.twse.length > 0) {
           setTwseTop(res.data.twse.slice(0, 6));
-          if (res.data?.tpex) setTpexTop(res.data.tpex.slice(0, 6));
-          return;
         }
-
-        // 降級調用主機即時 trending 端點
-        const trendingRes = await apiMarket.getTrending().catch(() => null);
-        if (trendingRes?.data && Array.isArray(trendingRes.data) && trendingRes.data.length > 0) {
-          const mapped = trendingRes.data
-            .map((q: any) => ({
-              symbol: q.symbol,
-              name: q.name || q.symbol,
-              market: "TWSE",
-              price: Number(q.price) || 0,
-              change: Number(q.change) || 0,
-              change_pct: Number(q.change_pct) || 0,
-              volume: Number(q.volume) || 0,
-              turnover_b:
-                Math.round(
-                  (((Number(q.price) || 0) * (Number(q.volume) || 0)) / 1e8) * 100
-                ) / 100,
-            }))
-            .filter((s: any) => s.price > 0)
-            .sort((a: any, b: any) => (b.volume || 0) - (a.volume || 0));
-          setTwseTop(mapped.slice(0, 6));
+        if (res?.data?.tpex && res.data.tpex.length > 0) {
+          setTpexTop(res.data.tpex.slice(0, 6));
         }
-
-        // 上櫃 TPEx 代表股並行即時行情
-        const tpexPool = ["8069", "6488", "3293", "5347", "3324", "8299"];
-        const tpexQuotes = await Promise.allSettled(
-          tpexPool.map((s) => apiStocks.getQuote(s))
-        );
-        const tpexList: RankedItem[] = [];
-        tpexQuotes.forEach((r, idx) => {
-          if (r.status === "fulfilled" && r.value?.data && r.value.data.price > 0) {
-            const q = r.value.data;
-            tpexList.push({
-              symbol: tpexPool[idx],
-              name: q.name || tpexPool[idx],
-              market: "TPEx",
-              price: q.price,
-              change: q.change || 0,
-              change_pct: q.change_pct || 0,
-              volume: q.volume || 0,
-              turnover_b: Math.round(((q.price * (q.volume || 0)) / 1e8) * 100) / 100,
-            });
-          }
-        });
-        if (tpexList.length > 0) {
-          tpexList.sort((a, b) => (b.volume || 0) - (a.volume || 0));
-          setTpexTop(tpexList.slice(0, 6));
+        if (res?.data?.date) {
+          setRankDate(res.data.date);
         }
       } catch (err) {
         console.error("Failed to load rankings on stock page:", err);
       } finally {
-        setLoadingRankings(false);
+        if (alive) setLoadingRankings(false);
       }
     };
 
     loadRankings();
-  }, []);
+    return () => {
+      alive = false;
+    };
+  }, [rankSort]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -179,14 +143,47 @@ export default function StockIndexPage() {
 
   const renderLiveBoard = (title: string, badgeLabel: string, items: RankedItem[]) => (
     <div>
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold text-primary tracking-wider">{title}</h2>
           <span className="text-[11px] px-2 py-0.5 rounded bg-accent/15 text-accent font-medium">
             {badgeLabel}
           </span>
+          {rankDate && (
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              最新交易日：{rankDate}
+            </span>
+          )}
         </div>
-        <span className="text-xs text-muted">依市場真實成交量 / 成交值即時排序</span>
+        <div className="flex items-center gap-1.5 text-xs">
+          <button
+            type="button"
+            onClick={() => setRankSort("volume")}
+            className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
+              rankSort === "volume" ? "bg-accent text-white font-semibold" : "text-muted hover:text-secondary"
+            }`}
+          >
+            成交量排行
+          </button>
+          <button
+            type="button"
+            onClick={() => setRankSort("turnover")}
+            className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
+              rankSort === "turnover" ? "bg-accent text-white font-semibold" : "text-muted hover:text-secondary"
+            }`}
+          >
+            成交值排行
+          </button>
+          <button
+            type="button"
+            onClick={() => setRankSort("gainers")}
+            className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
+              rankSort === "gainers" ? "bg-red-500 text-white font-semibold" : "text-muted hover:text-secondary"
+            }`}
+          >
+            漲幅排行
+          </button>
+        </div>
       </div>
       {loadingRankings && items.length === 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -211,12 +208,12 @@ export default function StockIndexPage() {
                 <div className="text-sm text-secondary truncate font-medium mb-2">{item.name}</div>
                 <div className="flex items-baseline justify-between gap-1 pt-2 border-t border-[var(--border)]">
                   <span className="font-mono text-sm font-bold text-primary">
-                    {item.price > 0 ? formatNumber(item.price, 2) : "-"}
+                    {item.price > 0 ? `NT$${formatNumber(item.price, 2)}` : "-"}
                   </span>
                   <Badge value={item.change_pct ?? 0} market="TW" size="sm" />
                 </div>
                 <div className="text-[11px] text-muted mt-1.5 flex justify-between font-mono">
-                  <span>量 {formatVolume(item.volume)}</span>
+                  <span>{Math.round((item.volume || 0) / 1000).toLocaleString()} 張</span>
                   {item.turnover_b ? <span>{item.turnover_b}億</span> : null}
                 </div>
               </Card>

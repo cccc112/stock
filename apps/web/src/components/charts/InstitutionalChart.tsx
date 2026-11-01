@@ -14,8 +14,8 @@ export default function InstitutionalChart({ symbol, market = 'TW' }: Institutio
   const chartRef = useRef<IChartApi | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const upColor = market === 'TW' ? '#ef4444' : '#22c55e';
-  const downColor = market === 'TW' ? '#22c55e' : '#ef4444';
+  const upColor = '#ef4444';
+  const downColor = '#22c55e';
 
   useEffect(() => {
     if (!chartContainerRef.current) return;

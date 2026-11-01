@@ -68,8 +68,24 @@ api.interceptors.response.use(
 );
 
 export const apiStocks = {
-  getQuote: (symbol: string) => api.get(`/stocks/${encodeURIComponent(symbol)}/quote`),
-  getHistory: (symbol: string, period: string) => api.get(`/stocks/${encodeURIComponent(symbol)}/history`, { params: { period } }),
+  getQuote: async (symbol: string) => {
+    try {
+      const res = await axios.get('/api/quote', { params: { symbol }, timeout: 8000 });
+      if (res?.data && Number(res.data.price) > 0) return res;
+    } catch {
+      // fallback to backend
+    }
+    return api.get(`/stocks/${encodeURIComponent(symbol)}/quote`);
+  },
+  getHistory: async (symbol: string, period: string) => {
+    try {
+      const res = await axios.get('/api/quote', { params: { symbol, period }, timeout: 8000 });
+      if (Array.isArray(res?.data) && res.data.length > 0) return res;
+    } catch {
+      // fallback to backend
+    }
+    return api.get(`/stocks/${encodeURIComponent(symbol)}/history`, { params: { period } });
+  },
   getOrderbook: (symbol: string) => api.get(`/stocks/${encodeURIComponent(symbol)}/orderbook`),
   searchStocks: (query: string) => api.get(`/stocks/search`, { params: { q: query } }),
   getNews: (symbol: string = '2330') => api.get(`/stocks/${encodeURIComponent(symbol)}/news`),
@@ -128,12 +144,39 @@ export const apiSimulator = {
 };
 
 export const apiMarket = {
-  getTrending: () => api.get('/market/trending'),
-  getRankings: (limit: number = 10, sort_by: string = 'volume') => api.get('/market/rankings', { params: { limit, sort_by } }),
+  getTrending: async () => {
+    try {
+      const res = await axios.get('/api/market-rankings', { params: { limit: 8, sort_by: 'volume' }, timeout: 8000 });
+      const twse = Array.isArray(res?.data?.twse) ? res.data.twse : [];
+      const tpex = Array.isArray(res?.data?.tpex) ? res.data.tpex : [];
+      const combined = [...twse.slice(0, 6), ...tpex.slice(0, 4)].sort((a, b) => (b.volume || 0) - (a.volume || 0));
+      if (combined.length > 0) return { ...res, data: combined.slice(0, 8) };
+    } catch {
+      // fallback
+    }
+    return api.get('/market/trending');
+  },
+  getRankings: async (limit: number = 10, sort_by: string = 'volume') => {
+    try {
+      const res = await axios.get('/api/market-rankings', { params: { limit, sort_by }, timeout: 8000 });
+      if (res?.data && (res.data.twse?.length || res.data.tpex?.length)) return res;
+    } catch {
+      // fallback
+    }
+    return api.get('/market/rankings', { params: { limit, sort_by } });
+  },
   getPopularETFs: () => api.get('/market/etfs'),
   getCapitalFlow: () => api.get('/market/capital-flow'),
   getMultiAssets: () => api.get('/market/multi-assets'),
-  getEtfNav: (symbol?: string) => api.get('/market/etf-nav', { params: symbol ? { symbol } : {} }),
+  getEtfNav: async (symbol?: string) => {
+    try {
+      const res = await axios.get('/api/etf-nav', { params: symbol ? { symbol } : {}, timeout: 8000 });
+      if (res?.data) return res;
+    } catch {
+      // fallback
+    }
+    return api.get('/market/etf-nav', { params: symbol ? { symbol } : {} });
+  },
 };
 
 export const apiResearch = {

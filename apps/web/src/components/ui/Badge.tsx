@@ -22,13 +22,9 @@ export default function Badge({
 
   const bgClasses = isZero
     ? "bg-[var(--bg-tertiary)] text-secondary border border-[var(--border)]"
-    : market === "TW"
-      ? isPositive
-        ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-        : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-      : isPositive
-        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-        : "bg-rose-500/10 text-rose-400 border border-rose-500/20";
+    : isPositive
+      ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+      : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
 
   const sizes = {
     sm: "text-[11px] px-2 py-0.5 rounded",

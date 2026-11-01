@@ -188,8 +188,8 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
   const [overlay, setOverlay] = useState<{ chart: IChartApi; series: ISeriesApi<SeriesType>; bars: BarInfo[] } | null>(null);
   const drawingsApi = useDrawings(symbol, activePeriod === '1d' || activePeriod === '5d');
 
-  const upColor = market === 'TW' ? '#ef4444' : '#22c55e';
-  const downColor = market === 'TW' ? '#22c55e' : '#ef4444';
+  const upColor = '#ef4444';
+  const downColor = '#22c55e';
 
   useEffect(() => {
     if (!chartContainerRef.current) return;

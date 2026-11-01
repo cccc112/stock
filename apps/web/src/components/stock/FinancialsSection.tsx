@@ -159,10 +159,10 @@ const fmtMoney = (v: number | null | undefined) => {
   return v.toFixed(1);
 };
 
-const growthColor = (v: number | null | undefined, market: string) =>
+const growthColor = (v: number | null | undefined, _market?: string) =>
   v == null || v === 0
     ? ""
-    : (v > 0) === (market === "TW")
+    : v > 0
     ? "text-red-600 dark:text-red-400"
     : "text-emerald-600 dark:text-emerald-400";
 

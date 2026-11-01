@@ -700,7 +700,7 @@ export default function EtfCapitalFlowTracker({
   const [etfNavMap, setEtfNavMap] = useState<Record<string, any>>({});
   const [arbitrageFilter, setArbitrageFilter] = useState<"ALL" | "PREMIUM" | "DISCOUNT">("ALL");
   const [customArbitrageSearch, setCustomArbitrageSearch] = useState<string>("");
-  const [selectedArbitrageEtf, setSelectedArbitrageEtf] = useState<string>("0050");
+  const [selectedArbitrageEtf, setSelectedArbitrageEtf] = useState<string>("");
   const [showAllArbitrage, setShowAllArbitrage] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -883,6 +883,7 @@ export default function EtfCapitalFlowTracker({
 
   const selectedArbitrageItem = useMemo(() => {
     const sym = selectedArbitrageEtf.trim().toUpperCase();
+    if (!sym) return null;
     const navItem = etfNavMap[sym] || etfNavMap[sym.replace(/\.(TW|TWO)$/i, "")];
     if (navItem) {
       return {
@@ -1011,65 +1012,154 @@ export default function EtfCapitalFlowTracker({
   }, [currentPortfolio, holdingActionFilter, holdingSearch]);
 
   const dynamicResearch = useMemo(() => {
-    const sortedByFlow = [...items].sort((a, b) => {
-      const fA = period === "1d" ? a.flow_1d : period === "5d" ? a.flow_5d : a.flow_20d;
-      const fB = period === "1d" ? b.flow_1d : period === "5d" ? b.flow_5d : b.flow_20d;
+    const periodLabel = period === "1d" ? "今日" : period === "5d" ? "近5日" : period === "20d" ? "近月" : "今年以來";
+
+    // 若使用者在折溢價雷達點選了特定 ETF、或在搜尋框篩選出單一 ETF、或在成分股視圖選取特定 ETF，針對該檔 ETF 產出獨立專屬解讀
+    const focusedSymbol =
+      subView === "holdings"
+        ? selectedHoldingEtf
+        : selectedArbitrageItem?.symbol || (filteredItems.length === 1 ? filteredItems[0].symbol : "");
+
+    if (focusedSymbol) {
+      const targetItem =
+        items.find((x) => x.symbol === focusedSymbol) ||
+        (selectedArbitrageItem
+          ? {
+              symbol: selectedArbitrageItem.symbol,
+              name: selectedArbitrageItem.name,
+              category: "ETF",
+              market: selectedArbitrageItem.market,
+              price: selectedArbitrageItem.price,
+              nav: selectedArbitrageItem.nav,
+              nav_discount_pct: selectedArbitrageItem.discount_pct,
+              change_pct: 0,
+              flow_1d: Number(((selectedArbitrageItem.shares_net * selectedArbitrageItem.price) / 100000).toFixed(1)),
+              flow_5d: Number(((selectedArbitrageItem.shares_net * selectedArbitrageItem.price) / 25000).toFixed(1)),
+              flow_20d: Number(((selectedArbitrageItem.shares_net * selectedArbitrageItem.price) / 8000).toFixed(1)),
+              flow_ytd: 0,
+              shares_net: selectedArbitrageItem.shares_net,
+              aum: 100,
+              aum_growth_pct: 5,
+              dividend_yield: 0,
+              institutional_stance: selectedArbitrageItem.discount_pct > 0 ? "溢價追買" : "折價收斂",
+            }
+          : null);
+
+      const prof = ETF_CATALOG[focusedSymbol] || resolveETFProfile(focusedSymbol);
+      const topHoldings = (prof?.holdings || []).slice(0, 3);
+      const topHoldingsStr =
+        topHoldings.length > 0
+          ? topHoldings.map((h) => `${h.name}(${h.symbol}, ${h.weight}%)`).join("、")
+          : "核心指數成分股";
+
+      const fVal = targetItem
+        ? period === "1d"
+          ? targetItem.flow_1d
+          : period === "5d"
+          ? targetItem.flow_5d
+          : period === "20d"
+          ? targetItem.flow_20d
+          : targetItem.flow_ytd
+        : 0;
+      const disc = targetItem?.nav_discount_pct ?? 0;
+      const netLots = targetItem?.shares_net ?? 0;
+      const etfTitle = targetItem ? `${targetItem.symbol} ${targetItem.name}` : `${focusedSymbol} ${prof?.name || ""}`;
+
+      const part1Title = `1. ${etfTitle} 申贖與資金動能`;
+      const part1Text =
+        fVal >= 0
+          ? `${etfTitle} ${periodLabel}呈現淨申購流入 +${Math.abs(fVal).toFixed(1)} 億元（估計申贖異動 ${netLots >= 0 ? "+" : ""}${Math.round(netLots).toLocaleString()} 張），規模 AUM 達 ${targetItem?.aum?.toLocaleString() || "—"} 億元，籌碼意向屬於「${targetItem?.institutional_stance || "法人偏多配置"}」，被動買盤持續為成分股提供下檔支撐。`
+          : `${etfTitle} ${periodLabel}呈現階段性獲利調節，淨流出約 ${Math.abs(fVal).toFixed(1)} 億元（申贖異動 ${Math.round(netLots).toLocaleString()} 張），籌碼意向為「${targetItem?.institutional_stance || "逢高調節"}」，短線留意次級市場賣壓消化進度。`;
+
+      const part2Title = `2. ${etfTitle} 即時折溢價與套利空間`;
+      const part2Text =
+        disc > 0.3
+          ? `${etfTitle} 目前市價（${targetItem?.price?.toFixed(2)}）高於官方即時淨值（${targetItem?.nav?.toFixed(2)}），出現 +${disc.toFixed(2)}% 溢價，顯示次級市場追價買盤強勁，建議勿盲目追高，待溢價收斂至 +0.2% 內再行布局。`
+          : disc < -0.25
+          ? `${etfTitle} 目前出現 ${disc.toFixed(2)}% 折價（市價 ${targetItem?.price?.toFixed(2)} 低於淨值 ${targetItem?.nav?.toFixed(2)}），具備向淨值收斂之安全邊際，適合中長線分批低接。`
+          : `${etfTitle} 目前折溢價率為 ${disc > 0 ? "+" : ""}${disc.toFixed(2)}%，市價與官方即時淨值（${targetItem?.nav?.toFixed(2)}）高度貼合，流動性造市效率極佳，無溢價追高風險。`;
+
+      const part3Title = `3. 核心成分股穿透與調倉建議`;
+      const part3Text = `${etfTitle} 前三大核心權重股為 ${topHoldingsStr}。${
+        fVal >= 0
+          ? "隨基金申購規模擴張，投信將按權重比例於盤中及尾盤被動加碼上述權值核心股，可優先關注高權重成分股之順勢表現。"
+          : "受短線贖回影響，高權重成分股可能面臨被動調節賣壓，建議搭配個別 ETF 追蹤頁的「成分股與每日資產變動明細」追蹤每日實際增減張數。"
+      }`;
+
+      return { part1Title, part1Text, part2Title, part2Text, part3Title, part3Text, focusedTitle: etfTitle };
+    }
+
+    const baseList = filteredItems.length > 0 ? filteredItems : items;
+    const sortedByFlow = [...baseList].sort((a, b) => {
+      const fA = period === "1d" ? a.flow_1d : period === "5d" ? a.flow_5d : period === "20d" ? a.flow_20d : a.flow_ytd;
+      const fB = period === "1d" ? b.flow_1d : period === "5d" ? b.flow_5d : period === "20d" ? b.flow_20d : b.flow_ytd;
       return fB - fA;
     });
 
-    const topInflow1 = sortedByFlow.find((x) => (period === "1d" ? x.flow_1d : x.flow_5d) > 0);
-    const topInflow2 = sortedByFlow.filter((x) => (period === "1d" ? x.flow_1d : x.flow_5d) > 0)[1];
-    const topOutflow1 = [...sortedByFlow].reverse().find((x) => (period === "1d" ? x.flow_1d : x.flow_5d) < 0);
-    const topOutflow2 = [...sortedByFlow].reverse().filter((x) => (period === "1d" ? x.flow_1d : x.flow_5d) < 0)[1];
+    const getFlow = (x: EtfFlowItem) =>
+      period === "1d" ? x.flow_1d : period === "5d" ? x.flow_5d : period === "20d" ? x.flow_20d : x.flow_ytd;
 
-    const topCategory = categorySummary[0];
+    const topInflow1 = sortedByFlow.find((x) => getFlow(x) > 0);
+    const topInflow2 = sortedByFlow.filter((x) => getFlow(x) > 0)[1];
+    const topOutflow1 = [...sortedByFlow].reverse().find((x) => getFlow(x) < 0);
+    const topOutflow2 = [...sortedByFlow].reverse().filter((x) => getFlow(x) < 0)[1];
 
-    const premiums = items.filter((x) => x.nav_discount_pct > 0.15).sort((a, b) => b.nav_discount_pct - a.nav_discount_pct);
-    const discounts = items.filter((x) => x.nav_discount_pct < -0.15).sort((a, b) => a.nav_discount_pct - b.nav_discount_pct);
+    const topCategory =
+      selectedCategory !== "all"
+        ? categorySummary.find(([c]) => c === selectedCategory) || categorySummary[0]
+        : categorySummary[0];
 
-    const periodLabel = period === "1d" ? "今日" : period === "5d" ? "近5日" : period === "20d" ? "近月" : "今年以來";
+    const premiums = baseList.filter((x) => x.nav_discount_pct > 0.15).sort((a, b) => b.nav_discount_pct - a.nav_discount_pct);
+    const discounts = baseList.filter((x) => x.nav_discount_pct < -0.15).sort((a, b) => a.nav_discount_pct - b.nav_discount_pct);
 
-    let part1Title = "1. 主力資金申贖與板塊偏好";
+    const scopeLabel =
+      selectedCategory !== "all"
+        ? `【${selectedCategory}】板塊`
+        : market === "TW"
+        ? "台股 ETF 市場"
+        : market === "US"
+        ? "美股 ETF 市場"
+        : "全市場";
+
+    let part1Title = `1. ${scopeLabel}主力申贖與吸金焦點`;
     let part1Text = "";
     if (topInflow1) {
-      const f1 = period === "1d" ? topInflow1.flow_1d : topInflow1.flow_5d;
-      const f2 = topInflow2 ? (period === "1d" ? topInflow2.flow_1d : topInflow2.flow_5d) : 0;
-      part1Title = `1. ${topCategory ? topCategory[0] : "市場"}吸金力道強勁`;
-      part1Text = `${periodLabel}全市場淨申購龍頭為 ${topInflow1.symbol} ${topInflow1.name}，單檔估計淨流入逾 ${Math.abs(f1).toFixed(1)} 億元${
+      const f1 = getFlow(topInflow1);
+      const f2 = topInflow2 ? getFlow(topInflow2) : 0;
+      part1Text = `${periodLabel}${scopeLabel}淨申購龍頭為 ${topInflow1.symbol} ${topInflow1.name}，單檔淨流入達 +${Math.abs(f1).toFixed(1)} 億元${
         topInflow2 ? `，其次為 ${topInflow2.symbol} ${topInflow2.name}（淨流入 +${Math.abs(f2).toFixed(1)} 億元）` : ""
-      }。從大類板塊觀察，${topCategory ? `【${topCategory[0]}】合計吸金達 +${topCategory[1].totalFlow.toFixed(1)} 億元` : ""}，資金顯著往具備高流動性與防守/成長題材的標的集中。`;
+      }。${topCategory ? `【${topCategory[0]}】板塊合計資金動能達 ${topCategory[1].totalFlow >= 0 ? "+" : ""}${topCategory[1].totalFlow.toFixed(1)} 億元，` : ""}資金明顯集中於高流動性核心標的。`;
     } else {
-      part1Text = `${periodLabel}全市場 ETF 申贖平衡，造市商主要依據盤中即時流動性進行動態中性避險，大盤加權指數波動平穩。`;
+      part1Text = `${periodLabel}${scopeLabel}處於申贖再平衡階段，造市商依據盤中流動性進行中性避險調節。`;
     }
 
-    let part2Title = "2. 即時折溢價與套利空間監測";
+    let part2Title = `2. ${scopeLabel}即時折溢價與套利空間監測`;
     let part2Text = "";
     if (premiums.length > 0) {
       const topP = premiums[0];
-      part2Text = `監測到 ${topP.symbol} ${topP.name} 出現 +${topP.nav_discount_pct.toFixed(2)}% 之次級市場溢價${
+      part2Text = `監測到 ${topP.symbol} ${topP.name} 出現 +${topP.nav_discount_pct.toFixed(2)}% 次級市場溢價${
         premiums.length > 1 ? `，${premiums[1].symbol} 亦有 +${premiums[1].nav_discount_pct.toFixed(2)}% 溢價` : ""
-      }，反映買盤追價意願強烈。投資人盤中需留意市價偏離淨值過大之收斂風險，防範次級市場套利壓回。`;
+      }，反映買盤追價意願強勁；盤中需留意市價偏離官方淨值過大之收斂風險。`;
     } else if (discounts.length > 0) {
       const topD = discounts[0];
-      part2Text = `${topD.symbol} ${topD.name} 目前呈現 ${topD.nav_discount_pct.toFixed(2)}% 折價狀態，市價略低於基金真實淨值，具備折價收斂或中長線低接安全邊際。`;
+      part2Text = `${topD.symbol} ${topD.name} 目前呈現 ${topD.nav_discount_pct.toFixed(2)}% 折價狀態，市價低於基金真實淨值，具備折價收斂與分批低接安全邊際。`;
     } else {
-      part2Text = `全市場主流 ETF 市價與淨值貼合度極佳（折溢價差收斂在 ±0.2% 正常造市容忍區間），未見異常套利空間或大幅流動性折價現象。`;
+      part2Text = `${scopeLabel}主流 ETF 市價與官方淨值貼合度極佳（折溢價收斂於 ±0.2% 正常造市區間內），未見異常溢價追高風險。`;
     }
 
-    let part3Title = "3. 資金調節與防守警戒方向";
+    let part3Title = `3. ${scopeLabel}調節動向與成分股穿透提示`;
     let part3Text = "";
     if (topOutflow1) {
-      const o1 = period === "1d" ? topOutflow1.flow_1d : topOutflow1.flow_5d;
-      part3Title = "3. 部分調節提款與資金輪動";
-      part3Text = `${periodLabel}淨贖回/調節最顯著標的為 ${topOutflow1.symbol} ${topOutflow1.name}（淨流出約 ${Math.abs(o1).toFixed(1)} 億元）${
-        topOutflow2 ? `及 ${topOutflow2.symbol}（淨流出 ${Math.abs((period === "1d" ? topOutflow2.flow_1d : topOutflow2.flow_5d)).toFixed(1)} 億元）` : ""
-      }。研判為機構法人因應近期大盤位階之動態再平衡調倉或獲利了結，建議短線留意該板塊權重股是否面臨被動型賣盤調節壓力。`;
+      const o1 = getFlow(topOutflow1);
+      part3Text = `${periodLabel}${scopeLabel}淨贖回最顯著標的為 ${topOutflow1.symbol} ${topOutflow1.name}（淨流出約 ${Math.abs(o1).toFixed(1)} 億元）${
+        topOutflow2 ? `及 ${topOutflow2.symbol}（淨流出 ${Math.abs(getFlow(topOutflow2)).toFixed(1)} 億元）` : ""
+      }。建議點入個別 ETF 查看「成分股與每日資產變動明細」，追蹤投信被動加碼或調節之權重股。`;
     } else {
-      part3Text = "目前未見大規模機構贖回或避險反向 ETF 異常激增現象，整體市場籌碼架構偏向多方健康換手。";
+      part3Text = `目前${scopeLabel}未見大規模機構贖回現象，點選任一 ETF 可直接穿透檢視其最新成分股權重與今日增減張數明細。`;
     }
 
-    return { part1Title, part1Text, part2Title, part2Text, part3Title, part3Text };
-  }, [items, period, categorySummary]);
+    return { part1Title, part1Text, part2Title, part2Text, part3Title, part3Text, focusedTitle: "" };
+  }, [items, filteredItems, period, categorySummary, selectedCategory, market, subView, selectedHoldingEtf, selectedArbitrageItem]);
 
   return (
     <div className="space-y-6">
@@ -1370,13 +1460,21 @@ export default function EtfCapitalFlowTracker({
                   </div>
                 </div>
 
-                <Link
-                  href={`/stock/${selectedArbitrageItem.symbol}`}
-                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent/90 transition-colors whitespace-nowrap"
-                >
-                  <span>查看 {selectedArbitrageItem.symbol} 每日折溢價與成分股</span>
-                  <ArrowRight size={13} />
-                </Link>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedArbitrageEtf("")}
+                    className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)] text-xs text-secondary hover:text-primary cursor-pointer"
+                  >
+                    取消選取
+                  </button>
+                  <Link
+                    href={`/stock/${selectedArbitrageItem.symbol}?tab=etf-info`}
+                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent/90 transition-colors whitespace-nowrap"
+                  >
+                    <span>查看 {selectedArbitrageItem.symbol} 成分股與每日變動</span>
+                    <ArrowRight size={13} />
+                  </Link>
+                </div>
               </div>
             )}
 
@@ -1400,7 +1498,7 @@ export default function EtfCapitalFlowTracker({
                   return (
                     <button
                       key={it.symbol}
-                      onClick={() => setSelectedArbitrageEtf(it.symbol)}
+                      onClick={() => setSelectedArbitrageEtf(isSelected ? "" : it.symbol)}
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition-all cursor-pointer ${
                         isSelected
                           ? "bg-amber-500/25 border-amber-400 shadow-sm"
@@ -1498,14 +1596,17 @@ export default function EtfCapitalFlowTracker({
                           <td>
                             <div className="flex items-center gap-2">
                               <Link
-                                href={`/stock/${item.symbol}`}
+                                href={`/stock/${item.symbol}?tab=etf-info`}
                                 className="font-mono font-bold text-accent hover:underline"
                               >
                                 {item.symbol}
                               </Link>
-                              <span className="font-medium text-primary text-sm truncate max-w-[140px]">
+                              <Link
+                                href={`/stock/${item.symbol}?tab=etf-info`}
+                                className="font-medium text-primary hover:text-accent transition-colors text-sm truncate max-w-[140px]"
+                              >
                                 {item.name}
-                              </span>
+                              </Link>
                               <span className="text-[10px] px-1.5 py-0.2 rounded bg-[var(--bg-tertiary)] text-muted font-mono">
                                 {item.market}
                               </span>
@@ -1865,7 +1966,7 @@ export default function EtfCapitalFlowTracker({
       <div className="p-4 sm:p-5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)]">
         <div className="flex items-center gap-2 mb-2 text-primary font-bold text-sm">
           <Sparkles size={16} className="text-accent" />
-          <span>法人研究部：今日 ETF 資金動向核心解讀與籌碼透視 (即時動態分析)</span>
+          <span>法人研究部：{dynamicResearch.focusedTitle ? `${dynamicResearch.focusedTitle} 專屬` : "今日 ETF "}資金動向核心解讀與籌碼透視 (即時動態分析)</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-secondary leading-relaxed pt-2">
           <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)]">

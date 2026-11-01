@@ -91,6 +91,13 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   }, [symbol]);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const requestedTab = sp.get("tab");
+      if (requestedTab) {
+        setActiveTab(requestedTab);
+      }
+    }
     setInWatchlist(isSymbolInWatchlist(symbol));
     setDeepSummary(null);
 
@@ -432,6 +439,16 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                       onClick={() => setActiveTab("financials")}
                     >
                       <span>查看完整財報與四大模型報告</span>
+                    </Button>
+                  )}
+                  {detectAssetType(stock.symbol) !== "STOCK" && activeTab !== "etf-info" && (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      className="w-full"
+                      onClick={() => setActiveTab("etf-info")}
+                    >
+                      <span>查看 ETF 折溢價、成分股與每日變動</span>
                     </Button>
                   )}
                 </div>
