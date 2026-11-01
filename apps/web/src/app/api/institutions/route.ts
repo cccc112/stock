@@ -30,14 +30,18 @@ export async function GET(req: NextRequest) {
         ),
       ]);
 
-      const priceMap: Record<string, number> = {};
+      const ohlcMap: Record<string, { open: number; high: number; low: number; close: number }> = {};
       let latestClose = 0;
       if (priceRes.status === "fulfilled" && priceRes.value.ok) {
         const pJson = await priceRes.value.json();
         for (const r of pJson?.data || []) {
           if (r.date && r.close) {
-            priceMap[r.date] = Number(r.close);
-            latestClose = Number(r.close);
+            const c = Number(r.close);
+            const o = Number(r.open) || c;
+            const h = Number(r.max) || Math.max(o, c);
+            const l = Number(r.min) || Math.min(o, c);
+            ohlcMap[r.date] = { open: o, high: h, low: l, close: c };
+            latestClose = c;
           }
         }
       }
@@ -54,20 +58,41 @@ export async function GET(req: NextRequest) {
         const rows = instJson?.data || [];
         const dailyMap: Record<
           string,
-          { date: string; full_date: string; foreign: number; trust: number; dealer: number; close: number }
+          {
+            date: string;
+            full_date: string;
+            foreign: number;
+            trust: number;
+            dealer: number;
+            open: number;
+            high: number;
+            low: number;
+            close: number;
+            klineRange: [number, number];
+          }
         > = {};
 
         for (const r of rows) {
           const d = String(r.date || "");
           if (!d) continue;
           if (!dailyMap[d]) {
+            const bar = ohlcMap[d] || {
+              open: latestClose,
+              high: latestClose,
+              low: latestClose,
+              close: latestClose,
+            };
             dailyMap[d] = {
               date: d.slice(5).replace("-", "/"),
               full_date: d,
               foreign: 0,
               trust: 0,
               dealer: 0,
-              close: priceMap[d] || latestClose,
+              open: bar.open,
+              high: bar.high,
+              low: bar.low,
+              close: bar.close,
+              klineRange: [bar.low, bar.high],
             };
           }
           const netShares = Math.round(((Number(r.buy) || 0) - (Number(r.sell) || 0)) / 1000);
@@ -144,19 +169,50 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "No institutional data for symbol" }, { status: 404 });
     }
 
-    // 2. 全市場大盤三大法人每日買賣超 (TaiwanStockTotalInstitutionalInvestors)
+    // 2. 全市場大盤三大法人每日買賣超 + 加權指數 (TAIEX) K線開高低收
     const startDate = getStartDate(35);
-    const res = await fetch(
-      `${FINMIND_URL}?dataset=TaiwanStockTotalInstitutionalInvestors&start_date=${startDate}`,
-      { next: { revalidate: 300 } }
-    );
+    const [res, taiexRes] = await Promise.allSettled([
+      fetch(`${FINMIND_URL}?dataset=TaiwanStockTotalInstitutionalInvestors&start_date=${startDate}`, {
+        next: { revalidate: 300 },
+      }),
+      fetch(`${FINMIND_URL}?dataset=TaiwanStockPrice&data_id=TAIEX&start_date=${startDate}`, {
+        next: { revalidate: 300 },
+      }),
+    ]);
 
-    if (res.ok) {
-      const json = await res.json();
+    const taiexMap: Record<string, { open: number; high: number; low: number; close: number }> = {};
+    let lastTaiex = { open: 23500, high: 23650, low: 23380, close: 23550 };
+    if (taiexRes.status === "fulfilled" && taiexRes.value.ok) {
+      const tJson = await taiexRes.value.json();
+      for (const r of tJson?.data || []) {
+        if (r.date && r.close) {
+          const c = Number(r.close);
+          const o = Number(r.open) || c;
+          const h = Number(r.max) || Math.max(o, c);
+          const l = Number(r.min) || Math.min(o, c);
+          taiexMap[r.date] = { open: o, high: h, low: l, close: c };
+          lastTaiex = taiexMap[r.date];
+        }
+      }
+    }
+
+    if (res.status === "fulfilled" && res.value.ok) {
+      const json = await res.value.json();
       const rows = json?.data || [];
       const dailyMap: Record<
         string,
-        { date: string; full_date: string; foreign: number; trust: number; dealer: number }
+        {
+          date: string;
+          full_date: string;
+          foreign: number;
+          trust: number;
+          dealer: number;
+          open: number;
+          high: number;
+          low: number;
+          close: number;
+          klineRange: [number, number];
+        }
       > = {};
 
       for (const r of rows) {
@@ -165,12 +221,18 @@ export async function GET(req: NextRequest) {
         if (!d || name === "total") continue;
 
         if (!dailyMap[d]) {
+          const bar = taiexMap[d] || lastTaiex;
           dailyMap[d] = {
             date: d.slice(5).replace("-", "/"),
             full_date: d,
             foreign: 0,
             trust: 0,
             dealer: 0,
+            open: bar.open,
+            high: bar.high,
+            low: bar.low,
+            close: bar.close,
+            klineRange: [bar.low, bar.high],
           };
         }
 

@@ -355,14 +355,24 @@ export default function CelebrityRadar() {
               <button
                 type="submit"
                 disabled={customLoading || !customText.trim()}
-                className="px-4 py-2 rounded-lg bg-accent text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                className="px-4 py-2 rounded-lg bg-accent text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap active:scale-95 transition-all"
               >
-                <Send size={13} />
-                {customLoading ? "AI 推演中..." : "AI 立即分析"}
+                {customLoading ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                {customLoading ? "AI 深度推演中..." : "AI 立即分析"}
               </button>
             </div>
           </div>
         </form>
+
+        {customLoading && (
+          <div className="mt-4 p-4 rounded-xl bg-accent/10 border border-accent/30 flex items-center gap-3 text-xs text-primary animate-fade-in">
+            <Loader2 size={18} className="animate-spin text-accent flex-shrink-0" />
+            <div>
+              <div className="font-bold text-accent">正在透過 Gemini 3.8 Flash 深度推演此篇貼文...</div>
+              <div className="text-secondary mt-0.5">正在分析政策因果鏈與計算受惠/承壓之台美股標的，請稍候 1~2 秒</div>
+            </div>
+          </div>
+        )}
 
         {customResult && (
           <div className="mt-4 p-4 rounded-xl bg-[var(--bg-tertiary)]/90 border border-accent/40 space-y-3 animate-fade-in">
@@ -454,8 +464,10 @@ export default function CelebrityRadar() {
       </div>
 
       {loading ? (
-        <div className="py-16 text-center text-secondary text-sm animate-pulse">
-          正在即時掃描最新財經貼文並過濾非財經雜訊...
+        <div className="py-16 flex flex-col items-center justify-center gap-3 text-center text-secondary text-sm animate-fade-in">
+          <Loader2 size={28} className="animate-spin text-accent" />
+          <div className="font-semibold text-primary">正在即時同步原始貼文串流...</div>
+          <div className="text-xs text-secondary">正在連線 Truth Social (@realDonaldTrump) 並轉換繁體中文對照</div>
         </div>
       ) : items.length === 0 ? (
         <div className="py-16 text-center text-secondary text-sm">
@@ -582,6 +594,21 @@ export default function CelebrityRadar() {
                     </div>
                   )}
                 </div>
+
+                {/* 點擊按鈕後立即顯示動畫載入狀態 */}
+                {isAnalyzing && (
+                  <div className="p-4 rounded-xl bg-accent/10 border border-accent/30 flex items-center gap-3 text-xs animate-fade-in">
+                    <Loader2 size={18} className="animate-spin text-accent flex-shrink-0" />
+                    <div className="space-y-1 flex-1">
+                      <div className="font-bold text-accent">
+                        正在使用 Gemini 3.8 Flash 針對此篇貼文執行專屬 AI 分析...
+                      </div>
+                      <div className="text-secondary">
+                        正在解析貼文語意、評估市場多空衝擊並篩選直接連動之台美股標的
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* 只有當使用者點擊「AI 分析此貼文並給出建議」後，才展開此篇貼文的專屬 AI 分析與推薦標的 */}
                 {analysis && (

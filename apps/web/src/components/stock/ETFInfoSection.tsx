@@ -105,9 +105,10 @@ function computePerfFromBars(bars: any[]) {
 }
 
 const fmtPct = (v: number | null | undefined, signed = true) => {
-  if (v == null) return "—";
-  const prefix = signed && v > 0 ? "+" : "";
-  return `${prefix}${v.toFixed(2)}%`;
+  const num = Number(v);
+  if (v == null || !Number.isFinite(num)) return "—";
+  const prefix = signed && num > 0 ? "+" : "";
+  return `${prefix}${num.toFixed(2)}%`;
 };
 
 export default function ETFInfoSection({ symbol }: { symbol: string }) {
@@ -251,16 +252,6 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
     };
   }, [symbol]);
 
-  if (loading) {
-    return <div className="text-secondary py-10 text-center text-sm">載入追蹤資訊中...</div>;
-  }
-  if (!data) {
-    return <div className="text-secondary py-10 text-center text-sm">無法載入追蹤資訊</div>;
-  }
-
-  const p = data.performance;
-  const m = data.market;
-
   const enrichedHoldings = useMemo(() => {
     if (!data?.holdings || !Array.isArray(data.holdings)) return [];
     return data.holdings
@@ -303,6 +294,31 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
       });
   }, [data?.holdings, deltaRecord, holdingFilter]);
 
+  if (loading) {
+    return (
+      <div className="py-12 flex flex-col items-center justify-center gap-3 text-secondary text-sm animate-fade-in">
+        <div className="w-7 h-7 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+        <span>正在載入標的規格、淨值折溢價與追蹤指數資訊...</span>
+      </div>
+    );
+  }
+  if (!data) {
+    return <div className="text-secondary py-10 text-center text-sm">無法載入追蹤資訊</div>;
+  }
+
+  const p = data.performance || {
+    ret_1m: null,
+    ret_3m: null,
+    ret_6m: null,
+    ret_1y: null,
+    high_52w: null,
+    low_52w: null,
+    volatility_annual: null,
+    max_drawdown_1y: null,
+    bias_20ma: null,
+  };
+  const m = data.market || "TW";
+
   return (
     <div className="space-y-6 pt-2">
       {/* 0. 即時市價、基金淨值與每日折溢價監控看板 */}
@@ -331,7 +347,9 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
             </div>
             <div className="text-xl font-bold font-mono tabular-nums text-primary">
               {m === "US" ? "$" : "NT$"}
-              {etfNav?.price ? etfNav.price.toFixed(2) : "—"}
+              {Number.isFinite(Number(etfNav?.price)) && Number(etfNav?.price) > 0
+                ? Number(etfNav.price).toFixed(2)
+                : "—"}
             </div>
             <div className="text-[10px] text-muted mt-1">盤中次級市場撮合市價</div>
           </div>
@@ -342,7 +360,9 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
             </div>
             <div className="text-xl font-bold font-mono tabular-nums text-accent">
               {m === "US" ? "$" : "NT$"}
-              {etfNav?.nav ? etfNav.nav.toFixed(2) : "—"}
+              {Number.isFinite(Number(etfNav?.nav)) && Number(etfNav?.nav) > 0
+                ? Number(etfNav.nav).toFixed(2)
+                : "—"}
             </div>
             <div className="text-[10px] text-muted mt-1">初級市場實質資產價值</div>
           </div>
@@ -353,18 +373,25 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
             </div>
             <div
               className={`text-xl font-bold font-mono tabular-nums ${
-                (etfNav?.discount_pct || 0) > 0.3
+                (Number(etfNav?.discount_pct) || 0) > 0.3
                   ? "text-amber-400"
-                  : (etfNav?.discount_pct || 0) < -0.3
+                  : (Number(etfNav?.discount_pct) || 0) < -0.3
                   ? "text-emerald-400"
                   : "text-primary"
               }`}
             >
-              {(etfNav?.discount_pct || 0) > 0 ? "+" : ""}
-              {etfNav?.discount_pct != null ? etfNav.discount_pct.toFixed(2) : "0.00"}%
+              {(Number(etfNav?.discount_pct) || 0) > 0 ? "+" : ""}
+              {etfNav?.discount_pct != null && Number.isFinite(Number(etfNav.discount_pct))
+                ? Number(etfNav.discount_pct).toFixed(2)
+                : "0.00"}
+              %
             </div>
             <div className="text-[10px] font-medium mt-1">
-              {(etfNav?.discount_pct || 0) > 0 ? "溢價 (市價高於淨值)" : (etfNav?.discount_pct || 0) < 0 ? "折價 (市價低於淨值)" : "平價"}
+              {(Number(etfNav?.discount_pct) || 0) > 0
+                ? "溢價 (市價高於淨值)"
+                : (Number(etfNav?.discount_pct) || 0) < 0
+                ? "折價 (市價低於淨值)"
+                : "平價"}
             </div>
           </div>
 
@@ -410,10 +437,12 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
             </span>
             <span className="text-xs text-secondary">{data.issuer}</span>
           </div>
-          {data.dividend_yield != null && (
+          {data.dividend_yield != null && Number.isFinite(Number(data.dividend_yield)) && (
             <div className="text-xs text-secondary">
               <Term term="dividend_yield" label="參考年化殖利率" />：
-              <span className="font-mono font-semibold text-primary ml-1">{data.dividend_yield.toFixed(2)}%</span>
+              <span className="font-mono font-semibold text-primary ml-1">
+                {Number(data.dividend_yield).toFixed(2)}%
+              </span>
             </div>
           )}
         </div>

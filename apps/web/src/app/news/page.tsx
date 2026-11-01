@@ -199,10 +199,7 @@ export default function NewsPage() {
           }`}
         >
           <MessageSquareQuote size={16} />
-          <span>名人貼文追蹤與 AI 投顧分析 (川普 / 馬斯克 / 黃仁勳)</span>
-          <span className="px-1.5 py-0.5 rounded text-[10px] bg-accent/15 text-accent font-bold">
-            AI 建議
-          </span>
+          <span>名人貼文追蹤</span>
           {mainView === "CELEBRITY_RADAR" && (
             <div className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-accent rounded-t-full" />
           )}

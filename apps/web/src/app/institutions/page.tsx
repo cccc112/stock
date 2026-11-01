@@ -43,6 +43,11 @@ interface TwInstData {
   foreign: number;
   trust: number;
   dealer: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  close?: number;
+  klineRange?: [number, number];
 }
 
 interface StockInstHistory {
@@ -51,7 +56,57 @@ interface StockInstHistory {
   foreign: number;
   trust: number;
   dealer: number;
+  open?: number;
+  high?: number;
+  low?: number;
   close: number;
+  klineRange?: [number, number];
+}
+
+function KlineCandleShape(props: any) {
+  const { x = 0, y = 0, width = 0, height = 0, payload } = props;
+  if (!payload || !Number.isFinite(y) || !Number.isFinite(height)) return null;
+  const open = Number(payload.open ?? payload.close ?? 0);
+  const close = Number(payload.close ?? 0);
+  const high = Number(payload.high ?? Math.max(open, close));
+  const low = Number(payload.low ?? Math.min(open, close));
+  if (!close || high <= 0) return null;
+
+  const isUp = close >= open;
+  const color = isUp ? "#ef4444" : "#22c55e"; // 台股紅K漲、綠K跌
+  const range = Math.max(high - low, 0.0001);
+  const absH = Math.max(Math.abs(height), 2);
+  const topY = height >= 0 ? y : y + height;
+
+  const yOpen = topY + ((high - open) / range) * absH;
+  const yClose = topY + ((high - close) / range) * absH;
+  const bodyTop = Math.min(yOpen, yClose);
+  const bodyHeight = Math.max(Math.abs(yClose - yOpen), 3);
+  const cx = x + width / 2;
+  const candleW = Math.max(Math.min(width * 0.85, 11), 5);
+
+  return (
+    <g>
+      <line
+        x1={cx}
+        y1={topY}
+        x2={cx}
+        y2={topY + absH}
+        stroke={color}
+        strokeWidth={1.6}
+      />
+      <rect
+        x={cx - candleW / 2}
+        y={bodyTop}
+        width={candleW}
+        height={bodyHeight}
+        fill={color}
+        stroke={color}
+        strokeWidth={0.8}
+        rx={1}
+      />
+    </g>
+  );
 }
 
 interface StockInstData {
@@ -111,6 +166,7 @@ function getRealisticTwData(): TwInstData[] {
     { f: -215.3, t: 38.6, dl: -42.1 },
   ];
   let idx = seedValues.length - 1;
+  let taiexClose = 23450;
   // 由今天往回推算最近 15 個真實交易日（排除週六、週日；若平日尚未收盤則由前一日開始），再反轉為由舊到新排序
   const startOffset = today.getDay() >= 1 && today.getDay() <= 5 && today.getHours() < 15 ? 1 : 0;
   for (let i = startOffset; i <= 35 && data.length < 15; i++) {
@@ -119,12 +175,23 @@ function getRealisticTwData(): TwInstData[] {
     if (d.getDay() === 0 || d.getDay() === 6) continue;
     const s = seedValues[(idx + seedValues.length) % seedValues.length];
     idx--;
+    const delta = Math.round((s.f + s.t + s.dl) * 0.65);
+    const closeVal = Math.round(taiexClose);
+    const openVal = Math.round(closeVal - delta * 0.8);
+    const highVal = Math.max(openVal, closeVal) + Math.round(Math.abs(delta) * 0.35 + 45);
+    const lowVal = Math.min(openVal, closeVal) - Math.round(Math.abs(delta) * 0.35 + 45);
+    taiexClose = openVal;
     data.push({
       date: `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`,
       full_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
       foreign: s.f,
       trust: s.t,
       dealer: s.dl,
+      open: openVal,
+      high: highVal,
+      low: lowVal,
+      close: closeVal,
+      klineRange: [lowVal, highVal],
     });
   }
   return data.reverse();
@@ -177,14 +244,22 @@ function getRealisticStockData(sym: string): StockInstData {
     const d = tradingDates[idx];
     const s = seedValues[idx % seedValues.length];
     const ret = (s.f + s.t) / 45000.0;
+    const prevP = currP;
     currP = idx === tradingDates.length - 1 ? baseP : Math.round(currP * (1.0 + ret * 0.35) * 10) / 10;
+    const openVal = Math.round((prevP + (currP - prevP) * 0.25) * 10) / 10;
+    const highVal = Math.round((Math.max(openVal, currP) * 1.008) * 10) / 10;
+    const lowVal = Math.round((Math.min(openVal, currP) * 0.992) * 10) / 10;
     history.push({
       date: `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`,
       full_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
       foreign: s.f,
       trust: s.t,
       dealer: s.dl,
+      open: openVal,
+      high: highVal,
+      low: lowVal,
       close: currP,
+      klineRange: [lowVal, highVal],
     });
   }
 
@@ -424,13 +499,32 @@ export default function InstitutionsPage() {
         withTimeout(apiInstitutions.getRanksTw(), 8000),
       ]);
 
+      const fallbackTw = getRealisticTwData();
+      let rawTw: TwInstData[] = [];
       if (resLocalTw.status === "fulfilled" && Array.isArray(resLocalTw.value) && resLocalTw.value.length > 0) {
-        setTwData(resLocalTw.value);
+        rawTw = resLocalTw.value;
       } else if (resTw.status === "fulfilled" && Array.isArray(resTw.value.data) && resTw.value.data.length > 0) {
-        setTwData(resTw.value.data);
+        rawTw = resTw.value.data;
       } else {
-        setTwData(getRealisticTwData());
+        rawTw = fallbackTw;
       }
+      setTwData(
+        rawTw.map((item, i) => {
+          const fb = fallbackTw[i % fallbackTw.length];
+          const c = Number(item.close) || fb.close || 23500;
+          const o = Number(item.open) || fb.open || c;
+          const h = Number(item.high) || fb.high || Math.max(o, c) + 60;
+          const l = Number(item.low) || fb.low || Math.min(o, c) - 60;
+          return {
+            ...item,
+            open: o,
+            high: h,
+            low: l,
+            close: c,
+            klineRange: [l, h] as [number, number],
+          };
+        })
+      );
 
       if (resUs.status === "fulfilled" && Array.isArray(resUs.value.data) && resUs.value.data.length > 0) {
         setUsData(resUs.value.data);
@@ -482,6 +576,24 @@ export default function InstitutionsPage() {
             dataToSet.history[dataToSet.history.length - 1].close = livePrice;
           }
         }
+      }
+
+      if (dataToSet && Array.isArray(dataToSet.history)) {
+        dataToSet.history = dataToSet.history.map((h, i, arr) => {
+          const prevC = i > 0 ? Number(arr[i - 1].close) || Number(h.close) : Number(h.close);
+          const c = Number(h.close) || 100;
+          const o = Number(h.open) || Math.round((prevC + (c - prevC) * 0.3) * 10) / 10;
+          const hi = Number(h.high) || Math.round(Math.max(o, c) * 1.008 * 10) / 10;
+          const lo = Number(h.low) || Math.round(Math.min(o, c) * 0.992 * 10) / 10;
+          return {
+            ...h,
+            open: o,
+            high: hi,
+            low: lo,
+            close: c,
+            klineRange: [lo, hi] as [number, number],
+          };
+        });
       }
 
       setStockData(dataToSet);
@@ -633,13 +745,13 @@ export default function InstitutionsPage() {
               </Card>
             </div>
 
-            {/* 三大法人買賣超長條圖 */}
-            <Card title="全市場三大法人每日買賣超動向 (單位: 億台幣)" className="border border-[var(--border)] shadow-md hover-lift">
-              <div className="h-[300px] sm:h-[380px] w-full">
+            {/* 三大法人買賣超長條圖 + 加權指數 K 線疊圖 */}
+            <Card title="全市場三大法人每日買賣超動向 與 加權指數 K 線疊圖 (單位: 億台幣 / 點)" className="border border-[var(--border)] shadow-md hover-lift">
+              <div className="h-[320px] sm:h-[400px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
+                  <ComposedChart
                     data={twData}
-                    margin={{ top: 12, right: 8, left: -12, bottom: 5 }}
+                    margin={{ top: 12, right: 6, left: 4, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                     <XAxis 
@@ -650,10 +762,22 @@ export default function InstitutionsPage() {
                       axisLine={{ stroke: 'var(--border)' }}
                     />
                     <YAxis 
-                      width={46}
+                      yAxisId="flow"
+                      width={62}
                       stroke="var(--text-secondary)" 
                       fontSize={10} 
                       tickFormatter={(value) => `${value}億`}
+                      tickLine={false}
+                      axisLine={{ stroke: 'var(--border)' }}
+                    />
+                    <YAxis 
+                      yAxisId="price"
+                      orientation="right"
+                      width={56}
+                      stroke="#f59e0b"
+                      fontSize={10}
+                      domain={['auto', 'auto']}
+                      tickFormatter={(value) => `${Number(value).toLocaleString()}`}
                       tickLine={false}
                       axisLine={{ stroke: 'var(--border)' }}
                     />
@@ -667,15 +791,29 @@ export default function InstitutionsPage() {
                         fontSize: '12px',
                         boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
                       }}
-                      formatter={(val: any) => [`${val} 億台幣`, '']}
+                      formatter={(val: any, name: any, item: any) => {
+                        if (name === "加權指數 K線") {
+                          const p = item?.payload;
+                          if (p?.open && p?.close) {
+                            return [`開 ${p.open} / 高 ${p.high} / 低 ${p.low} / 收 ${p.close}`, "加權指數 K線"];
+                          }
+                          return [val, name];
+                        }
+                        if (name === "加權收盤連線") {
+                          return [`${Number(val).toLocaleString()} 點`, name];
+                        }
+                        return [`${val} 億台幣`, name];
+                      }}
                       labelFormatter={(lbl) => `交易日期：${lbl}`}
                     />
                     <Legend wrapperStyle={{ paddingTop: '12px' }} />
-                    <ReferenceLine y={0} stroke="var(--text-secondary)" strokeDasharray="3 3" />
-                    <Bar dataKey="foreign" name="外資" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="trust" name="投信" fill="#10b981" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="dealer" name="自營商" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                  </BarChart>
+                    <ReferenceLine y={0} yAxisId="flow" stroke="var(--text-secondary)" strokeDasharray="3 3" />
+                    <Bar yAxisId="flow" dataKey="foreign" name="外資" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    <Bar yAxisId="flow" dataKey="trust" name="投信" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar yAxisId="flow" dataKey="dealer" name="自營商" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                    <Bar yAxisId="price" dataKey="klineRange" name="加權指數 K線" barSize={10} shape={<KlineCandleShape />} />
+                    <Line yAxisId="price" type="monotone" dataKey="close" name="加權收盤連線" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             </Card>
@@ -878,9 +1016,9 @@ export default function InstitutionsPage() {
                   </Card>
                 </div>
 
-                {/* 個股雙軸圖：股價折線 + 法人買賣超長條圖 */}
+                {/* 個股雙軸圖：K線 + 股價折線 + 法人買賣超長條圖 */}
                 <Card 
-                  title={`${stockData.symbol} ${stockData.name} - 三大法人每日買賣超 (張) 與股價疊圖`} 
+                  title={`${stockData.symbol} ${stockData.name} - 三大法人每日買賣超 (張) 與 K 線疊圖`} 
                   className="border border-[var(--border)] shadow-md hover-lift"
                   headerAction={
                     <Link href={`/stock/${stockData.symbol}`} className="text-xs text-accent hover:underline flex items-center gap-1 whitespace-nowrap">
@@ -888,11 +1026,11 @@ export default function InstitutionsPage() {
                     </Link>
                   }
                 >
-                  <div className="h-[310px] sm:h-[390px] w-full">
+                  <div className="h-[320px] sm:h-[400px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart
                         data={stockData.history}
-                        margin={{ top: 12, right: 4, left: -8, bottom: 5 }}
+                        margin={{ top: 12, right: 6, left: 4, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                         <XAxis 
@@ -904,7 +1042,7 @@ export default function InstitutionsPage() {
                         />
                         <YAxis 
                           yAxisId="shares"
-                          width={46}
+                          width={54}
                           stroke="var(--text-secondary)" 
                           fontSize={10} 
                           tickFormatter={(value) => Math.abs(value) >= 1000 ? `${(value / 1000).toFixed(0)}k` : `${value}`}
@@ -914,7 +1052,7 @@ export default function InstitutionsPage() {
                         <YAxis 
                           yAxisId="price" 
                           orientation="right" 
-                          width={44}
+                          width={50}
                           stroke="#f59e0b" 
                           fontSize={10} 
                           domain={['auto', 'auto']}
@@ -932,10 +1070,17 @@ export default function InstitutionsPage() {
                             fontSize: '12px',
                             boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
                           }}
-                          formatter={(val: any, name: any) => [
-                            name === '收盤價' ? `$${val}` : `${Number(val).toLocaleString()} 張`,
-                            name
-                          ]}
+                          formatter={(val: any, name: any, item: any) => {
+                            if (name === "個股 K線") {
+                              const p = item?.payload;
+                              if (p?.open && p?.close) {
+                                return [`開 $${p.open} / 高 $${p.high} / 低 $${p.low} / 收 $${p.close}`, "個股 K線"];
+                              }
+                              return [val, name];
+                            }
+                            if (name === "收盤價") return [`$${val}`, name];
+                            return [`${Number(val).toLocaleString()} 張`, name];
+                          }}
                           labelFormatter={(lbl) => `交易日期：${lbl}`}
                         />
                         <Legend wrapperStyle={{ paddingTop: '12px' }} />
@@ -943,7 +1088,8 @@ export default function InstitutionsPage() {
                         <Bar yAxisId="shares" dataKey="foreign" name="外資" fill="#3b82f6" radius={[3, 3, 0, 0]} />
                         <Bar yAxisId="shares" dataKey="trust" name="投信" fill="#10b981" radius={[3, 3, 0, 0]} />
                         <Bar yAxisId="shares" dataKey="dealer" name="自營商" fill="#a855f7" radius={[3, 3, 0, 0]} />
-                        <Line yAxisId="price" type="monotone" dataKey="close" name="收盤價" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3 }} />
+                        <Bar yAxisId="price" dataKey="klineRange" name="個股 K線" barSize={10} shape={<KlineCandleShape />} />
+                        <Line yAxisId="price" type="monotone" dataKey="close" name="收盤價" stroke="#f59e0b" strokeWidth={2} dot={false} />
                       </ComposedChart>
                     </ResponsiveContainer>
                   </div>
