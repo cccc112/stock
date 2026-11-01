@@ -28,9 +28,17 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     config.baseURL = getApiBaseUrl();
+    const googleIdToken = localStorage.getItem('stock_google_id_token');
     const apiKey = localStorage.getItem('byok_api_key');
-    if (apiKey && config.headers) {
-      config.headers['Authorization'] = `Bearer ${apiKey}`;
+    if (config.headers) {
+      if (googleIdToken) {
+        config.headers['Authorization'] = `Bearer ${googleIdToken}`;
+      } else if (apiKey) {
+        config.headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+      if (apiKey) {
+        config.headers['X-Gemini-Key'] = apiKey;
+      }
     }
   }
   return config;

@@ -8,6 +8,7 @@ import psycopg
 from fastapi.responses import JSONResponse
 
 from app.services.cache import cache_service
+from app.core.rate_limit import RateLimitMiddleware
 from app.api.v1 import stocks, watchlist, portfolio, quant, alerts, ai, simulator, market, institutions, research
 
 # Initialize application state
@@ -98,6 +99,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(RateLimitMiddleware)
 
 @app.exception_handler(psycopg.errors.UniqueViolation)
 async def _unique_violation(_, exc):

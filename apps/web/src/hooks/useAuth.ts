@@ -9,12 +9,28 @@ export interface UserProfile {
   avatar?: string;
   provider: "google" | "guest";
   createdAt: number;
+  idToken?: string;
 }
 
-const STORAGE_KEY_USER = "stock_app_current_user";
-const STORAGE_KEY_SAVED_ACCOUNTS = "stock_saved_google_accounts";
-const STORAGE_KEY_LEGACY_BYOK = "byok_api_key";
-const STORAGE_KEY_CUSTOM_CLIENT_ID = "stock_custom_google_client_id";
+export const STORAGE_KEY_USER = "stock_app_current_user";
+export const STORAGE_KEY_SAVED_ACCOUNTS = "stock_saved_google_accounts";
+export const STORAGE_KEY_LEGACY_BYOK = "byok_api_key";
+export const STORAGE_KEY_CUSTOM_CLIENT_ID = "stock_custom_google_client_id";
+export const STORAGE_KEY_GOOGLE_ID_TOKEN = "stock_google_id_token";
+
+/**
+ * 取得當前已登入之 Google ID Token (Bearer) 用於 API 授權與高階 Rate Limit 額度
+ */
+export function getAuthHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const token = localStorage.getItem(STORAGE_KEY_GOOGLE_ID_TOKEN);
+    if (token && token.trim()) {
+      return { Authorization: `Bearer ${token.trim()}` };
+    }
+  } catch {}
+  return {};
+}
 
 export function parseJwt(token: string) {
   try {
@@ -37,7 +53,7 @@ export function useAuthManager() {
   const [isLoading, setIsLoading] = useState(true);
   const [apiKey, setApiKeyState] = useState<string>("");
 
-  const loginWithGoogle = useCallback((email: string, name?: string, avatar?: string) => {
+  const loginWithGoogle = useCallback((email: string, name?: string, avatar?: string, idToken?: string) => {
     const cleanEmail = email.trim().toLowerCase();
     const id = btoa(cleanEmail).replace(/[^a-zA-Z0-9]/g, "").slice(0, 16);
     const profile: UserProfile = {
@@ -47,8 +63,12 @@ export function useAuthManager() {
       avatar: avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name || cleanEmail)}`,
       provider: "google",
       createdAt: Date.now(),
+      idToken: idToken || undefined,
     };
 
+    if (idToken) {
+      localStorage.setItem(STORAGE_KEY_GOOGLE_ID_TOKEN, idToken);
+    }
     localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(profile));
     try {
       const raw = localStorage.getItem(STORAGE_KEY_SAVED_ACCOUNTS);
@@ -146,6 +166,7 @@ export function useAuthManager() {
   const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY_USER);
     localStorage.removeItem(STORAGE_KEY_LEGACY_BYOK);
+    localStorage.removeItem(STORAGE_KEY_GOOGLE_ID_TOKEN);
     setUser(null);
     setApiKeyState("");
     if (typeof window !== "undefined") {

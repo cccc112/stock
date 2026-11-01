@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { getAuthHeaders } from "@/hooks/useAuth";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import Card from "@/components/ui/Card";
@@ -90,6 +91,9 @@ export default function CelebrityRadar() {
       const filterParam = includeAll ? "&filter=all" : "&filter=financial";
       const res = await fetch(`/api/celebrity-feed?person=${encodeURIComponent(person)}${filterParam}`, {
         cache: "no-store",
+        headers: {
+          ...getAuthHeaders(),
+        },
       });
       if (res.ok) {
         const json = await res.json();
@@ -162,7 +166,10 @@ export default function CelebrityRadar() {
           : "";
       const res = await fetch("/api/celebrity-feed", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
         body: JSON.stringify({
           personId: item.personId,
           personName: item.personName,

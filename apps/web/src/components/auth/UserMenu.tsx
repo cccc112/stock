@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuthManager } from "@/hooks/useAuth";
+import { useAuthManager, parseJwt } from "@/hooks/useAuth";
 import AuthModal from "@/components/auth/AuthModal";
 import {
   User,
@@ -63,6 +63,23 @@ export default function UserMenu() {
     const startGIS = () => {
       try {
         setIsRedirecting(true);
+
+        if ((window as any).google?.accounts?.id) {
+          (window as any).google.accounts.id.initialize({
+            client_id: activeClientId,
+            callback: (res: any) => {
+              setIsRedirecting(false);
+              if (res?.credential) {
+                const dec = parseJwt(res.credential);
+                if (dec?.email) {
+                  loginWithGoogle(dec.email, dec.name, dec.picture, res.credential);
+                  return;
+                }
+              }
+            },
+          });
+        }
+
         const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
           client_id: activeClientId,
           scope: "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email openid",
@@ -75,7 +92,8 @@ export default function UserMenu() {
                 });
                 const info = await res.json();
                 if (info?.email) {
-                  loginWithGoogle(info.email, info.name, info.picture);
+                  const idToken = tokenResponse?.id_token || "";
+                  loginWithGoogle(info.email, info.name, info.picture, idToken);
                 }
               } catch (err) {
                 console.error("Failed to fetch userinfo", err);

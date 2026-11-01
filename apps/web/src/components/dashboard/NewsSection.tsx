@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getAuthHeaders } from "@/hooks/useAuth";
 import api from "@/lib/api";
 import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 import { ExternalLink } from "lucide-react";
@@ -15,6 +16,9 @@ export default function NewsSection({ symbol }: { symbol: string }) {
       try {
         const res = await fetch(`/api/news?symbol=${encodeURIComponent(symbol)}`, {
           cache: "no-store",
+          headers: {
+            ...getAuthHeaders(),
+          },
         });
         if (res.ok) {
           const json = await res.json();

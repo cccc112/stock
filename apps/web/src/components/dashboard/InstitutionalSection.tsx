@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getAuthHeaders } from "@/hooks/useAuth";
 import { formatNumber, getPriceColors } from "@/lib/utils";
 import { Term } from "@/components/ui/TermTooltip";
 import { REAL_STOCK_INSTITUTIONAL_MAP } from "@/lib/realInstitutionalSnapshot";
@@ -80,6 +81,9 @@ export default function InstitutionalSection({ symbol }: { symbol: string }) {
       try {
         const res = await fetch(`/api/institutions?symbol=${encodeURIComponent(cleanSymbol)}`, {
           cache: "no-store",
+          headers: {
+            ...getAuthHeaders(),
+          },
         });
         if (!res.ok) return;
         const json = await res.json();

@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     allow_public_shared_key: bool = True
     admin_api_key: str = ""
 
+    # Auth
+    google_client_id: str = ""
+    admin_email: str = ""
+
     # FinMind
     finmind_api_key: str = ""
 

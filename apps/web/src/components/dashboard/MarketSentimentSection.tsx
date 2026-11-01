@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { getAuthHeaders } from "@/hooks/useAuth";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import {
@@ -32,7 +33,11 @@ export default function MarketSentimentSection() {
 
     try {
       const url = `/api/market-sentiment${refresh ? "?refresh=true" : ""}`;
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        headers: {
+          ...getAuthHeaders(),
+        },
+      });
       if (res.ok) {
         const json = await res.json();
         setData(json);

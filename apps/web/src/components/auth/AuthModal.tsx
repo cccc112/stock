@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Modal from "@/components/ui/Modal";
-import { UserProfile, useAuthManager } from "@/hooks/useAuth";
+import { UserProfile, useAuthManager, parseJwt } from "@/hooks/useAuth";
 import { ShieldCheck, Trash2, Check, LogOut, AlertCircle } from "lucide-react";
 
 interface AuthModalProps {
@@ -51,6 +51,25 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     const startOAuth = () => {
       try {
         setIsLoading(true);
+
+        // 初始化 Google OpenID Connect ID Token 機制
+        if ((window as any).google?.accounts?.id) {
+          (window as any).google.accounts.id.initialize({
+            client_id: activeClientId,
+            callback: (res: any) => {
+              setIsLoading(false);
+              if (res?.credential) {
+                const dec = parseJwt(res.credential);
+                if (dec?.email) {
+                  loginWithGoogle(dec.email, dec.name, dec.picture, res.credential);
+                  onClose();
+                  return;
+                }
+              }
+            },
+          });
+        }
+
         const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
           client_id: activeClientId,
           scope: "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email openid",
@@ -67,7 +86,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 });
                 const info = await res.json();
                 if (info?.email) {
-                  loginWithGoogle(info.email, info.name, info.picture);
+                  const idToken = tokenResponse?.id_token || "";
+                  loginWithGoogle(info.email, info.name, info.picture, idToken);
                   onClose();
                 } else {
                   setErrorMsg("無法取得 Google 使用者資訊，請重試。");
@@ -99,7 +119,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   };
 
   const handleSelectSavedAccount = (acc: UserProfile) => {
-    loginWithGoogle(acc.email, acc.name, acc.avatar);
+    loginWithGoogle(acc.email, acc.name, acc.avatar, acc.idToken);
     onClose();
   };
 
