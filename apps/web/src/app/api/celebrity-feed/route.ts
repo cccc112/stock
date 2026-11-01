@@ -373,7 +373,7 @@ function buildDynamicPostSpecificAnalysis(
     const secondary = matchedRules[1];
 
     const mergedSectors = Array.from(
-      new Set([...primary.sectors ? [] : [primary.sector], ...(secondary ? [secondary.sector] : [])])
+      new Set([primary.sector, ...(secondary ? [secondary.sector] : [])])
     );
 
     // 合併第1與第2匹配主題之個股並去重，讓複合議題（例如同時提到「晶片」與「關稅」或「AI」與「電力」）產出獨特組合
