@@ -1106,12 +1106,29 @@ export default function EtfCapitalFlowTracker({
     const etfItem = items.find((it) => it.symbol === selectedHoldingEtf);
     const etfAum = etfItem?.aum ?? 1200;
 
-    const rawHoldings =
+    const rawHoldings = (
       isMatchedLive && Array.isArray(liveHoldingDetail?.holdings) && liveHoldingDetail.holdings.length > 0
         ? liveHoldingDetail.holdings
         : prof?.holdings && prof.holdings.length > 0
         ? prof.holdings
-        : ETF_PORTFOLIO_DELTAS[selectedHoldingEtf]?.holdings || [];
+        : ETF_PORTFOLIO_DELTAS[selectedHoldingEtf]?.holdings || []
+    ).filter((h: any) => {
+      const sym = String(h?.symbol || "").trim();
+      if (!sym) return false;
+      if (
+        sym.includes("_NTD") ||
+        sym.includes("_USD") ||
+        sym.includes("MARGIN") ||
+        sym.includes("CASH") ||
+        sym.includes("RECEIVABLE") ||
+        sym.includes("PAYABLE") ||
+        /^(TX|MTX|NYF|TXO|TF|TE)/i.test(sym)
+      ) {
+        return false;
+      }
+      const w = Number(h.weight);
+      return Number.isFinite(w) && w > 0;
+    });
 
     const holdingsList: EtfHoldingDelta[] = rawHoldings.map((h: any, idx: number) => {
       const sym = String(h.symbol || `H${idx}`).replace(/\.(TW|TWO)$/i, "");

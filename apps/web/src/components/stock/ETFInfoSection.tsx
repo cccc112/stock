@@ -357,7 +357,23 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
   }, [data.holdings]);
 
   const enrichedHoldings = useMemo(() => {
-    const rawHoldings = Array.isArray(data.holdings) ? data.holdings : [];
+    const rawHoldings = (Array.isArray(data.holdings) ? data.holdings : []).filter((h: any) => {
+      const sym = String(h?.symbol || "").trim();
+      if (!sym) return false;
+      if (
+        sym.includes("_NTD") ||
+        sym.includes("_USD") ||
+        sym.includes("MARGIN") ||
+        sym.includes("CASH") ||
+        sym.includes("RECEIVABLE") ||
+        sym.includes("PAYABLE") ||
+        /^(TX|MTX|NYF|TXO|TF|TE)/i.test(sym)
+      ) {
+        return false;
+      }
+      const w = Number(h.weight);
+      return Number.isFinite(w) && w > 0;
+    });
     const aumB = parseAumBillions(data.aum);
 
     return rawHoldings.map((h: any, idx) => {
