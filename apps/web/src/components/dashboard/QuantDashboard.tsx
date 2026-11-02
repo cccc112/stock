@@ -92,7 +92,7 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
                   <p className="text-sm text-primary mb-3">{sig.description}</p>
                   <div className="text-xs text-secondary flex justify-between items-center">
                     <span>
-                      <Term k="signal_confidence" label="信心度" />: {(sig.confidence * 100).toFixed(0)}%
+                      <Term k="signal_confidence" label="信心度" />: {(sig.confidence * 100).toFixed(2)}%
                     </span>
                   </div>
                 </div>
@@ -131,7 +131,7 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
               {volume_anomaly.type === "LOW_BUY_SUPPORT" && "低檔爆量：近期來到波段低點且成交量放大，可能為底部換手或支撐浮現。"}
             </p>
             <div className="text-xs text-secondary mt-2">
-              <Term k="signal_confidence" label="信心指數" />: {(volume_anomaly.confidence * 100).toFixed(0)}%
+              <Term k="signal_confidence" label="信心指數" />: {(volume_anomaly.confidence * 100).toFixed(2)}%
             </div>
           </div>
         )}
@@ -160,7 +160,7 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-secondary">
-                          距離 {dist > 0 ? "+" : ""}{dist.toFixed(1)}%
+                          距離 {dist > 0 ? "+" : ""}{dist.toFixed(2)}%
                         </span>
                         <span className="inline-flex items-center">
                           <Badge value={level.strength} isPercent={false} size="sm" className="bg-accent/20 text-accent">
@@ -186,7 +186,7 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
                 <Term k="rsi" label="RSI (14)" />
               </div>
               <div className={`text-xl font-semibold ${indicators?.RSI > 70 ? 'text-down-tw' : indicators?.RSI < 30 ? 'text-up-tw' : ''}`}>
-                {indicators?.RSI ? indicators.RSI.toFixed(1) : '-'}
+                {indicators?.RSI ? indicators.RSI.toFixed(2) : '-'}
               </div>
               <div className="text-xs text-secondary mt-1">
                 {indicators?.RSI > 70 ? '超買區 (過熱)' : indicators?.RSI < 30 ? '超賣區 (過冷)' : '中性區間'}
@@ -219,7 +219,7 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
                     <Term k="ma5" label="5MA" />
                   </div>
                   <div className={currentPrice > indicators?.MA?.MA5 ? 'text-up-tw' : 'text-down-tw'}>
-                    {indicators?.MA?.MA5?.toFixed(1)}
+                    {indicators?.MA?.MA5?.toFixed(2)}
                   </div>
                 </div>
                 <div>
@@ -227,7 +227,7 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
                     <Term k="ma20" label="20MA" />
                   </div>
                   <div className={currentPrice > indicators?.MA?.MA20 ? 'text-up-tw' : 'text-down-tw'}>
-                    {indicators?.MA?.MA20?.toFixed(1)}
+                    {indicators?.MA?.MA20?.toFixed(2)}
                   </div>
                 </div>
                 <div>
@@ -235,7 +235,7 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
                     <Term k="ma60" label="60MA" />
                   </div>
                   <div className={currentPrice > indicators?.MA?.MA60 ? 'text-up-tw' : 'text-down-tw'}>
-                    {indicators?.MA?.MA60?.toFixed(1)}
+                    {indicators?.MA?.MA60?.toFixed(2)}
                   </div>
                 </div>
                 <div>
@@ -243,7 +243,7 @@ export default function QuantDashboard({ symbol, currentPrice }: QuantDashboardP
                     <Term k="ma120" label="120MA" />
                   </div>
                   <div className={currentPrice > indicators?.MA?.MA120 ? 'text-up-tw' : 'text-down-tw'}>
-                    {indicators?.MA?.MA120?.toFixed(1) ?? '-'}
+                    {indicators?.MA?.MA120?.toFixed(2) ?? '-'}
                   </div>
                 </div>
               </div>

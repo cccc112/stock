@@ -6,8 +6,8 @@ export function formatCurrency(value: number, currency: 'TWD' | 'USD') {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: currency,
-    minimumFractionDigits: currency === 'TWD' ? 0 : 2,
-    maximumFractionDigits: currency === 'TWD' ? 0 : 2,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value);
 }
 

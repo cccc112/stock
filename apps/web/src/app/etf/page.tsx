@@ -632,7 +632,7 @@ export default function EtfAndMultiAssetPage() {
                           <span className="text-xs text-muted mr-1 font-normal">
                             {item.market === "US" ? "USD $" : "NT$"}
                           </span>
-                          {formatNumber(item.price, item.price < 10 ? 3 : 2)}
+                          {formatNumber(item.price, 2)}
                         </span>
                       ) : (
                         "載入中..."

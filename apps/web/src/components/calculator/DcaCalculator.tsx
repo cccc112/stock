@@ -200,7 +200,7 @@ export default function DcaCalculator() {
         accumulatedCashDividends: Math.round(accumulatedCashDividends),
         totalVal: Math.round(totalVal),
         profit: Math.round(profit),
-        roiPct: Number(roiPct.toFixed(1)),
+        roiPct: Number(roiPct.toFixed(2)),
         annualDividendEst: Math.round(annualDividendEst),
         monthlyPassiveIncome: Math.round(monthlyPassiveIncome),
       });
@@ -223,7 +223,7 @@ export default function DcaCalculator() {
       multiplier:
         finalRow.accumulatedPrincipal > 0
           ? (finalRow.totalVal / finalRow.accumulatedPrincipal).toFixed(2)
-          : "1.0",
+          : "1.00",
       yearlyData,
     };
   }, [monthlyAmount, years, annualRate, dividendYield, reinvestDividend, adjustInflation]);
@@ -515,13 +515,13 @@ export default function DcaCalculator() {
             <span>累積投入總本金</span>
           </div>
           <div className="font-mono text-2xl sm:text-3xl font-extrabold text-primary tracking-tight">
-            {currSymbol} {formatNumber(simulation.finalPrincipal)}
+            {currSymbol} {formatNumber(simulation.finalPrincipal, 2)}
           </div>
           <div className="text-xs text-muted mt-2">
             佔總資產{" "}
             {simulation.finalTotalVal > 0
-              ? ((simulation.finalPrincipal / simulation.finalTotalVal) * 100).toFixed(1)
-              : 0}
+              ? ((simulation.finalPrincipal / simulation.finalTotalVal) * 100).toFixed(2)
+              : "0.00"}
             %（共扣款 {years * 12} 個月）
           </div>
         </div>

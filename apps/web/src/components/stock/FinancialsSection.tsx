@@ -147,16 +147,16 @@ interface DeepReport {
   };
 }
 
-const fmtPct = (v: number | null | undefined, digits = 1) =>
+const fmtPct = (v: number | null | undefined, digits = 2) =>
   v == null ? "—" : `${Number(v).toFixed(digits)}%`;
 
 const fmtMoney = (v: number | null | undefined) => {
   if (v == null) return "—";
   const a = Math.abs(v);
   if (a >= 1e12) return `${(v / 1e12).toFixed(2)} 兆`;
-  if (a >= 1e8) return `${(v / 1e8).toFixed(1)} 億`;
-  if (a >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
-  return v.toFixed(1);
+  if (a >= 1e8) return `${(v / 1e8).toFixed(2)} 億`;
+  if (a >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
+  return v.toFixed(2);
 };
 
 const growthColor = (v: number | null | undefined, _market?: string) =>
@@ -659,7 +659,7 @@ export default function FinancialsSection({
                   <InfoTip term="per" />
                 </div>
                 <div className="font-mono text-sm font-bold text-primary">
-                  {val.per != null ? `${Number(val.per).toFixed(1)}x` : "—"}
+                  {val.per != null ? `${Number(val.per).toFixed(2)}x` : "—"}
                 </div>
               </div>
               <div>
@@ -724,14 +724,14 @@ export default function FinancialsSection({
                   name: "營業現金流",
                   color: "#38bdf8",
                   values: chrono.map((q) =>
-                    q.ocf != null ? Number((q.ocf / 1e8).toFixed(1)) : null
+                    q.ocf != null ? Number((q.ocf / 1e8).toFixed(2)) : null
                   ),
                 },
                 {
                   name: "自由現金流",
                   color: "#a855f7",
                   values: chrono.map((q) =>
-                    q.fcf != null ? Number((q.fcf / 1e8).toFixed(1)) : null
+                    q.fcf != null ? Number((q.fcf / 1e8).toFixed(2)) : null
                   ),
                 },
               ]}

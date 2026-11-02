@@ -78,7 +78,7 @@ export function LineTrend({ title, labels, series }: LineProps) {
             <g key={s.name}>
               <path d={path} fill="none" stroke={s.color} strokeWidth={1.8} />
               {pts.map((p, i) => p && <circle key={i} cx={p[0]} cy={p[1]} r={2} fill={s.color} />)}
-              {last != null && <text x={x(lastIdx)} y={y(last) - 5} fontSize={8} fill={s.color} textAnchor="end">{last.toFixed(1)}%</text>}
+              {last != null && <text x={x(lastIdx)} y={y(last) - 5} fontSize={8} fill={s.color} textAnchor="end">{last.toFixed(2)}%</text>}
             </g>
           );
         })}

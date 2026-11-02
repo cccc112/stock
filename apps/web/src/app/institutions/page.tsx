@@ -1400,7 +1400,7 @@ export default function InstitutionsPage() {
                                   {h?.value}
                                 </td>
                                 <td className="py-2.5 px-3 text-right text-accent font-bold">
-                                  {h?.portfolioPct}%
+                                  {Number(h?.portfolioPct || 0).toFixed(2)}%
                                 </td>
                                 <td className="py-2.5 px-3 text-right font-sans">
                                   <span

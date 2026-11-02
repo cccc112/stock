@@ -35,8 +35,8 @@ export default function Badge({
   const formattedValue = isPercent
     ? formatPercent(value)
     : isPositive
-      ? `+${value}`
-      : `${value}`;
+      ? `+${Number(value || 0).toFixed(2)}`
+      : `${Number(value || 0).toFixed(2)}`;
 
   return (
     <span

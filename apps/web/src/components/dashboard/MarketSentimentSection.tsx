@@ -191,7 +191,7 @@ export default function MarketSentimentSection() {
                 {/* 中心分數數字 */}
                 <div className="absolute bottom-2 flex flex-col items-center">
                   <span className={`text-4xl font-extrabold font-mono tracking-tight ${tone.textClass}`}>
-                    {score}
+                    {Number(score).toFixed(2)}
                   </span>
                   <span className="text-[11px] text-secondary font-medium">/ 100 點</span>
                 </div>
@@ -233,7 +233,7 @@ export default function MarketSentimentSection() {
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-primary">{f.label}</span>
                           <span className="text-[10px] text-muted font-mono">
-                            (權重 {f.weight}%)
+                            (權重 {Number(f.weight).toFixed(2)}%)
                           </span>
                         </div>
                         <div className="flex items-center gap-2 font-mono">
@@ -241,7 +241,7 @@ export default function MarketSentimentSection() {
                             {f.status}
                           </span>
                           <span className="text-xs font-bold text-primary">
-                            {f.score}
+                            {Number(f.score).toFixed(2)}
                           </span>
                         </div>
                       </div>
@@ -282,11 +282,11 @@ export default function MarketSentimentSection() {
                   <span className="text-[10px] text-muted">新聞多空比</span>
                   <span className="font-mono font-bold text-primary">
                     <span className={isRedUp ? "text-rose-400" : "text-emerald-400"}>
-                      多 {data?.stats.newsSentimentRatio.bullishPct}%
+                      多 {Number(data?.stats.newsSentimentRatio.bullishPct || 0).toFixed(2)}%
                     </span>
                     {" / "}
                     <span className={isRedUp ? "text-emerald-400" : "text-rose-400"}>
-                      空 {data?.stats.newsSentimentRatio.bearishPct}%
+                      空 {Number(data?.stats.newsSentimentRatio.bearishPct || 0).toFixed(2)}%
                     </span>
                   </span>
                 </div>

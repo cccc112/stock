@@ -444,7 +444,7 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
     const nav = Number(etfNav?.nav) || 0;
     const sharesNet = Number(etfNav?.shares_net) || 0;
     const top3 = enrichedHoldings.slice(0, 3);
-    const topNames = top3.map((h) => `${h.name}(${h.symbol}, ${h.weight.toFixed(1)}%)`).join("、");
+    const topNames = top3.map((h) => `${h.name}(${h.symbol}, ${h.weight.toFixed(2)}%)`).join("、");
     const totalTop3Weight = top3.reduce((acc, h) => acc + h.weight, 0);
     const ret1m = data.performance?.ret_1m;
     const bias20 = data.performance?.bias_20ma;
@@ -476,7 +476,7 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
     const part3Title = `3. ${cleanCode} 核心成分股調倉穿透與操作建議`;
     const part3Text =
       top3.length > 0
-        ? `${cleanCode} 前三大核心成分股為 ${topNames}（合計佔比達 ${totalTop3Weight.toFixed(1)}%）。今日隨基金申贖與權重再平衡，主力被動資金集中於 ${top3[0].name}(${top3[0].symbol}，今日估計${top3[0].shares_change >= 0 ? `加碼 +${top3[0].shares_change.toLocaleString()}` : `調節 ${top3[0].shares_change.toLocaleString()}`} 張)，操作上建議同步追蹤上述高權重成分股之法人買賣超動向。`
+        ? `${cleanCode} 前三大核心成分股為 ${topNames}（合計佔比達 ${totalTop3Weight.toFixed(2)}%）。今日隨基金申贖與權重再平衡，主力被動資金集中於 ${top3[0].name}(${top3[0].symbol}，今日估計${top3[0].shares_change >= 0 ? `加碼 +${top3[0].shares_change.toLocaleString()}` : `調節 ${top3[0].shares_change.toLocaleString()}`} 張)，操作上建議同步追蹤上述高權重成分股之法人買賣超動向。`
         : `${cleanCode} 屬「${data.category}」（配息機制：${data.dividend_freq}），建議搭配 20MA 月線乖離率（目前 ${fmtPct(bias20)}）與年化波動率（${fmtPct(data.performance?.volatility_annual, false)}）進行波段部位控管。`;
 
     return { part1Title, part1Text, part2Title, part2Text, part3Title, part3Text };
@@ -789,7 +789,7 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
                             )}
                           </td>
                           <td className="py-2.5 px-3 text-right font-mono tabular-nums font-bold text-primary">
-                            {(Number(h.weight) || 0).toFixed(1)}%
+                            {(Number(h.weight) || 0).toFixed(2)}%
                           </td>
                           <td
                             className={`py-2.5 px-3 text-right font-mono text-xs font-semibold tabular-nums ${
@@ -858,7 +858,7 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
                     <div className="flex justify-between text-xs mb-1">
                       <span className="text-secondary">{sw.sector}</span>
                       <span className="font-mono tabular-nums font-medium text-primary">
-                        {(Number(sw.weight) || 0).toFixed(1)}%
+                        {(Number(sw.weight) || 0).toFixed(2)}%
                       </span>
                     </div>
                     <div className="w-full h-2 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">

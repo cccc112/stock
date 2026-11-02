@@ -589,7 +589,7 @@ export default function BacktestPage() {
                 </span>
               </div>
               <span className="text-xs text-secondary flex items-center gap-1">
-                基準: {result.summary.benchmark_return_pct.toFixed(1)}%
+                基準: {result.summary.benchmark_return_pct.toFixed(2)}%
               </span>
             </Card>
 
@@ -644,7 +644,7 @@ export default function BacktestPage() {
               </span>
               <div className="my-1">
                 <span className="text-2xl font-bold font-mono text-primary">
-                  {result.summary.win_rate_pct.toFixed(1)}%
+                  {result.summary.win_rate_pct.toFixed(2)}%
                 </span>
               </div>
               <span className="text-xs text-secondary">

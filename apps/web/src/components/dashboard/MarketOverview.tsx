@@ -74,7 +74,7 @@ export default function MarketOverview() {
                 <span className="font-mono text-[10px] text-muted">{idx.symbol.replace("^", "")}</span>
               </div>
               <div className="text-xl sm:text-2xl font-bold font-mono tabular-nums tracking-tight text-primary">
-                {idx.price > 0 ? formatNumber(idx.price, idx.price < 100 ? 2 : 1) : "—"}
+                {idx.price > 0 ? formatNumber(idx.price, 2) : "—"}
               </div>
               <div>
                 {idx.price > 0 ? (

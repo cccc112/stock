@@ -32,9 +32,9 @@ export default function VAPChart({ data, currentPrice, className }: VAPChartProp
     <div className={cn("relative h-[300px] flex", className)}>
       {/* Y-axis (Price labels) */}
       <div className="w-16 flex flex-col justify-between text-xs text-secondary py-2 border-r border-[var(--border)] pr-2 text-right">
-        <span>{maxPrice.toFixed(1)}</span>
-        <span>{((maxPrice + minPrice) / 2).toFixed(1)}</span>
-        <span>{minPrice.toFixed(1)}</span>
+        <span>{maxPrice.toFixed(2)}</span>
+        <span>{((maxPrice + minPrice) / 2).toFixed(2)}</span>
+        <span>{minPrice.toFixed(2)}</span>
       </div>
       
       {/* Bars container */}
@@ -45,7 +45,7 @@ export default function VAPChart({ data, currentPrice, className }: VAPChartProp
           style={{ bottom: `${clampedPricePercent}%` }}
         >
           <div className="absolute left-2 text-xs bg-accent text-white px-1 py-0.5 rounded shadow">
-            {currentPrice.toFixed(1)}
+            {currentPrice.toFixed(2)}
           </div>
         </div>
         
@@ -65,7 +65,7 @@ export default function VAPChart({ data, currentPrice, className }: VAPChartProp
                 />
                 {/* Tooltip */}
                 <div className="hidden group-hover:block absolute left-full ml-2 bg-secondary border border-border p-1 rounded text-xs z-20 whitespace-nowrap">
-                  P: {avgPrice.toFixed(1)} | V: {(d.volume / 1000).toFixed(0)}k
+                  P: {avgPrice.toFixed(2)} | V: {(d.volume / 1000).toFixed(0)}k
                 </div>
               </div>
             );

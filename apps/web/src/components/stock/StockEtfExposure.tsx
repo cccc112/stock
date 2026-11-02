@@ -209,7 +209,7 @@ export default function StockEtfExposure({ symbol, currentPrice = 0 }: StockEtfE
               {stats.totalAmountChangeM > 0 ? "+" : ""}
               {stats.totalAmountChangeM >= 1000
                 ? `${(stats.totalAmountChangeM / 1000).toFixed(2)} 億`
-                : `${stats.totalAmountChangeM.toFixed(1)} 百萬`}
+                : `${stats.totalAmountChangeM.toFixed(2)} 百萬`}
             </div>
             <div className="text-[10px] text-muted mt-0.5">以最新市價推估變動總額</div>
           </div>
@@ -330,7 +330,7 @@ export default function StockEtfExposure({ symbol, currentPrice = 0 }: StockEtfE
                       </span>
                     </td>
                     <td className="text-right font-mono font-bold text-primary">
-                      {it.weight.toFixed(1)}%
+                      {it.weight.toFixed(2)}%
                     </td>
                     <td
                       className={`text-right font-mono font-semibold text-xs ${

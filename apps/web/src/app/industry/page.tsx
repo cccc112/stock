@@ -270,7 +270,7 @@ export default function IndustryPage() {
                       fontSize: '12px',
                       boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
                     }}
-                    formatter={(val: any) => [`${Number(val) > 0 ? '+' : ''}${val}%`, '週期報酬率']}
+                    formatter={(val: any) => [`${Number(val) > 0 ? '+' : ''}${Number(val || 0).toFixed(2)}%`, '週期報酬率']}
                     labelFormatter={(lbl) => `產業名稱：${lbl}`}
                   />
                   <ReferenceLine x={0} stroke="var(--text-secondary)" strokeDasharray="3 3" />

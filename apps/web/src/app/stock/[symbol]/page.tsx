@@ -391,7 +391,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                       <InfoTip term="entry_zone" />
                     </div>
                     <div className="font-mono font-bold text-indigo-400">
-                      {deepSummary.verdict.entry_zone?.[0]}
+                      {deepSummary.verdict.entry_zone?.[0] != null ? Number(deepSummary.verdict.entry_zone[0]).toFixed(2) : "—"}
                     </div>
                   </div>
                   <div className="p-1.5 rounded bg-[var(--bg-primary)]">
@@ -400,7 +400,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                       <InfoTip term="stop_loss" />
                     </div>
                     <div className="font-mono font-bold text-rose-400">
-                      {deepSummary.verdict.stop_loss}
+                      {deepSummary.verdict.stop_loss != null ? Number(deepSummary.verdict.stop_loss).toFixed(2) : "—"}
                     </div>
                   </div>
                   <div className="p-1.5 rounded bg-[var(--bg-primary)]">
@@ -409,7 +409,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                       <InfoTip term="target_price" />
                     </div>
                     <div className="font-mono font-bold text-emerald-400">
-                      {deepSummary.verdict.target_price}
+                      {deepSummary.verdict.target_price != null ? Number(deepSummary.verdict.target_price).toFixed(2) : "—"}
                     </div>
                   </div>
                 </div>

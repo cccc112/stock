@@ -340,7 +340,7 @@ export default function TaiwanBearMascot() {
                     <div className="mt-2 flex items-center justify-between text-[11px] text-secondary">
                       <div className="flex items-center gap-1.5">
                         <span>市場情緒:</span>
-                        <span className="font-mono font-bold text-primary">{sentimentScore}</span>
+                        <span className="font-mono font-bold text-primary">{Number(sentimentScore).toFixed(2)}</span>
                         <span className="text-[10px] text-muted">/100</span>
                       </div>
                       <span className={`font-semibold px-1.5 py-0.5 rounded text-[10px] ${
@@ -471,7 +471,7 @@ export default function TaiwanBearMascot() {
                       <Zap size={13} className="text-amber-500" />
                       <span>量化靈魂能量</span>
                     </span>
-                    <span className="font-mono font-bold text-accent">{energyLevel}%</span>
+                    <span className="font-mono font-bold text-accent">{Number(energyLevel).toFixed(2)}%</span>
                   </div>
                   <div className="w-full h-2 rounded-full bg-[var(--border)] overflow-hidden">
                     <div

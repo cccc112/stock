@@ -170,13 +170,13 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
       : 0.1;
   const vcpRatio = Number((recentRange / Math.max(0.01, priorRange)).toFixed(2));
   const minerviniCriteria = [
-    { id: "T1", label: "價格高於 50 日均線 (MA50)", pass: price >= ma50, detail: `現價 ${price.toFixed(1)} vs MA50 ${ma50.toFixed(1)}` },
-    { id: "T2", label: "價格高於 150 日均線 (MA150)", pass: price >= ma150, detail: `現價 ${price.toFixed(1)} vs MA150 ${ma150.toFixed(1)}` },
-    { id: "T3", label: "價格高於 200 日均線 (MA200)", pass: price >= ma200, detail: `現價 ${price.toFixed(1)} vs MA200 ${ma200.toFixed(1)}` },
-    { id: "T4", label: "50MA > 150MA 多頭排列", pass: ma50 >= ma150 * 0.99, detail: `${ma50.toFixed(1)} vs ${ma150.toFixed(1)}` },
-    { id: "T5", label: "150MA ≥ 200MA 長線支撐", pass: ma150 >= ma200 * 0.99, detail: `${ma150.toFixed(1)} vs ${ma200.toFixed(1)}` },
-    { id: "T6", label: "價格高於 52 週低點 25% 以上", pass: price >= low52 * 1.25, detail: `距 52W 低點 +${(((price - low52) / low52) * 100).toFixed(1)}%` },
-    { id: "T7", label: "價格距 52 週高點 25% 以內", pass: price >= high52 * 0.75, detail: `距 52W 高點 ${(((price - high52) / high52) * 100).toFixed(1)}%` },
+    { id: "T1", label: "價格高於 50 日均線 (MA50)", pass: price >= ma50, detail: `現價 ${price.toFixed(2)} vs MA50 ${ma50.toFixed(2)}` },
+    { id: "T2", label: "價格高於 150 日均線 (MA150)", pass: price >= ma150, detail: `現價 ${price.toFixed(2)} vs MA150 ${ma150.toFixed(2)}` },
+    { id: "T3", label: "價格高於 200 日均線 (MA200)", pass: price >= ma200, detail: `現價 ${price.toFixed(2)} vs MA200 ${ma200.toFixed(2)}` },
+    { id: "T4", label: "50MA > 150MA 多頭排列", pass: ma50 >= ma150 * 0.99, detail: `${ma50.toFixed(2)} vs ${ma150.toFixed(2)}` },
+    { id: "T5", label: "150MA ≥ 200MA 長線支撐", pass: ma150 >= ma200 * 0.99, detail: `${ma150.toFixed(2)} vs ${ma200.toFixed(2)}` },
+    { id: "T6", label: "價格高於 52 週低點 25% 以上", pass: price >= low52 * 1.25, detail: `距 52W 低點 +${(((price - low52) / low52) * 100).toFixed(2)}%` },
+    { id: "T7", label: "價格距 52 週高點 25% 以內", pass: price >= high52 * 0.75, detail: `距 52W 高點 ${(((price - high52) / high52) * 100).toFixed(2)}%` },
     { id: "T8", label: "VCP 波動收斂壓縮比 ≤ 0.85", pass: vcpRatio <= 0.85, detail: `VCP 壓縮比 ${vcpRatio}x` },
   ];
   const minerviniScore = minerviniCriteria.filter((c) => c.pass).length;
@@ -192,7 +192,7 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
     { id: "S2", label: "站穩多方機構訂單塊 (Bullish OB)", pass: price >= bullObLow, detail: `${bullObLow} ~ ${bullObHigh}` },
     { id: "S3", label: "上方空方訂單塊距離充裕 (Bearish OB)", pass: bearObHigh > price * 1.02, detail: `${bearObLow} ~ ${bearObHigh}` },
     { id: "S4", label: "公平價值缺口 (FVG) 多方溢價", pass: changePct >= 0 || price >= ma50, detail: "流動性結構穩健" },
-    { id: "S5", label: "20MA 中期機構成本支撐", pass: price >= ma20 * 0.98, detail: `20MA ${ma20.toFixed(1)}` },
+    { id: "S5", label: "20MA 中期機構成本支撐", pass: price >= ma20 * 0.98, detail: `20MA ${ma20.toFixed(2)}` },
   ];
   const smcScore = smcCriteria.filter((c) => c.pass).length;
 
@@ -258,15 +258,15 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
         axis: "報酬動能",
         score: sReturn,
         grade: etfReturnGrade,
-        metric: `近1月 ${ret20 >= 0 ? "+" : ""}${ret20.toFixed(1)}% · 近3月 ${ret60 >= 0 ? "+" : ""}${ret60.toFixed(1)}% · 近1年 ${ret1y >= 0 ? "+" : ""}${ret1y.toFixed(1)}%`,
+        metric: `近1月 ${ret20 >= 0 ? "+" : ""}${ret20.toFixed(2)}% · 近3月 ${ret60 >= 0 ? "+" : ""}${ret60.toFixed(2)}% · 近1年 ${ret1y >= 0 ? "+" : ""}${ret1y.toFixed(2)}%`,
         reason:
           ret60 >= 8
-            ? `近 1 月報酬 ${ret20 >= 0 ? "+" : ""}${ret20.toFixed(1)}%、近 3 月 ${ret60 >= 0 ? "+" : ""}${ret60.toFixed(1)}%，波段趨勢強勢多頭延續（評定為${etfReturnGrade}）。`
+            ? `近 1 月報酬 ${ret20 >= 0 ? "+" : ""}${ret20.toFixed(2)}%、近 3 月 ${ret60 >= 0 ? "+" : ""}${ret60.toFixed(2)}%，波段趨勢強勢多頭延續（評定為${etfReturnGrade}）。`
             : ret60 >= 0
-            ? `近 3 月維持正報酬 (${ret60.toFixed(1)}%)，淨值隨市場大盤穩健上行，動能中性偏多。`
-            : `近 3 月報酬回檔 (${ret60.toFixed(1)}%)，目前處於區間整理或回測波段支撐。`,
-        pros: ret60 > 0 ? [`近 3 月正報酬 +${ret60.toFixed(1)}%`, `近 1 年總回報 ${ret1y >= 0 ? "+" : ""}${ret1y.toFixed(1)}%`] : [],
-        cons: ret60 <= 0 ? [`近 3 月報酬偏弱 (${ret60.toFixed(1)}%)`] : [],
+            ? `近 3 月維持正報酬 (${ret60.toFixed(2)}%)，淨值隨市場大盤穩健上行，動能中性偏多。`
+            : `近 3 月報酬回檔 (${ret60.toFixed(2)}%)，目前處於區間整理或回測波段支撐。`,
+        pros: ret60 > 0 ? [`近 3 月正報酬 +${ret60.toFixed(2)}%`, `近 1 年總回報 ${ret1y >= 0 ? "+" : ""}${ret1y.toFixed(2)}%`] : [],
+        cons: ret60 <= 0 ? [`近 3 月報酬偏弱 (${ret60.toFixed(2)}%)`] : [],
       },
       {
         key: "growth",
@@ -283,15 +283,15 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
         axis: "抗跌與低波",
         score: sLowVol,
         grade: etfVolGrade,
-        metric: `年化波動率 ${volAnnual.toFixed(1)}% · 近1年最大回撤 ${maxDd.toFixed(1)}%`,
+        metric: `年化波動率 ${volAnnual.toFixed(2)}% · 近1年最大回撤 ${maxDd.toFixed(2)}%`,
         reason:
           volAnnual < 16
-            ? `年化波動率僅 ${volAnnual.toFixed(1)}%，近 1 年最大回撤 -${Math.abs(maxDd).toFixed(1)}%，抗跌防禦屬性極佳（評定為${etfVolGrade}）。`
+            ? `年化波動率僅 ${volAnnual.toFixed(2)}%，近 1 年最大回撤 -${Math.abs(maxDd).toFixed(2)}%，抗跌防禦屬性極佳（評定為${etfVolGrade}）。`
             : volAnnual < 25
-            ? `年化波動率 ${volAnnual.toFixed(1)}% 處於市場中位常態水準，最大回撤受控。`
-            : `年化波動率高達 ${volAnnual.toFixed(1)}%，波動劇烈，需留意單日跳空與折溢價幅度。`,
-        pros: volAnnual < 20 ? [`年化波動率 ${volAnnual.toFixed(1)}% 受控穩健`] : [],
-        cons: volAnnual >= 25 ? [`年化波動率高達 ${volAnnual.toFixed(1)}%`] : [],
+            ? `年化波動率 ${volAnnual.toFixed(2)}% 處於市場中位常態水準，最大回撤受控。`
+            : `年化波動率高達 ${volAnnual.toFixed(2)}%，波動劇烈，需留意單日跳空與折溢價幅度。`,
+        pros: volAnnual < 20 ? [`年化波動率 ${volAnnual.toFixed(2)}% 受控穩健`] : [],
+        cons: volAnnual >= 25 ? [`年化波動率高達 ${volAnnual.toFixed(2)}%`] : [],
       },
       {
         key: "valuation",
@@ -376,7 +376,7 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
           score: etfMomentumScore,
           max_score: 7,
           status: ret60 > 0 ? "多頭相對強勢" : "區間震盪整理",
-          summary: `近1月報酬 ${ret20 >= 0 ? "+" : ""}${ret20.toFixed(1)}%、近3月 ${ret60 >= 0 ? "+" : ""}${ret60.toFixed(1)}%，20MA 乖離率 ${bias20ma >= 0 ? "+" : ""}${bias20ma}%。`,
+          summary: `近1月報酬 ${ret20 >= 0 ? "+" : ""}${ret20.toFixed(2)}%、近3月 ${ret60 >= 0 ? "+" : ""}${ret60.toFixed(2)}%，20MA 乖離率 ${bias20ma >= 0 ? "+" : ""}${bias20ma}%。`,
           criteria: [],
         },
         minervini: {
@@ -416,7 +416,7 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
           `目前 20MA 月線乖離率為 ${bias20ma >= 0 ? "+" : ""}${bias20ma}%，下方多方訂單塊支撐位於 ${bullObLow} ~ ${bullObHigh}。`,
         ],
         bear_points: [
-          `年化波動率約 ${volAnnual.toFixed(1)}%（近 1 年最大回撤 ${maxDd.toFixed(1)}%），上檔壓力區位於 ${bearObLow} ~ ${bearObHigh}。`,
+          `年化波動率約 ${volAnnual.toFixed(2)}%（近 1 年最大回撤 ${maxDd.toFixed(2)}%），上檔壓力區位於 ${bearObLow} ~ ${bearObHigh}。`,
           `若跌破防守停損價 ${stopLoss}，應嚴格執行部位風控。`,
         ],
         conclusion: `${etfProfile.name} (${symbol}) 五維雪花總評為 ${totalScore}/100（${ratingLabel}）。建議結合 20MA 乖離率（目前 ${bias20ma >= 0 ? "+" : ""}${bias20ma}%）於 ${entryLow}~${entryHigh} 區間分批布局，跌破 ${stopLoss} 停損，波段目標看至 ${targetPrice}（風報比 1 : ${Math.max(1.2, riskReward)}）。`,
@@ -469,8 +469,8 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
   const dupont = fin?.dupont?.roe_ttm
     ? fin.dupont
     : {
-        roe_ttm: Number(Number(roeTtm).toFixed(1)),
-        net_margin_ttm: Number(Number(netMarginTtm).toFixed(1)),
+        roe_ttm: Number(Number(roeTtm).toFixed(2)),
+        net_margin_ttm: Number(Number(netMarginTtm).toFixed(2)),
         asset_turnover: assetTurnover,
         equity_multiplier: equityMultiplier,
         driver:
@@ -481,7 +481,7 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
             : "穩健經營型",
       };
 
-  const computedPer = ttmEps > 0 ? Number((price / ttmEps).toFixed(1)) : 18.5;
+  const computedPer = ttmEps > 0 ? Number((price / ttmEps).toFixed(2)) : 18.5;
   const per = Number(fin?.valuation?.per ?? computedPer);
   const pbr = Number(fin?.valuation?.pbr ?? Number(Math.max(0.9, (per * roeTtm) / 100).toFixed(2)));
   const cashDiv = fin?.dividend?.cash_dividend_12m;
@@ -499,9 +499,9 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
     pbr,
     dividend_yield: dividendYield,
     per_percentile: perPercentile,
-    per_min: fin?.valuation?.per_min ?? Number((per * 0.68).toFixed(1)),
-    per_median: fin?.valuation?.per_median ?? Number((per * 0.94).toFixed(1)),
-    per_max: fin?.valuation?.per_max ?? Number((per * 1.38).toFixed(1)),
+    per_min: fin?.valuation?.per_min ?? Number((per * 0.68).toFixed(2)),
+    per_median: fin?.valuation?.per_median ?? Number((per * 0.94).toFixed(2)),
+    per_max: fin?.valuation?.per_max ?? Number((per * 1.38).toFixed(2)),
   };
 
   // 1. Piotroski F-Score (0~9)
@@ -524,27 +524,27 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
   const cTurn = assetTurnover >= 0.45 || revYoy >= 10;
 
   const pioCriteria = [
-    { id: "F1", label: "正資產報酬率與稅後獲利 (ROA > 0)", pass: cRoa, detail: `淨利率 ${Number(netMarginTtm).toFixed(1)}% · 近四季 EPS ${ttmEps.toFixed(2)}` },
+    { id: "F1", label: "正資產報酬率與稅後獲利 (ROA > 0)", pass: cRoa, detail: `淨利率 ${Number(netMarginTtm).toFixed(2)}% · 近四季 EPS ${ttmEps.toFixed(2)}` },
     { id: "F2", label: "營業現金流為正 (OCF > 0)", pass: cOcf, detail: cOcf ? "本業實質現金流入" : "營業現金流出" },
-    { id: "F3", label: "獲利能力較前期成長 (ΔROA ≥ 0)", pass: cDeltaRoa, detail: `淨利率 ${Number(netMarginTtm).toFixed(1)}% (前期 ${Number(prevNetMargin).toFixed(1)}%)` },
+    { id: "F3", label: "獲利能力較前期成長 (ΔROA ≥ 0)", pass: cDeltaRoa, detail: `淨利率 ${Number(netMarginTtm).toFixed(2)}% (前期 ${Number(prevNetMargin).toFixed(2)}%)` },
     { id: "F4", label: "盈餘品質含金量 (OCF/NI ≥ 80%)", pass: cAccrual, detail: `獲利含金量 ${Number(ocfToNi).toFixed(0)}%` },
-    { id: "F5", label: "負債比率安全受控 (Debt < 55%)", pass: cDebt, detail: `負債比 ${Number(debtRatio).toFixed(1)}%` },
+    { id: "F5", label: "負債比率安全受控 (Debt < 55%)", pass: cDebt, detail: `負債比 ${Number(debtRatio).toFixed(2)}%` },
     { id: "F6", label: "短期償債能力佳 (流動比率 ≥ 1.2x)", pass: cCurr, detail: `流動比率 ${currentRatio}x` },
     { id: "F7", label: "未大幅膨脹股本稀釋股東權益", pass: cNoDilute, detail: cNoDilute ? "無惡性增資稀釋" : "股本增加 > 3%" },
-    { id: "F8", label: "毛利率較前期維持或擴張 (ΔGM ≥ 0)", pass: cGross, detail: `毛利率 ${Number(grossMargin).toFixed(1)}% (前期 ${Number(prevGm).toFixed(1)}%)` },
-    { id: "F9", label: "總資產週轉率穩健或營收年增 ≥ 10%", pass: cTurn, detail: `週轉率 ${assetTurnover}x · 營收 YoY ${revYoy >= 0 ? "+" : ""}${revYoy.toFixed(1)}%` },
+    { id: "F8", label: "毛利率較前期維持或擴張 (ΔGM ≥ 0)", pass: cGross, detail: `毛利率 ${Number(grossMargin).toFixed(2)}% (前期 ${Number(prevGm).toFixed(2)}%)` },
+    { id: "F9", label: "總資產週轉率穩健或營收年增 ≥ 10%", pass: cTurn, detail: `週轉率 ${assetTurnover}x · 營收 YoY ${revYoy >= 0 ? "+" : ""}${revYoy.toFixed(2)}%` },
   ];
   const pioScore = pioCriteria.filter((c) => c.pass).length;
 
   // 2. O'Neil CANSLIM (0~7)
   const canslimCriteria = [
-    { id: "C", label: "C 當季盈餘/營收成長 (YoY ≥ 15%)", pass: epsYoy >= 15 || revYoy >= 15, detail: `EPS YoY ${epsYoy >= 0 ? "+" : ""}${epsYoy.toFixed(1)}% · 營收 YoY ${revYoy >= 0 ? "+" : ""}${revYoy.toFixed(1)}%` },
-    { id: "A", label: "A 年度獲利護城河 (ROE ≥ 15% 或營益率 ≥ 15%)", pass: roeTtm >= 15 || opMargin >= 15, detail: `ROE ${Number(roeTtm).toFixed(1)}% · 營益率 ${Number(opMargin).toFixed(1)}%` },
-    { id: "N", label: "N 股價逼近 52 週高點強勢區 (距高點 15% 內)", pass: nearHigh, detail: `距 52W 高點 ${(((price - high52) / high52) * 100).toFixed(1)}%` },
+    { id: "C", label: "C 當季盈餘/營收成長 (YoY ≥ 15%)", pass: epsYoy >= 15 || revYoy >= 15, detail: `EPS YoY ${epsYoy >= 0 ? "+" : ""}${epsYoy.toFixed(2)}% · 營收 YoY ${revYoy >= 0 ? "+" : ""}${revYoy.toFixed(2)}%` },
+    { id: "A", label: "A 年度獲利護城河 (ROE ≥ 15% 或營益率 ≥ 15%)", pass: roeTtm >= 15 || opMargin >= 15, detail: `ROE ${Number(roeTtm).toFixed(2)}% · 營益率 ${Number(opMargin).toFixed(2)}%` },
+    { id: "N", label: "N 股價逼近 52 週高點強勢區 (距高點 15% 內)", pass: nearHigh, detail: `距 52W 高點 ${(((price - high52) / high52) * 100).toFixed(2)}%` },
     { id: "S", label: "S 籌碼供需與量價配合", pass: volRatio >= 0.95 && changePct >= -2.0, detail: `5日/20日量能比 ${volRatio}x` },
-    { id: "L", label: "L 波段相對強度領先 (60日報酬 > 0%)", pass: ret60 > 0, detail: `20日 ${ret20 >= 0 ? "+" : ""}${ret20.toFixed(1)}% · 60日 ${ret60 >= 0 ? "+" : ""}${ret60.toFixed(1)}%` },
-    { id: "I", label: "I 機構法人認同度與獲利含金量", pass: ocfToNi >= 80 || roeTtm >= 12, detail: `含金量 ${Number(ocfToNi).toFixed(0)}% · ROE ${Number(roeTtm).toFixed(1)}%` },
-    { id: "M", label: "M 站穩月線 (20MA) 與季線 (60MA)", pass: price >= ma20 * 0.99 && price >= ma60 * 0.98, detail: `現價 ${price.toFixed(1)} / 20MA ${ma20.toFixed(1)} / 60MA ${ma60.toFixed(1)}` },
+    { id: "L", label: "L 波段相對強度領先 (60日報酬 > 0%)", pass: ret60 > 0, detail: `20日 ${ret20 >= 0 ? "+" : ""}${ret20.toFixed(2)}% · 60日 ${ret60 >= 0 ? "+" : ""}${ret60.toFixed(2)}%` },
+    { id: "I", label: "I 機構法人認同度與獲利含金量", pass: ocfToNi >= 80 || roeTtm >= 12, detail: `含金量 ${Number(ocfToNi).toFixed(0)}% · ROE ${Number(roeTtm).toFixed(2)}%` },
+    { id: "M", label: "M 站穩月線 (20MA) 與季線 (60MA)", pass: price >= ma20 * 0.99 && price >= ma60 * 0.98, detail: `現價 ${price.toFixed(2)} / 20MA ${ma20.toFixed(2)} / 60MA ${ma60.toFixed(2)}` },
   ];
   const canslimScore = canslimCriteria.filter((c) => c.pass).length;
 
@@ -583,60 +583,60 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
   const rProfitGrade = evalStockGrade(sProfit);
   const rProfitPros: string[] = [];
   const rProfitCons: string[] = [];
-  if (opMargin >= 18) rProfitPros.push(`營益率高達 ${Number(opMargin).toFixed(1)}%（具高本業定價權）`);
-  else if (opMargin < 8) rProfitCons.push(`營益率僅 ${Number(opMargin).toFixed(1)}%（本業利潤偏薄）`);
-  if (roeTtm >= 18) rProfitPros.push(`近四季 ROE 達 ${Number(roeTtm).toFixed(1)}%（股東回報率優異）`);
-  else if (roeTtm < 10) rProfitCons.push(`近四季 ROE 僅 ${Number(roeTtm).toFixed(1)}%（資金運用效率待提升）`);
-  if (grossMargin >= 38) rProfitPros.push(`毛利率 ${Number(grossMargin).toFixed(1)}% 具護城河優勢`);
+  if (opMargin >= 18) rProfitPros.push(`營益率高達 ${Number(opMargin).toFixed(2)}%（具高本業定價權）`);
+  else if (opMargin < 8) rProfitCons.push(`營益率僅 ${Number(opMargin).toFixed(2)}%（本業利潤偏薄）`);
+  if (roeTtm >= 18) rProfitPros.push(`近四季 ROE 達 ${Number(roeTtm).toFixed(2)}%（股東回報率優異）`);
+  else if (roeTtm < 10) rProfitCons.push(`近四季 ROE 僅 ${Number(roeTtm).toFixed(2)}%（資金運用效率待提升）`);
+  if (grossMargin >= 38) rProfitPros.push(`毛利率 ${Number(grossMargin).toFixed(2)}% 具護城河優勢`);
   const rProfitReason =
     sProfit >= 75
-      ? `營業利益率 ${Number(opMargin).toFixed(1)}% 且近四季 ROE 達 ${Number(roeTtm).toFixed(1)}%，具備強大產品定價權與高股東獲利回報（獲利能力評定為${rProfitGrade}）。`
+      ? `營業利益率 ${Number(opMargin).toFixed(2)}% 且近四季 ROE 達 ${Number(roeTtm).toFixed(2)}%，具備強大產品定價權與高股東獲利回報（獲利能力評定為${rProfitGrade}）。`
       : sProfit >= 55
-      ? `本業營益率 ${Number(opMargin).toFixed(1)}% 與毛利率 ${Number(grossMargin).toFixed(1)}% 維持正常中位水準，獲利表現平穩。`
-      : `營業利益率僅 ${Number(opMargin).toFixed(1)}% 或 ROE 偏弱，獲利能力受成本上升或毛利偏低壓制，評為偏弱。`;
+      ? `本業營益率 ${Number(opMargin).toFixed(2)}% 與毛利率 ${Number(grossMargin).toFixed(2)}% 維持正常中位水準，獲利表現平穩。`
+      : `營業利益率僅 ${Number(opMargin).toFixed(2)}% 或 ROE 偏弱，獲利能力受成本上升或毛利偏低壓制，評為偏弱。`;
 
   const rGrowthGrade = evalStockGrade(sGrowth);
   const rGrowthPros: string[] = [];
   const rGrowthCons: string[] = [];
-  if (revYoy >= 15) rGrowthPros.push(`單季營收年增 +${revYoy.toFixed(1)}%（雙位數高速擴張）`);
-  else if (revYoy < 0) rGrowthCons.push(`單季營收年減 ${revYoy.toFixed(1)}%（出貨動能放緩）`);
-  if (epsYoy >= 15) rGrowthPros.push(`單季 EPS 年增 +${epsYoy.toFixed(1)}%（盈餘成長爆發力佳）`);
+  if (revYoy >= 15) rGrowthPros.push(`單季營收年增 +${revYoy.toFixed(2)}%（雙位數高速擴張）`);
+  else if (revYoy < 0) rGrowthCons.push(`單季營收年減 ${revYoy.toFixed(2)}%（出貨動能放緩）`);
+  if (epsYoy >= 15) rGrowthPros.push(`單季 EPS 年增 +${epsYoy.toFixed(2)}%（盈餘成長爆發力佳）`);
   else if (epsYoy < 0) rGrowthCons.push(`單季 EPS 出現年衰退（獲利動能收縮）`);
   const rGrowthReason =
     revYoy >= 10
-      ? `單季營收年增 +${revYoy.toFixed(1)}% 且 EPS 年增 +${epsYoy.toFixed(1)}%，訂單與出貨動能旺盛，成長動能評為${rGrowthGrade}。`
+      ? `單季營收年增 +${revYoy.toFixed(2)}% 且 EPS 年增 +${epsYoy.toFixed(2)}%，訂單與出貨動能旺盛，成長動能評為${rGrowthGrade}。`
       : revYoy >= 0
-      ? `營收年增率 +${revYoy.toFixed(1)}% 維持溫和擴張，動能平穩未見大幅衰退。`
-      : `營收或 EPS 較前期呈現負成長（營收 YoY ${revYoy.toFixed(1)}%），短期動能落入調整期。`;
+      ? `營收年增率 +${revYoy.toFixed(2)}% 維持溫和擴張，動能平穩未見大幅衰退。`
+      : `營收或 EPS 較前期呈現負成長（營收 YoY ${revYoy.toFixed(2)}%），短期動能落入調整期。`;
 
   const rSafetyGrade = evalStockGrade(sSafety);
   const rSafetyPros: string[] = [];
   const rSafetyCons: string[] = [];
-  if (debtRatio <= 45) rSafetyPros.push(`負債比率僅 ${Number(debtRatio).toFixed(1)}%（處於 50% 安全警戒線以下）`);
-  else if (debtRatio > 60) rSafetyCons.push(`負債比率達 ${Number(debtRatio).toFixed(1)}%（財務槓桿與利息負擔偏高）`);
+  if (debtRatio <= 45) rSafetyPros.push(`負債比率僅 ${Number(debtRatio).toFixed(2)}%（處於 50% 安全警戒線以下）`);
+  else if (debtRatio > 60) rSafetyCons.push(`負債比率達 ${Number(debtRatio).toFixed(2)}%（財務槓桿與利息負擔偏高）`);
   if (currentRatio >= 1.5) rSafetyPros.push(`流動比率 ${currentRatio}x（短期償債資金充裕無虞）`);
   else if (currentRatio < 1.0) rSafetyCons.push(`流動比率僅 ${currentRatio}x（短期流動性緩衝不足）`);
   if (pioScore >= 7) rSafetyPros.push(`Piotroski F-Score 通過 ${pioScore}/9 項（排除財務地雷）`);
   else if (pioScore <= 4) rSafetyCons.push(`Piotroski F-Score 僅 ${pioScore}/9 項（需留意現金流或週轉弱點）`);
   const rSafetyReason =
     sSafety >= 75
-      ? `負債比 ${Number(debtRatio).toFixed(1)}% 遠低於警戒水位，流動比率 ${currentRatio}x 償債無虞，F-Score 排雷通過 ${pioScore}/9 項，財務極度穩健。`
+      ? `負債比 ${Number(debtRatio).toFixed(2)}% 遠低於警戒水位，流動比率 ${currentRatio}x 償債無虞，F-Score 排雷通過 ${pioScore}/9 項，財務極度穩健。`
       : sSafety >= 55
-      ? `負債比 ${Number(debtRatio).toFixed(1)}% 處合理受控區間，流動比率 ${currentRatio}x 具基本償債能力。`
-      : `負債比率偏高 (${Number(debtRatio).toFixed(1)}%) 或流動比不足，財務防禦緩衝較薄弱。`;
+      ? `負債比 ${Number(debtRatio).toFixed(2)}% 處合理受控區間，流動比率 ${currentRatio}x 具基本償債能力。`
+      : `負債比率偏高 (${Number(debtRatio).toFixed(2)}%) 或流動比不足，財務防禦緩衝較薄弱。`;
 
   const rValuationGrade = evalStockGrade(sValuation);
   const rValPros: string[] = [];
   const rValCons: string[] = [];
   if (perPercentile <= 35) rValPros.push(`本益比 ${per}x 處於近五年歷史 ${perPercentile.toFixed(0)}% 低分位（具安全邊際）`);
   else if (perPercentile >= 75) rValCons.push(`本益比 ${per}x 處於近五年歷史 ${perPercentile.toFixed(0)}% 高分位（市場已給予高溢價）`);
-  if (dividendYield >= 4.0) rValPros.push(`現金殖利率約 ${dividendYield.toFixed(1)}%（具高股息保護傘）`);
-  else if (dividendYield < 1.5) rValCons.push(`現金殖利率僅 ${dividendYield.toFixed(1)}%（以資本利得為主）`);
+  if (dividendYield >= 4.0) rValPros.push(`現金殖利率約 ${dividendYield.toFixed(2)}%（具高股息保護傘）`);
+  else if (dividendYield < 1.5) rValCons.push(`現金殖利率僅 ${dividendYield.toFixed(2)}%（以資本利得為主）`);
   const rValuationReason =
     perPercentile <= 40
       ? `本益比 ${per}x 位於歷史估值低檔區間 (${perPercentile.toFixed(0)}%)，性價比高，下檔具備估值保護（估值股息評為${rValuationGrade}）。`
       : perPercentile <= 70
-      ? `本益比 ${per}x 處於歷史合理常態中位數 (${perPercentile.toFixed(0)}%)，殖利率 ${dividendYield.toFixed(1)}%，評價公允。`
+      ? `本益比 ${per}x 處於歷史合理常態中位數 (${perPercentile.toFixed(0)}%)，殖利率 ${dividendYield.toFixed(2)}%，評價公允。`
       : `本益比 ${per}x 已達歷史 ${perPercentile.toFixed(0)}% 高分位，市場期待極高，若後續獲利不如預期易引發本益比修正。`;
 
   const rMomentumGrade = evalStockGrade(sMomentum);
@@ -649,7 +649,7 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
   if (vcpRatio <= 0.85) rMomPros.push(`VCP 波動收斂壓縮比 ${vcpRatio}x（籌碼沉澱浮額洗淨）`);
   const rMomentumReason =
     sMomentum >= 70
-      ? `價格站穩 20MA 月線且符合 Minervini 多頭排列 (${minerviniScore}/8 項)，近 20 日漲幅 ${ret20 >= 0 ? '+' : ''}${ret20.toFixed(1)}%，技術面強勢。`
+      ? `價格站穩 20MA 月線且符合 Minervini 多頭排列 (${minerviniScore}/8 項)，近 20 日漲幅 ${ret20 >= 0 ? '+' : ''}${ret20.toFixed(2)}%，技術面強勢。`
       : sMomentum >= 50
       ? `均線多空交戰震盪，目前 20MA 支撐測試中，VCP 波動收斂 ${vcpRatio}x 處於籌碼消化期。`
       : `跌破關鍵 20MA 均線且動能走弱，上檔存在反壓，短線以觀望為主。`;
@@ -660,7 +660,7 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
       axis: "獲利能力",
       score: sProfit,
       grade: rProfitGrade,
-      metric: `營益率 ${Number(opMargin).toFixed(1)}% · ROE ${Number(roeTtm).toFixed(1)}% · 毛利率 ${Number(grossMargin).toFixed(1)}%`,
+      metric: `營益率 ${Number(opMargin).toFixed(2)}% · ROE ${Number(roeTtm).toFixed(2)}% · 毛利率 ${Number(grossMargin).toFixed(2)}%`,
       reason: rProfitReason,
       pros: rProfitPros,
       cons: rProfitCons,
@@ -670,7 +670,7 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
       axis: "成長動能",
       score: sGrowth,
       grade: rGrowthGrade,
-      metric: `營收 YoY ${revYoy >= 0 ? "+" : ""}${revYoy.toFixed(1)}% · EPS YoY ${epsYoy >= 0 ? "+" : ""}${epsYoy.toFixed(1)}%`,
+      metric: `營收 YoY ${revYoy >= 0 ? "+" : ""}${revYoy.toFixed(2)}% · EPS YoY ${epsYoy >= 0 ? "+" : ""}${epsYoy.toFixed(2)}%`,
       reason: rGrowthReason,
       pros: rGrowthPros,
       cons: rGrowthCons,
@@ -680,7 +680,7 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
       axis: "財務安全",
       score: sSafety,
       grade: rSafetyGrade,
-      metric: `負債比 ${Number(debtRatio).toFixed(1)}% · 流動比 ${currentRatio}x · F-Score ${pioScore}/9`,
+      metric: `負債比 ${Number(debtRatio).toFixed(2)}% · 流動比 ${currentRatio}x · F-Score ${pioScore}/9`,
       reason: rSafetyReason,
       pros: rSafetyPros,
       cons: rSafetyCons,
@@ -700,7 +700,7 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
       axis: "技術籌碼",
       score: sMomentum,
       grade: rMomentumGrade,
-      metric: `20日 ${ret20 >= 0 ? "+" : ""}${ret20.toFixed(1)}% · VCP ${vcpRatio}x · 趨勢 ${minerviniScore}/8`,
+      metric: `20日 ${ret20 >= 0 ? "+" : ""}${ret20.toFixed(2)}% · VCP ${vcpRatio}x · 趨勢 ${minerviniScore}/8`,
       reason: rMomentumReason,
       pros: rMomPros,
       cons: rMomCons,
@@ -741,9 +741,9 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
       monthly_revenue: monthlyRev,
       balance: {
         ...(fin?.balance || {}),
-        debt_ratio: Number(debtRatio.toFixed(1)),
+        debt_ratio: Number(debtRatio.toFixed(2)),
         current_ratio: currentRatio,
-        roe_ttm: Number(Number(roeTtm).toFixed(1)),
+        roe_ttm: Number(Number(roeTtm).toFixed(2)),
         ocf_to_ni_ttm: Number(Number(ocfToNi).toFixed(0)),
       },
       dupont,
@@ -757,9 +757,9 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
         overall: totalScore,
       },
       flags: fin?.flags || [
-        `營業利益率 ${Number(opMargin).toFixed(1)}% · 近四季 ROE ${Number(roeTtm).toFixed(1)}%`,
-        `單季營收 YoY ${revYoy >= 0 ? "+" : ""}${revYoy.toFixed(1)}% · EPS YoY ${epsYoy >= 0 ? "+" : ""}${epsYoy.toFixed(1)}%`,
-        `負債比 ${Number(debtRatio).toFixed(1)}% · 本益比 ${per}x (歷史位階 ${perPercentile.toFixed(0)}%)`,
+        `營業利益率 ${Number(opMargin).toFixed(2)}% · 近四季 ROE ${Number(roeTtm).toFixed(2)}%`,
+        `單季營收 YoY ${revYoy >= 0 ? "+" : ""}${revYoy.toFixed(2)}% · EPS YoY ${epsYoy >= 0 ? "+" : ""}${epsYoy.toFixed(2)}%`,
+        `負債比 ${Number(debtRatio).toFixed(2)}% · 本益比 ${per}x (歷史位階 ${perPercentile.toFixed(0)}%)`,
       ],
     },
     models: {
@@ -814,7 +814,7 @@ async function _buildDeepReportInternal(symbol: string): Promise<any> {
       target_price: targetPrice,
       risk_reward: Math.max(1.2, riskReward),
       bull_points: [
-        `Piotroski F-Score 達 ${pioScore}/9 分，杜邦分析顯示屬於「${dupont.driver}」（近四季 ROE 約 ${Number(dupont.roe_ttm).toFixed(1)}%）。`,
+        `Piotroski F-Score 達 ${pioScore}/9 分，杜邦分析顯示屬於「${dupont.driver}」（近四季 ROE 約 ${Number(dupont.roe_ttm).toFixed(2)}%）。`,
         `Minervini VCP 波動收斂比 ${vcpRatio}x，下方 SMC 多方訂單塊支撐位於 ${bullObLow} ~ ${bullObHigh}。`,
       ],
       bear_points: [
@@ -843,10 +843,10 @@ function enrichRadarMetrics(
       const om = q0.operating_margin != null ? Number(q0.operating_margin) : null;
       const roe = bal.roe_ttm != null ? Number(bal.roe_ttm) : null;
       const gm = q0.gross_margin != null ? Number(q0.gross_margin) : null;
-      const metric = r.metric || `營益率 ${om != null ? `${om.toFixed(1)}%` : "—"} · ROE ${roe != null ? `${roe.toFixed(1)}%` : "—"} · 毛利率 ${gm != null ? `${gm.toFixed(1)}%` : "—"}`;
+      const metric = r.metric || `營益率 ${om != null ? `${om.toFixed(2)}%` : "—"} · ROE ${roe != null ? `${roe.toFixed(2)}%` : "—"} · 毛利率 ${gm != null ? `${gm.toFixed(2)}%` : "—"}`;
       const reason = r.reason || (
         score >= 70
-          ? `營業利益率${om != null ? ` ${om.toFixed(1)}%` : ""}與近四季 ROE${roe != null ? ` ${roe.toFixed(1)}%` : ""}表現優異，本業獲利護城河與股東報酬率高（評定為${grade}）。`
+          ? `營業利益率${om != null ? ` ${om.toFixed(2)}%` : ""}與近四季 ROE${roe != null ? ` ${roe.toFixed(2)}%` : ""}表現優異，本業獲利護城河與股東報酬率高（評定為${grade}）。`
           : `營益率與 ROE 維持常態水平，獲利表現平穩。`
       );
       return {
@@ -854,17 +854,17 @@ function enrichRadarMetrics(
         grade: r.grade || grade,
         metric,
         reason,
-        pros: r.pros || (om && om >= 15 ? [`營業利益率 ${om.toFixed(1)}% 高於同業`] : []),
+        pros: r.pros || (om && om >= 15 ? [`營業利益率 ${om.toFixed(2)}% 高於同業`] : []),
         cons: r.cons || (om && om < 8 ? [`營益率偏薄需留意利潤壓縮`] : []),
       };
     }
     if (k.includes("growth")) {
       const ry = q0.revenue_yoy ?? mRev.yoy;
       const ey = q0.eps_yoy;
-      const metric = r.metric || `營收 YoY ${ry != null ? `${ry >= 0 ? "+" : ""}${Number(ry).toFixed(1)}%` : "—"} · EPS YoY ${ey != null ? `${ey >= 0 ? "+" : ""}${Number(ey).toFixed(1)}%` : "—"}`;
+      const metric = r.metric || `營收 YoY ${ry != null ? `${ry >= 0 ? "+" : ""}${Number(ry).toFixed(2)}%` : "—"} · EPS YoY ${ey != null ? `${ey >= 0 ? "+" : ""}${Number(ey).toFixed(2)}%` : "—"}`;
       const reason = r.reason || (
         score >= 70
-          ? `單季營收年增率${ry != null ? ` +${Number(ry).toFixed(1)}%` : ""}與 EPS 動能強勁，本業訂單與市場需求旺盛（評定為${grade}）。`
+          ? `單季營收年增率${ry != null ? ` +${Number(ry).toFixed(2)}%` : ""}與 EPS 動能強勁，本業訂單與市場需求旺盛（評定為${grade}）。`
           : `營收年增率維持穩健，動能中性整理。`
       );
       return {
@@ -872,7 +872,7 @@ function enrichRadarMetrics(
         grade: r.grade || grade,
         metric,
         reason,
-        pros: r.pros || (ry && ry >= 10 ? [`單季營收年增 +${Number(ry).toFixed(1)}%`] : []),
+        pros: r.pros || (ry && ry >= 10 ? [`單季營收年增 +${Number(ry).toFixed(2)}%`] : []),
         cons: r.cons || (ry && ry < 0 ? [`營收年增率出現衰退`] : []),
       };
     }
@@ -880,10 +880,10 @@ function enrichRadarMetrics(
       const dr = bal.debt_ratio != null ? Number(bal.debt_ratio) : null;
       const cr = bal.current_ratio != null ? bal.current_ratio : null;
       const fScore = models?.piotroski ? `${models.piotroski.score}/${models.piotroski.max_score}` : "—";
-      const metric = r.metric || `負債比 ${dr != null ? `${dr.toFixed(1)}%` : "—"} · 流動比 ${cr != null ? `${cr}x` : "—"} · F-Score ${fScore}`;
+      const metric = r.metric || `負債比 ${dr != null ? `${dr.toFixed(2)}%` : "—"} · 流動比 ${cr != null ? `${cr}x` : "—"} · F-Score ${fScore}`;
       const reason = r.reason || (
         score >= 70
-          ? `負債比率${dr != null ? ` ${dr.toFixed(1)}%` : ""}處於安全水位，流動比率充裕，Piotroski 排雷檢核通過率高，財務防禦穩固（評定為${grade}）。`
+          ? `負債比率${dr != null ? ` ${dr.toFixed(2)}%` : ""}處於安全水位，流動比率充裕，Piotroski 排雷檢核通過率高，財務防禦穩固（評定為${grade}）。`
           : `負債比與短期流動比率處於合理警戒範圍內。`
       );
       return {
@@ -891,7 +891,7 @@ function enrichRadarMetrics(
         grade: r.grade || grade,
         metric,
         reason,
-        pros: r.pros || (dr && dr <= 45 ? [`負債比 ${dr.toFixed(1)}% 低於安全警戒線`] : []),
+        pros: r.pros || (dr && dr <= 45 ? [`負債比 ${dr.toFixed(2)}% 低於安全警戒線`] : []),
         cons: r.cons || (dr && dr > 60 ? [`負債比偏高需留意利息支出`] : []),
       };
     }
@@ -899,10 +899,10 @@ function enrichRadarMetrics(
       const per = val.per != null ? Number(val.per) : null;
       const pbr = val.pbr != null ? Number(val.pbr) : null;
       const dy = val.dividend_yield != null ? Number(val.dividend_yield) : null;
-      const metric = r.metric || `PER ${per != null ? `${per.toFixed(1)}x` : "—"} · PBR ${pbr != null ? `${pbr.toFixed(2)}x` : "—"} · 殖利率 ${dy != null ? `${dy.toFixed(2)}%` : "—"}`;
+      const metric = r.metric || `PER ${per != null ? `${per.toFixed(2)}x` : "—"} · PBR ${pbr != null ? `${pbr.toFixed(2)}x` : "—"} · 殖利率 ${dy != null ? `${dy.toFixed(2)}%` : "—"}`;
       const reason = r.reason || (
         score >= 65
-          ? `本益比${per != null ? ` ${per.toFixed(1)}x` : ""}處於合理或低估區間，配合殖利率具備吸引力，評價性價比高（評定為${grade}）。`
+          ? `本益比${per != null ? ` ${per.toFixed(2)}x` : ""}處於合理或低估區間，配合殖利率具備吸引力，評價性價比高（評定為${grade}）。`
           : `本益比或股價淨值比處於歷史常態水位，估值公允。`
       );
       return {
@@ -910,7 +910,7 @@ function enrichRadarMetrics(
         grade: r.grade || grade,
         metric,
         reason,
-        pros: r.pros || (dy && dy >= 3.5 ? [`現金殖利率 ${dy.toFixed(1)}% 具息收吸引力`] : []),
+        pros: r.pros || (dy && dy >= 3.5 ? [`現金殖利率 ${dy.toFixed(2)}% 具息收吸引力`] : []),
         cons: r.cons || (per && per > 30 ? [`本益比高於 30 倍`] : []),
       };
     }
@@ -1074,26 +1074,26 @@ export async function generateSmartStockAnalysis(symbol: string): Promise<Equity
 
   if (isEtf && deep.etf_profile) {
     const ep = deep.etf_profile;
-    const baseTarget = Number((price * 1.06).toFixed(1));
-    const bullTarget = Number((price * 1.18).toFixed(1));
-    const bearTarget = Number((Math.min(v.stop_loss || price * 0.92, price * 0.92)).toFixed(1));
+    const baseTarget = Number((price * 1.06).toFixed(2));
+    const bullTarget = Number((price * 1.18).toFixed(2));
+    const bearTarget = Number((Math.min(v.stop_loss || price * 0.92, price * 0.92)).toFixed(2));
 
     const valuation_scenarios = {
       bull: {
         target: bullTarget,
-        upside_pct: Number((((bullTarget - price) / price) * 100).toFixed(1)),
+        upside_pct: Number((((bullTarget - price) / price) * 100).toFixed(2)),
         per: 0,
         assumptions: "指數追蹤權值成分股獲利爆發、被動資金大量湧入、權值股估值多頭擴張",
       },
       base: {
         target: baseTarget,
-        upside_pct: Number((((baseTarget - price) / price) * 100).toFixed(1)),
+        upside_pct: Number((((baseTarget - price) / price) * 100).toFixed(2)),
         per: 0,
         assumptions: "貼合大盤基準指數常態年化成長率 (約 6%~9%)，總經景氣溫和擴張",
       },
       bear: {
         target: bearTarget,
-        upside_pct: Number((((bearTarget - price) / price) * 100).toFixed(1)),
+        upside_pct: Number((((bearTarget - price) / price) * 100).toFixed(2)),
         per: 0,
         assumptions: "全球系統性流動性緊縮或權值股獲利回檔修正，回測波段支撐",
       },
@@ -1192,12 +1192,12 @@ export async function generateSmartStockAnalysis(symbol: string): Promise<Equity
     score: moatScore,
     pricing_power:
       grossMargin >= 35
-        ? `毛利率達 ${grossMargin.toFixed(1)}%，具備強大產品定價權與技術溢價能力`
-        : `毛利率為 ${grossMargin.toFixed(1)}%，定價權受同業競爭常態壓制`,
+        ? `毛利率達 ${grossMargin.toFixed(2)}%，具備強大產品定價權與技術溢價能力`
+        : `毛利率為 ${grossMargin.toFixed(2)}%，定價權受同業競爭常態壓制`,
     gross_margin_advantage:
       opMargin >= 15
-        ? `營業利益率 ${opMargin.toFixed(1)}%，本業利潤轉換率極為優異`
-        : `營業利益率 ${opMargin.toFixed(1)}%，本業獲利率處於常態中位數`,
+        ? `營業利益率 ${opMargin.toFixed(2)}%，本業利潤轉換率極為優異`
+        : `營業利益率 ${opMargin.toFixed(2)}%，本業獲利率處於常態中位數`,
     supplier_dependency: "供應鏈關鍵原料依賴度處於可控範圍，需持續關注外包代工與匯率轉嫁彈性",
   };
 
@@ -1214,38 +1214,38 @@ export async function generateSmartStockAnalysis(symbol: string): Promise<Equity
     dupont_driver: dup.driver || "本業高淨利率帶動型 (High Net Margin Driver)",
     debt_leverage_alert:
       debtRatio < 50
-        ? `負債比率僅 ${debtRatio.toFixed(1)}%，財務結構穩健，無利息槓桿暴雷風險`
-        : `負債比率 ${debtRatio.toFixed(1)}%，處於警戒區，需監控利息保障倍數`,
+        ? `負債比率僅 ${debtRatio.toFixed(2)}%，財務結構穩健，無利息槓桿暴雷風險`
+        : `負債比率 ${debtRatio.toFixed(2)}%，處於警戒區，需監控利息保障倍數`,
   };
 
   const baseMultiple = per > 0 ? (v.total_score >= 65 ? 1.08 : v.total_score >= 50 ? 1.02 : 0.95) : 1.05;
   const bullMultiple = per > 0 ? (v.total_score >= 70 ? 1.25 : 1.15) : 1.18;
   const bearMultiple = 0.88;
 
-  const baseTarget = Number((price * baseMultiple).toFixed(1));
-  const bullTarget = Number((price * bullMultiple).toFixed(1));
-  const bearTarget = Number((Math.min(v.stop_loss || price * bearMultiple, price * bearMultiple)).toFixed(1));
+  const baseTarget = Number((price * baseMultiple).toFixed(2));
+  const bullTarget = Number((price * bullMultiple).toFixed(2));
+  const bearTarget = Number((Math.min(v.stop_loss || price * bearMultiple, price * bearMultiple)).toFixed(2));
 
-  const basePer = Number((per * baseMultiple).toFixed(1));
-  const bullPer = Number((per * bullMultiple).toFixed(1));
-  const bearPer = Number((per * bearMultiple).toFixed(1));
+  const basePer = Number((per * baseMultiple).toFixed(2));
+  const bullPer = Number((per * bullMultiple).toFixed(2));
+  const bearPer = Number((per * bearMultiple).toFixed(2));
 
   const valuation_scenarios = {
     bull: {
       target: bullTarget,
-      upside_pct: Number((((bullTarget - price) / price) * 100).toFixed(1)),
+      upside_pct: Number((((bullTarget - price) / price) * 100).toFixed(2)),
       per: bullPer,
-      assumptions: `營收雙位數爆發，毛利率擴張至 ${(grossMargin * 1.06).toFixed(1)}%，本益比擴張至歷史 80% 分位 (${bullPer}x)`,
+      assumptions: `營收雙位數爆發，毛利率擴張至 ${(grossMargin * 1.06).toFixed(2)}%，本益比擴張至歷史 80% 分位 (${bullPer}x)`,
     },
     base: {
       target: baseTarget,
-      upside_pct: Number((((baseTarget - price) / price) * 100).toFixed(1)),
+      upside_pct: Number((((baseTarget - price) / price) * 100).toFixed(2)),
       per: basePer,
       assumptions: `本業獲利穩健增長，維持常態中位數估值倍數 (${basePer}x) 折現`,
     },
     bear: {
       target: bearTarget,
-      upside_pct: Number((((bearTarget - price) / price) * 100).toFixed(1)),
+      upside_pct: Number((((bearTarget - price) / price) * 100).toFixed(2)),
       per: bearPer,
       assumptions: `終端需求下修或庫存調整，本益比回落至歷史低分位 (${bearPer}x) 並尋求淨值底線保護`,
     },
@@ -1262,17 +1262,17 @@ export async function generateSmartStockAnalysis(symbol: string): Promise<Equity
 
 ### 1. 商業模式與產業護城河評估 (Moat & Business Model)
 - **護城河級別評定**：**${moat.level}**（綜合護城河評分 **${moat.score} / 100**）。
-- **產品定價權與毛利壁壘**：最新單季毛利率為 **${grossMargin.toFixed(1)}%**，營業利益率為 **${opMargin.toFixed(1)}%**。${moat.pricing_power}。
+- **產品定價權與毛利壁壘**：最新單季毛利率為 **${grossMargin.toFixed(2)}%**，營業利益率為 **${opMargin.toFixed(2)}%**。${moat.pricing_power}。
 - **同業競爭與產業地位**：在主要利基市場具備技術先進或規模經濟壁壘，相較同業具備更佳之成本轉嫁彈性。
 - **供應鏈依賴度與客戶結構**：${moat.supplier_dependency}。
 
 ---
 
 ### 2. 財報三表深度體檢與核心警訊 (Financial Health & Red Flags)
-- **杜邦 ROE 獲利拆解**：近四季 ROE 為 **${roeTtm.toFixed(1)}%**，主要驅動來源為「**${dup.driver || financial_health.dupont_driver}**」。
+- **杜邦 ROE 獲利拆解**：近四季 ROE 為 **${roeTtm.toFixed(2)}%**，主要驅動來源為「**${dup.driver || financial_health.dupont_driver}**」。
 - **現金流含金量 (排雷指標)**：營業現金流 (OCF) 對稅後淨利 (NI) 比例為 **${ocfToNi.toFixed(0)}%**。${financial_health.cash_flow_quality}。
 - **存貨與週轉效率預警**：${financial_health.inventory_alert}。
-- **財務槓桿與償債能力**：負債比率為 **${debtRatio.toFixed(1)}%**，流動比率為 **${bal.current_ratio ?? 1.75}x**，${financial_health.debt_leverage_alert}。Piotroski F-Score 排雷分數拿下 **${pio.score ?? 7}/9 分**。
+- **財務槓桿與償債能力**：負債比率為 **${debtRatio.toFixed(2)}%**，流動比率為 **${bal.current_ratio ?? 1.75}x**，${financial_health.debt_leverage_alert}。Piotroski F-Score 排雷分數拿下 **${pio.score ?? 7}/9 分**。
 
 ---
 
@@ -1333,10 +1333,10 @@ export async function generateSmartAICommittee(symbol: string): Promise<any> {
       ? "區間觀望"
       : "逢高減碼";
 
-  const entryLow = v.entry_zone?.[0] || Number((price * 0.98).toFixed(1));
-  const entryHigh = v.entry_zone?.[1] || Number((price * 1.01).toFixed(1));
-  const stopLoss = v.stop_loss || Number((price * 0.94).toFixed(1));
-  const targetPrice = v.target_price || Number((price * 1.12).toFixed(1));
+  const entryLow = v.entry_zone?.[0] || Number((price * 0.98).toFixed(2));
+  const entryHigh = v.entry_zone?.[1] || Number((price * 1.01).toFixed(2));
+  const stopLoss = v.stop_loss || Number((price * 0.94).toFixed(2));
+  const targetPrice = v.target_price || Number((price * 1.12).toFixed(2));
 
   // 1. 資產配置比例 (% Portfolio Allocation)
   const conservativePct = overallScore >= 75 ? 12 : overallScore >= 60 ? 8 : 4;
@@ -1351,9 +1351,9 @@ export async function generateSmartAICommittee(symbol: string): Promise<any> {
   };
 
   // 2. 實戰階梯式限價掛單手冊 (Execution Order Ladder)
-  const step1Price = Number(entryLow.toFixed(1));
-  const step2Price = Number((entryLow * 0.985).toFixed(1));
-  const step3Price = Number((price * 1.015).toFixed(1));
+  const step1Price = Number(entryLow.toFixed(2));
+  const step2Price = Number((entryLow * 0.985).toFixed(2));
+  const step3Price = Number((price * 1.015).toFixed(2));
 
   const order_ladder = {
     step1_entry: {
@@ -1376,8 +1376,8 @@ export async function generateSmartAICommittee(symbol: string): Promise<any> {
     },
     take_profit_ladder: {
       tp1: {
-        price: Number((price + (targetPrice - price) * 0.5).toFixed(1)),
-        action: `達成第一目標價 ($${Number((price + (targetPrice - price) * 0.5).toFixed(1))}) 時出清 50% 部位，並同步將停損點推移至進場成本價（達成保本狀態）。`,
+        price: Number((price + (targetPrice - price) * 0.5).toFixed(2)),
+        action: `達成第一目標價 ($${Number((price + (targetPrice - price) * 0.5).toFixed(2))}) 時出清 50% 部位，並同步將停損點推移至進場成本價（達成保本狀態）。`,
       },
       tp2: {
         price: targetPrice,
@@ -1549,7 +1549,7 @@ export async function generateSmartAICommittee(symbol: string): Promise<any> {
           `防守底線：收盤跌破 $${stopLoss} 結構轉弱，強制執行風控`,
         ],
         recommended_stop_loss_pct: Number(
-          Math.max(3.5, Math.min(9.5, ((price - stopLoss) / Math.max(1, price)) * 100)).toFixed(1)
+          Math.max(3.5, Math.min(9.5, ((price - stopLoss) / Math.max(1, price)) * 100)).toFixed(2)
         ),
       },
     },

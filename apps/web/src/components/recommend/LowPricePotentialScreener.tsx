@@ -658,11 +658,11 @@ export default function LowPricePotentialScreener() {
 
       // 依即時行情動態調校進場區間、停損與上檔目標空間
       const ratio = item.price > 0 ? currentPrice / item.price : 1;
-      const targetPrice = Number((item.target_price * ratio).toFixed(1));
-      const stopLoss = Number((item.stop_loss * ratio).toFixed(1));
-      const entryLow = Number((item.entry_zone[0] * ratio).toFixed(1));
-      const entryHigh = Number((item.entry_zone[1] * ratio).toFixed(1));
-      const upside = Number((((targetPrice - currentPrice) / currentPrice) * 100).toFixed(1));
+      const targetPrice = Number((item.target_price * ratio).toFixed(2));
+      const stopLoss = Number((item.stop_loss * ratio).toFixed(2));
+      const entryLow = Number((item.entry_zone[0] * ratio).toFixed(2));
+      const entryHigh = Number((item.entry_zone[1] * ratio).toFixed(2));
+      const upside = Number((((targetPrice - currentPrice) / currentPrice) * 100).toFixed(2));
 
       return {
         ...item,
@@ -707,7 +707,7 @@ export default function LowPricePotentialScreener() {
   const stats = useMemo(() => {
     const count = filteredAndSortedList.length;
     const avgScore = count > 0 ? Math.round(filteredAndSortedList.reduce((acc, it) => acc + it.score_total, 0) / count) : 0;
-    const avgUpside = count > 0 ? (filteredAndSortedList.reduce((acc, it) => acc + it.upside_pct, 0) / count).toFixed(1) : "0";
+    const avgUpside = count > 0 ? (filteredAndSortedList.reduce((acc, it) => acc + it.upside_pct, 0) / count).toFixed(2) : "0.00";
     const lowPbrCount = filteredAndSortedList.filter((it) => it.pbr < 1.0).length;
 
     return { count, avgScore, avgUpside, lowPbrCount };
@@ -970,7 +970,7 @@ export default function LowPricePotentialScreener() {
                     <div className="text-right">
                       <div className="text-[10px] text-muted">量比放大</div>
                       <span className="font-mono font-bold text-xs text-amber-400">
-                        {stk.volume_mult.toFixed(1)}x 均量
+                        {stk.volume_mult.toFixed(2)}x 均量
                       </span>
                     </div>
 
@@ -1034,21 +1034,21 @@ export default function LowPricePotentialScreener() {
                     <div className="p-1.5 rounded bg-[var(--bg-tertiary)]">
                       <div className="text-[10px] text-muted">進場區間</div>
                       <div className="font-mono font-semibold text-primary mt-0.5">
-                        ${stk.entry_zone[0]}~{stk.entry_zone[1]}
+                        ${Number(stk.entry_zone[0]).toFixed(2)}~${Number(stk.entry_zone[1]).toFixed(2)}
                       </div>
                     </div>
 
                     <div className="p-1.5 rounded bg-[var(--bg-tertiary)]">
                       <div className="text-[10px] text-muted">防守停損</div>
                       <div className="font-mono font-semibold text-rose-400 mt-0.5">
-                        ${stk.stop_loss}
+                        ${Number(stk.stop_loss).toFixed(2)}
                       </div>
                     </div>
 
                     <div className="p-1.5 rounded bg-red-500/10 border border-red-500/20">
                       <div className="text-[10px] text-red-300">目標價 (空間)</div>
                       <div className="font-mono font-bold text-red-400 mt-0.5">
-                        ${stk.target_price} (+{stk.upside_pct}%)
+                        ${Number(stk.target_price).toFixed(2)} (+${Number(stk.upside_pct).toFixed(2)}%)
                       </div>
                     </div>
                   </div>

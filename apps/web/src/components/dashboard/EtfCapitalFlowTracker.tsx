@@ -866,7 +866,7 @@ export default function EtfCapitalFlowTracker({
       const sharesNet = Number(navItem.shares_net) || 0;
       const aumUnits = Number(navItem.aum_units) || 0;
       const aumB = aumUnits > 0 ? Math.max(1, Math.round((aumUnits * price) / 1e8)) : 50;
-      const flow1d = sharesNet !== 0 ? Number(((sharesNet * price * 1000) / 1e8).toFixed(1)) : Number((disc * 4).toFixed(1));
+      const flow1d = sharesNet !== 0 ? Number(((sharesNet * price * 1000) / 1e8).toFixed(2)) : Number((disc * 4).toFixed(2));
 
       let cat: EtfFlowItem["category"] = "市值權值";
       if (/B$|D$/i.test(sym) || name.includes("債")) cat = "長天期美債";
@@ -884,9 +884,9 @@ export default function EtfCapitalFlowTracker({
         nav,
         change_pct: changePct,
         flow_1d: flow1d,
-        flow_5d: Number((flow1d * 3.8).toFixed(1)),
-        flow_20d: Number((flow1d * 11.5).toFixed(1)),
-        flow_ytd: Number((flow1d * 28).toFixed(1)),
+        flow_5d: Number((flow1d * 3.8).toFixed(2)),
+        flow_20d: Number((flow1d * 11.5).toFixed(2)),
+        flow_ytd: Number((flow1d * 28).toFixed(2)),
         shares_net: sharesNet,
         aum: aumB,
         aum_growth_pct: 12.5,
@@ -1204,9 +1204,9 @@ export default function EtfCapitalFlowTracker({
               nav: selectedArbitrageItem.nav,
               nav_discount_pct: selectedArbitrageItem.discount_pct,
               change_pct: 0,
-              flow_1d: Number(((selectedArbitrageItem.shares_net * selectedArbitrageItem.price) / 100000).toFixed(1)),
-              flow_5d: Number(((selectedArbitrageItem.shares_net * selectedArbitrageItem.price) / 25000).toFixed(1)),
-              flow_20d: Number(((selectedArbitrageItem.shares_net * selectedArbitrageItem.price) / 8000).toFixed(1)),
+              flow_1d: Number(((selectedArbitrageItem.shares_net * selectedArbitrageItem.price) / 100000).toFixed(2)),
+              flow_5d: Number(((selectedArbitrageItem.shares_net * selectedArbitrageItem.price) / 25000).toFixed(2)),
+              flow_20d: Number(((selectedArbitrageItem.shares_net * selectedArbitrageItem.price) / 8000).toFixed(2)),
               flow_ytd: 0,
               shares_net: selectedArbitrageItem.shares_net,
               aum: 100,
@@ -1239,8 +1239,8 @@ export default function EtfCapitalFlowTracker({
       const part1Title = `1. ${etfTitle} 申贖與資金動能`;
       const part1Text =
         fVal >= 0
-          ? `${etfTitle} ${periodLabel}呈現淨申購流入 +${Math.abs(fVal).toFixed(1)} 億元（估計申贖異動 ${netLots >= 0 ? "+" : ""}${Math.round(netLots).toLocaleString()} 張），規模 AUM 達 ${targetItem?.aum?.toLocaleString() || "—"} 億元，籌碼意向屬於「${targetItem?.institutional_stance || "法人偏多配置"}」，被動買盤持續為成分股提供下檔支撐。`
-          : `${etfTitle} ${periodLabel}呈現階段性獲利調節，淨流出約 ${Math.abs(fVal).toFixed(1)} 億元（申贖異動 ${Math.round(netLots).toLocaleString()} 張），籌碼意向為「${targetItem?.institutional_stance || "逢高調節"}」，短線留意次級市場賣壓消化進度。`;
+          ? `${etfTitle} ${periodLabel}呈現淨申購流入 +${Math.abs(fVal).toFixed(2)} 億元（估計申贖異動 ${netLots >= 0 ? "+" : ""}${Math.round(netLots).toLocaleString()} 張），規模 AUM 達 ${targetItem?.aum?.toLocaleString() || "—"} 億元，籌碼意向屬於「${targetItem?.institutional_stance || "法人偏多配置"}」，被動買盤持續為成分股提供下檔支撐。`
+          : `${etfTitle} ${periodLabel}呈現階段性獲利調節，淨流出約 ${Math.abs(fVal).toFixed(2)} 億元（申贖異動 ${Math.round(netLots).toLocaleString()} 張），籌碼意向為「${targetItem?.institutional_stance || "逢高調節"}」，短線留意次級市場賣壓消化進度。`;
 
       const part2Title = `2. ${etfTitle} 即時折溢價與套利空間`;
       const part2Text =
@@ -1297,9 +1297,9 @@ export default function EtfCapitalFlowTracker({
     if (topInflow1) {
       const f1 = getFlow(topInflow1);
       const f2 = topInflow2 ? getFlow(topInflow2) : 0;
-      part1Text = `${periodLabel}${scopeLabel}淨申購龍頭為 ${topInflow1.symbol} ${topInflow1.name}，單檔淨流入達 +${Math.abs(f1).toFixed(1)} 億元${
-        topInflow2 ? `，其次為 ${topInflow2.symbol} ${topInflow2.name}（淨流入 +${Math.abs(f2).toFixed(1)} 億元）` : ""
-      }。${topCategory ? `【${topCategory[0]}】板塊合計資金動能達 ${topCategory[1].totalFlow >= 0 ? "+" : ""}${topCategory[1].totalFlow.toFixed(1)} 億元，` : ""}資金明顯集中於高流動性核心標的。`;
+      part1Text = `${periodLabel}${scopeLabel}淨申購龍頭為 ${topInflow1.symbol} ${topInflow1.name}，單檔淨流入達 +${Math.abs(f1).toFixed(2)} 億元${
+        topInflow2 ? `，其次為 ${topInflow2.symbol} ${topInflow2.name}（淨流入 +${Math.abs(f2).toFixed(2)} 億元）` : ""
+      }。${topCategory ? `【${topCategory[0]}】板塊合計資金動能達 ${topCategory[1].totalFlow >= 0 ? "+" : ""}${topCategory[1].totalFlow.toFixed(2)} 億元，` : ""}資金明顯集中於高流動性核心標的。`;
     } else {
       part1Text = `${periodLabel}${scopeLabel}處於申贖再平衡階段，造市商依據盤中流動性進行中性避險調節。`;
     }
@@ -1322,8 +1322,8 @@ export default function EtfCapitalFlowTracker({
     let part3Text = "";
     if (topOutflow1) {
       const o1 = getFlow(topOutflow1);
-      part3Text = `${periodLabel}${scopeLabel}淨贖回最顯著標的為 ${topOutflow1.symbol} ${topOutflow1.name}（淨流出約 ${Math.abs(o1).toFixed(1)} 億元）${
-        topOutflow2 ? `及 ${topOutflow2.symbol}（淨流出 ${Math.abs(getFlow(topOutflow2)).toFixed(1)} 億元）` : ""
+      part3Text = `${periodLabel}${scopeLabel}淨贖回最顯著標的為 ${topOutflow1.symbol} ${topOutflow1.name}（淨流出約 ${Math.abs(o1).toFixed(2)} 億元）${
+        topOutflow2 ? `及 ${topOutflow2.symbol}（淨流出 ${Math.abs(getFlow(topOutflow2)).toFixed(2)} 億元）` : ""
       }。建議點入個別 ETF 查看「成分股與每日資產變動明細」，追蹤投信被動加碼或調節之權重股。`;
     } else {
       part3Text = `目前${scopeLabel}未見大規模機構贖回現象，點選任一 ETF 可直接穿透檢視其最新成分股權重與今日增減張數明細。`;
@@ -1500,7 +1500,7 @@ export default function EtfCapitalFlowTracker({
                           }`}
                         >
                           {isPositive ? "+" : ""}
-                          {data.totalFlow.toFixed(1)} 億
+                          {data.totalFlow.toFixed(2)} 億
                         </span>
                       </div>
                     </div>
@@ -1833,7 +1833,7 @@ export default function EtfCapitalFlowTracker({
                                 }`}
                               >
                                 {isPositive ? "+" : ""}
-                                {flowVal.toFixed(1)} 億
+                                {flowVal.toFixed(2)} 億
                               </span>
                             </div>
                           </td>
@@ -1862,7 +1862,7 @@ export default function EtfCapitalFlowTracker({
                             {item.nav_discount_pct > 0.3 && <AlertTriangle size={11} className="inline ml-1 text-amber-500" />}
                           </td>
                           <td className="text-right font-mono tabular-nums text-xs text-primary font-semibold">
-                            {item.dividend_yield > 0 ? `${item.dividend_yield.toFixed(1)}%` : "—"}
+                            {item.dividend_yield > 0 ? `${item.dividend_yield.toFixed(2)}%` : "—"}
                           </td>
                           <td>
                             <span
@@ -2118,7 +2118,7 @@ export default function EtfCapitalFlowTracker({
                             )}
                           </td>
                           <td className="text-right font-mono tabular-nums font-bold text-primary">
-                            {h.weight.toFixed(1)}%
+                            {h.weight.toFixed(2)}%
                           </td>
                           <td
                             className={`text-right font-mono tabular-nums font-semibold text-xs ${
