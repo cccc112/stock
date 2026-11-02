@@ -74,7 +74,7 @@ function formatRelativeTime(timestamp: number) {
 }
 
 export default function CelebrityRadar() {
-  const [selectedPerson, setSelectedPerson] = useState<string>("TRUMP");
+  const [selectedPerson, setSelectedPerson] = useState<string>("ALL");
   const [showAllTrumpPosts, setShowAllTrumpPosts] = useState<boolean>(false);
   const [items, setItems] = useState<CelebrityPostItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -269,7 +269,9 @@ export default function CelebrityRadar() {
           <MessageSquareQuote size={18} className="text-accent" />
           <span>
             {selectedPerson === "TRUMP"
-              ? `川普 Truth Social (@realDonaldTrump) 原始貼文即時追蹤 (${items.length} 則)`
+              ? `川普 Truth Social 原始貼文與政策快訊 (${items.length} 則)`
+              : selectedPerson === "ALL"
+              ? `全球政經與科技領袖即時動態 (${items.length} 則)`
               : `名人原始貼文與發言即時追蹤 (${items.length} 則)`}
           </span>
         </div>

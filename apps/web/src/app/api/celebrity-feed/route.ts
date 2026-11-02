@@ -46,8 +46,8 @@ const CELEBRITY_META = {
     handle: "@realDonaldTrump",
     platform: "Truth Social 財經政策動態",
     queries: [
-      "川普 (關稅 OR 台積電 OR 半導體 OR 晶片 OR 股市 OR 美股 OR 降息 OR 比特幣 OR 能源 OR 貿易 OR 美債 OR 美元)",
-      "Donald Trump (tariff OR TSMC OR semiconductor OR stock market OR Fed OR China trade OR tax cut OR bitcoin OR oil)",
+      "川普 (關稅 OR 台積電 OR 半導體 OR 晶片 OR 股市 OR 美股 OR 降息 OR 比特幣 OR 能源 OR 貿易 OR 美債 OR 美元 OR 白宮 OR 經濟)",
+      "Donald Trump (tariff OR TSMC OR semiconductor OR stock market OR Fed OR China trade OR tax cut OR bitcoin OR oil OR economy)",
     ],
   },
   MUSK: {
@@ -150,7 +150,7 @@ async function batchTranslateToZhTw(texts: string[]): Promise<string[]> {
       const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-TW&dt=t&q=${encodeURIComponent(
         joined
       )}`;
-      const res = await fetch(url, { cache: "no-store" });
+      const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(3500) });
       if (!res.ok) return;
       const json = await res.json();
       if (!Array.isArray(json?.[0])) return;
@@ -492,13 +492,13 @@ async function fetchTrumpTruthSocialOriginalPosts(includeAll = false): Promise<C
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     };
 
-    // 1. 平行抓取即時 RSS (/feed) 與最近 6 頁原始貼文時間軸 (/search?sort=date_desc)
+    // 1. 平行抓取即時 RSS (/feed) 與最近 2 頁原始貼文時間軸 (/search?sort=date_desc)
     const [feedResp, ...pageResps] = await Promise.allSettled([
-      fetch("https://trumpstruth.org/feed", { headers, cache: "no-store" }),
-      ...[1, 2, 3, 4, 5, 6].map((page) =>
+      fetch("https://trumpstruth.org/feed", { headers, cache: "no-store", signal: AbortSignal.timeout(4000) }),
+      ...[1, 2].map((page) =>
         fetch(
           `https://www.trumpstruth.org/search?per_page=100&sort=date_desc&start_date=2026-09-01&end_date=2026-12-31&page=${page}`,
-          { headers, cache: "no-store" }
+          { headers, cache: "no-store", signal: AbortSignal.timeout(4000) }
         )
       ),
     ]);
@@ -529,8 +529,15 @@ async function fetchTrumpTruthSocialOriginalPosts(includeAll = false): Promise<C
           .replace(/View image|View video/gi, "")
           .trim();
 
-        if (!text || text.length < 15 || /^https?:\/\/\S+$/i.test(text)) continue;
-        if (/^(Image|Video|Quote) post from/i.test(text)) continue;
+        if (/^(Image|Video|Quote) post from/i.test(text)) {
+          if (includeAll) {
+            text = `川普發布影音/實況動態 (${pubDateMatch ? pubDateMatch[1].slice(0, 16) : "最新"})`;
+          } else {
+            continue;
+          }
+        }
+
+        if (!text || text.length < 10 || /^https?:\/\/\S+$/i.test(text)) continue;
         if (!includeAll && !isMarketRelevantPost(text)) continue;
 
         const dedupKey = text.slice(0, 65).toLowerCase();
@@ -585,7 +592,11 @@ async function fetchTrumpTruthSocialOriginalPosts(includeAll = false): Promise<C
           .replace(/RT:\s*https:\/\/truthsocial\.com\/[^\s]+/gi, "")
           .trim();
 
-        if (!text || text.length < 15 || /^https?:\/\/\S+$/i.test(text)) continue;
+        if (!text && includeAll) {
+          text = `川普發布影音/直播動態 (${dateStr})`;
+        }
+
+        if (!text || text.length < 10 || /^https?:\/\/\S+$/i.test(text)) continue;
         if (!includeAll && !isMarketRelevantPost(text)) continue;
 
         const dedupKey = text.slice(0, 65).toLowerCase();
@@ -658,6 +669,7 @@ async function fetchRssForPerson(personKey: keyof typeof CELEBRITY_META): Promis
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         },
         cache: "no-store",
+        signal: AbortSignal.timeout(4000),
       });
       if (!resp.ok) return;
       const xml = await resp.text();
@@ -725,7 +737,7 @@ async function fetchRssForPerson(personKey: keyof typeof CELEBRITY_META): Promis
     personName: meta.personName,
     personTitle: meta.personTitle,
     handle: meta.handle,
-    platform: meta.platform,
+    platform: meta.personId === "TRUMP" ? "政策動態 / 財經即時快訊" : meta.platform,
     postType: "news",
     headline: item.isEn && zhMap[idx] ? zhMap[idx] : item.title,
     originalText: item.isEn ? item.title : undefined,
@@ -743,21 +755,36 @@ export async function GET(req: NextRequest) {
 
   try {
     if (person === "TRUMP") {
-      // 100% 追蹤川普在 Truth Social (@realDonaldTrump) 的原始貼文，絕不混入第三方新聞媒體標題
-      const originalTruths = await fetchTrumpTruthSocialOriginalPosts(includeAll);
-      return NextResponse.json({ data: originalTruths });
+      // 結合川普 Truth Social 原始貼文與重大政經/關稅政策即時動態
+      const [originalTruths, trumpPolicyNews] = await Promise.allSettled([
+        fetchTrumpTruthSocialOriginalPosts(includeAll),
+        fetchRssForPerson("TRUMP"),
+      ]);
+      const truths = originalTruths.status === "fulfilled" ? originalTruths.value : [];
+      const news = trumpPolicyNews.status === "fulfilled" ? trumpPolicyNews.value : [];
+      const merged = [...truths, ...news]
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 30);
+      return NextResponse.json({ data: merged });
     }
 
     if (person === "ALL") {
-      const [originalTruths, muskList, huangList, powellList] = await Promise.all([
+      const [originalTruths, trumpNews, muskList, huangList, powellList] = await Promise.allSettled([
         fetchTrumpTruthSocialOriginalPosts(includeAll),
+        fetchRssForPerson("TRUMP"),
         fetchRssForPerson("MUSK"),
         fetchRssForPerson("HUANG"),
         fetchRssForPerson("POWELL"),
       ]);
-      const merged = [...originalTruths, ...muskList, ...huangList, ...powellList]
+      const truths = originalTruths.status === "fulfilled" ? originalTruths.value : [];
+      const tNews = trumpNews.status === "fulfilled" ? trumpNews.value : [];
+      const musk = muskList.status === "fulfilled" ? muskList.value : [];
+      const huang = huangList.status === "fulfilled" ? huangList.value : [];
+      const powell = powellList.status === "fulfilled" ? powellList.value : [];
+
+      const merged = [...truths, ...tNews, ...musk, ...huang, ...powell]
         .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(0, 40);
+        .slice(0, 45);
       return NextResponse.json({ data: merged });
     }
 
