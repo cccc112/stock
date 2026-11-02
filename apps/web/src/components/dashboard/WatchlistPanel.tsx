@@ -6,6 +6,7 @@ import { useWatchlist, WatchlistStock } from "@/hooks/useWatchlist";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
+import AnimatedPrice from "@/components/ui/AnimatedPrice";
 import { formatNumber, formatVolume, getChangeColorClass } from "@/lib/utils";
 import { 
   X, 
@@ -275,7 +276,7 @@ export default function WatchlistPanel() {
                     </td>
 
                     <td className="text-right font-semibold text-primary font-mono">
-                      ${formatNumber(stock.price, 2)}
+                      <AnimatedPrice price={stock.price} currencyPrefix="$" />
                     </td>
 
                     <td className={`text-right font-mono ${getChangeColorClass(stock.change, stock.market)}`}>
@@ -340,7 +341,7 @@ export default function WatchlistPanel() {
 
                   <div className="my-2.5">
                     <div className="text-2xl font-bold font-mono text-primary">
-                      ${formatNumber(stock.price, 2)}
+                      <AnimatedPrice price={stock.price} currencyPrefix="$" />
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                       <span className={`text-xs font-mono font-semibold ${getChangeColorClass(stock.change, stock.market)}`}>
@@ -383,7 +384,7 @@ export default function WatchlistPanel() {
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <div className="font-mono font-semibold text-sm text-primary">
-                    ${formatNumber(stock.price, 2)}
+                    <AnimatedPrice price={stock.price} currencyPrefix="$" />
                   </div>
                 </div>
                 <div className="w-20 text-right">

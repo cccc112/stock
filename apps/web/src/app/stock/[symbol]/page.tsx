@@ -21,6 +21,7 @@ import ETFInfoSection from "@/components/stock/ETFInfoSection";
 import StockEtfExposure from "@/components/stock/StockEtfExposure";
 import AICommitteeSection from "@/components/dashboard/AICommitteeSection";
 import { Term, InfoTip } from "@/components/ui/TermTooltip";
+import AnimatedPrice from "@/components/ui/AnimatedPrice";
 import {
   isSymbolInWatchlist,
   addSymbolToWatchlist,
@@ -59,6 +60,9 @@ interface StockData {
   market: 'TW' | 'US';
   source?: string;
   stale?: boolean;
+  trade_time?: string;
+  bid?: number;
+  ask?: number;
 }
 
 export default function StockDetailPage({ params }: { params: Promise<{ symbol: string }> }) {
@@ -163,9 +167,9 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
             </span>
           </div>
           <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-bold font-mono tabular-nums">
+            <span className="text-3xl font-bold font-mono tabular-nums flex items-baseline">
               <span className="text-xl text-secondary mr-1 font-semibold">{market === 'US' ? 'USD $' : 'NT$'}</span>
-              {formatNumber(stock.price, 2)}
+              <AnimatedPrice price={stock.price} showIndicator={true} />
             </span>
             <span className={`text-base font-mono tabular-nums font-medium ${getChangeColorClass(stock.change, market)}`}>
               {stock.change > 0 ? '+' : ''}{stock.change.toFixed(2)} ({stock.change_pct > 0 ? '+' : ''}{stock.change_pct.toFixed(2)}%)
@@ -186,7 +190,14 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                 撮合時間：{lastUpdate}
               </span>
             )}
-            <span>資料來源：{stock.source === 'twse' ? 'TWSE 臺灣證券交易所 (0秒即時)' : (stock.source || '—')}</span>
+            {stock.trade_time && (
+              <span className="font-mono text-xs text-secondary">
+                (交易所時間：{stock.trade_time})
+              </span>
+            )}
+            <span className="px-1.5 py-0.5 rounded bg-accent/10 text-accent font-semibold border border-accent/20">
+              {stock.source === 'twse_realtime' ? 'TWSE 0秒即時撮合' : stock.source === 'twse_day' ? 'TWSE 收盤價' : '即時行情源'}
+            </span>
             {stock.stale && (
               <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
                 非即時報價（休市或收盤最後成交價）

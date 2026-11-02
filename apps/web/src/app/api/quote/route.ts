@@ -171,7 +171,13 @@ async function fetchTwseMisNameAndQuote(code: string) {
     if (!res.ok) return null;
     const data = await res.json();
     const arr = Array.isArray(data?.msgArray) ? data.msgArray : [];
-    const info = arr.find((m: any) => m?.n || (m?.z && m.z !== "-")) || arr[0];
+    
+    // 精準找到對應股票代碼且有真實資訊之項目 (排除 {"tv":"-","s":"-","c":"","z":"-"})
+    const upperCode = code.toUpperCase();
+    const info =
+      arr.find((m: any) => String(m?.c || "").toUpperCase() === upperCode && (m?.n || m?.y || m?.z !== "-")) ||
+      arr.find((m: any) => m?.n) ||
+      arr[0];
     if (!info) return null;
 
     const parsePrice = (v: any) => {
@@ -182,11 +188,40 @@ async function fetchTwseMisNameAndQuote(code: string) {
 
     const prevClose = parsePrice(info.y);
     const zPrice = parsePrice(info.z);
-    const price = zPrice > 0 ? zPrice : prevClose;
+    const pzPrice = parsePrice(info.pz);
+    const bid1 = parsePrice((info.b || "").split("_")[0]);
+    const ask1 = parsePrice((info.a || "").split("_")[0]);
+
+    // 盤中成交價優先順序：當盤撮合價 (z) > 暫緩撮合試算價 (pz) > 最佳買一價 (b) > 最佳賣一價 (a) > 昨收價 (y)
+    let price = zPrice;
+    if (price <= 0 && pzPrice > 0) price = pzPrice;
+    if (price <= 0 && bid1 > 0) price = bid1;
+    if (price <= 0 && ask1 > 0) price = ask1;
+    if (price <= 0) price = prevClose;
+
     const open = parsePrice(info.o) || price;
     const high = parsePrice(info.h) || price;
     const low = parsePrice(info.l) || price;
     const volLots = parsePrice(info.v);
+
+    // 解析五檔買賣揭示 (Best 5 Bids and Asks)
+    const bids = (info.b || "")
+      .split("_")
+      .filter(Boolean)
+      .map((p: string, idx: number) => ({
+        price: parsePrice(p),
+        volume: parsePrice((info.g || "").split("_")[idx]),
+      }))
+      .filter((b: any) => b.price > 0);
+
+    const asks = (info.a || "")
+      .split("_")
+      .filter(Boolean)
+      .map((p: string, idx: number) => ({
+        price: parsePrice(p),
+        volume: parsePrice((info.f || "").split("_")[idx]),
+      }))
+      .filter((a: any) => a.price > 0);
 
     return {
       name: String(info.n || "").trim(),
@@ -196,7 +231,15 @@ async function fetchTwseMisNameAndQuote(code: string) {
       high,
       low,
       volume: Math.round(volLots * 1000),
-      hasRealtimePrice: price > 0,
+      hasRealtimePrice: Boolean(zPrice > 0 || pzPrice > 0 || (bid1 > 0 && ask1 > 0)),
+      bid: bid1,
+      ask: ask1,
+      bids,
+      asks,
+      tradeTime: String(info.t || info["%"] || "").trim(),
+      tradeDate: String(info.d || "").trim(),
+      limitUp: parsePrice(info.u),
+      limitDown: parsePrice(info.w),
     };
   } catch {
     return null;
@@ -276,13 +319,13 @@ export async function GET(req: NextRequest) {
   // 2. Quote Mode (`?symbol=...`)
   const [twseMis, yfResultPrimary, twMarketData] = await Promise.all([
     isTw ? fetchTwseMisNameAndQuote(cleanCode) : Promise.resolve(null),
-    fetchYahooChart(candidateYfSymbols[0], "5d", "1d"),
+    fetchYahooChart(candidateYfSymbols[0], "1d", "1m"),
     isTw ? getCachedTwMarketData().catch(() => null) : Promise.resolve(null),
   ]);
 
   let yfResult = yfResultPrimary;
   if (!yfResult && candidateYfSymbols.length > 1) {
-    yfResult = await fetchYahooChart(candidateYfSymbols[1], "5d", "1d");
+    yfResult = await fetchYahooChart(candidateYfSymbols[1], "1d", "1m");
   }
 
   const twMarketHit = twMarketData
@@ -382,7 +425,15 @@ export async function GET(req: NextRequest) {
     open: Number(open.toFixed(2)),
     prev_close: Number(prevClose.toFixed(2)),
     market,
-    source: twseMis?.hasRealtimePrice || twMarketHit ? "twse" : "yahoo",
+    source: twseMis?.hasRealtimePrice ? "twse_realtime" : twMarketHit ? "twse_day" : "yahoo",
     stale: false,
+    bid: twseMis?.bid || 0,
+    ask: twseMis?.ask || 0,
+    bids: twseMis?.bids || [],
+    asks: twseMis?.asks || [],
+    trade_time: twseMis?.tradeTime || "",
+    trade_date: twseMis?.tradeDate || "",
+    limit_up: twseMis?.limitUp || 0,
+    limit_down: twseMis?.limitDown || 0,
   });
 }

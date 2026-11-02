@@ -881,4 +881,101 @@
   .tabular-nums { font-variant-numeric: tabular-nums; }
   .hide-scrollbar::-webkit-scrollbar { display: none; }
   .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* 報價數字跳動即時閃爍動畫 (Price Flash Animation) */
+  @keyframes tickFlashUp {
+    0% {
+      background-color: var(--up-color-bg);
+      color: var(--up-color-text);
+      transform: scale(1.06);
+      box-shadow: 0 0 14px var(--up-color-border);
+    }
+    40% {
+      background-color: var(--up-color-bg);
+      transform: scale(1.02);
+    }
+    100% {
+      background-color: transparent;
+      transform: scale(1);
+      box-shadow: none;
+    }
+  }
+
+  @keyframes tickFlashDown {
+    0% {
+      background-color: var(--down-color-bg);
+      color: var(--down-color-text);
+      transform: scale(0.96);
+      box-shadow: 0 0 14px var(--down-color-border);
+    }
+    40% {
+      background-color: var(--down-color-bg);
+      transform: scale(0.99);
+    }
+    100% {
+      background-color: transparent;
+      transform: scale(1);
+      box-shadow: none;
+    }
+  }
+
+  .tick-up {
+    animation: tickFlashUp 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    border-radius: 6px;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+
+  .tick-down {
+    animation: tickFlashDown 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    border-radius: 6px;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+
+  /* 吉祥物黑熊動畫 (Taiwan Bear Animations) */
+  @keyframes bearBreathe {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-3px) scale(1.025); }
+  }
+
+  @keyframes bearEarWiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-5deg); }
+    75% { transform: rotate(5deg); }
+  }
+
+  @keyframes bearChestPulse {
+    0%, 100% {
+      filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.5));
+      opacity: 0.9;
+    }
+    50% {
+      filter: drop-shadow(0 0 14px rgba(245, 158, 11, 1)) drop-shadow(0 0 22px rgba(245, 158, 11, 0.8));
+      opacity: 1;
+    }
+  }
+
+  @keyframes bearPokeBounce {
+    0% { transform: scale(0.85) rotate(-5deg); }
+    40% { transform: scale(1.18) rotate(5deg); }
+    70% { transform: scale(0.95) rotate(-2deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+
+  .bear-idle {
+    animation: bearBreathe 3.5s ease-in-out infinite;
+  }
+
+  .bear-ear-wiggle {
+    animation: bearEarWiggle 2.5s ease-in-out infinite;
+  }
+
+  .bear-chest-glow {
+    animation: bearChestPulse 2.2s ease-in-out infinite;
+  }
+
+  .bear-poked {
+    animation: bearPokeBounce 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
 }
