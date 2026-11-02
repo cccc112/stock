@@ -115,22 +115,31 @@ export async function GET(req: NextRequest) {
 
       try {
         const [t86Res, dayAllRes] = await Promise.allSettled([
-          fetchWithTimeout("https://www.twse.com.tw/rwd/zh/fund/T86?selectType=ALLBUT0999&response=json", 2500),
-          fetchWithTimeout("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL", 2500),
+          fetchWithTimeout("https://www.twse.com.tw/rwd/zh/fund/T86?selectType=ALLBUT0999&response=json", 8000),
+          fetchWithTimeout("https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL", 3000),
         ]);
 
         const priceMap: Record<string, { price: number; change_pct: number; name: string }> = {};
         if (dayAllRes.status === "fulfilled" && dayAllRes.value.ok) {
-          const rows = await dayAllRes.value.json();
-          for (const r of rows || []) {
-            const code = String(r.Code || "").trim();
-            const close = Number(String(r.ClosingPrice || "").replace(/,/g, "")) || 0;
-            const chg = Number(String(r.Change || "").replace(/,/g, "")) || 0;
-            const prev = close - chg;
-            const pct = prev > 0 ? Number(((chg / prev) * 100).toFixed(2)) : 0;
-            if (code && close > 0) {
-              priceMap[code] = { price: close, change_pct: pct, name: String(r.Name || code).trim() };
+          try {
+            const text = await dayAllRes.value.text();
+            const lines = text.split("\n");
+            for (let i = 1; i < lines.length; i++) {
+              const line = lines[i].trim();
+              if (!line) continue;
+              const cols = line.split(",").map((s) => s.replace(/^"|"$/g, "").trim());
+              if (cols.length < 10) continue;
+              const [, code, name, , , , , , rawClose, rawChg] = cols;
+              const close = parseFloat(rawClose.replace(/,/g, "")) || 0;
+              const chg = parseFloat(rawChg.replace(/,/g, "")) || 0;
+              const prev = close - chg;
+              const pct = prev > 0 ? Number(((chg / prev) * 100).toFixed(2)) : 0;
+              if (code && close > 0) {
+                priceMap[code.toUpperCase()] = { price: close, change_pct: pct, name: name || code };
+              }
             }
+          } catch {
+            // priceMap fallback
           }
         }
 
@@ -204,22 +213,15 @@ export async function GET(req: NextRequest) {
         return NextResponse.json(cachedStockMap[symbol].data);
       }
 
-      // 若在預熱真實快照池中，直接立即回傳 (<5ms)，並在背景非阻塞刷新快取
-      if (REAL_STOCK_INSTITUTIONAL_MAP[symbol]) {
-        const snapshot = REAL_STOCK_INSTITUTIONAL_MAP[symbol];
-        cachedStockMap[symbol] = { ts: Date.now(), data: snapshot };
-        return NextResponse.json(snapshot);
-      }
-
       const startDate = getStartDate(35);
       const [instRes, yahooBarsTw, yahooBarsTwo, infoRes] = await Promise.all([
         fetchWithTimeout(
           `${FINMIND_URL}?dataset=TaiwanStockInstitutionalInvestorsBuySell&data_id=${encodeURIComponent(symbol)}&start_date=${startDate}`,
-          2600
+          3500
         ).catch(() => null),
         fetchYahooDailyBars(`${symbol}.TW`),
         fetchYahooDailyBars(`${symbol}.TWO`),
-        fetchWithTimeout(`${FINMIND_URL}?dataset=TaiwanStockInfo&data_id=${encodeURIComponent(symbol)}`, 2000).catch(
+        fetchWithTimeout(`${FINMIND_URL}?dataset=TaiwanStockInfo&data_id=${encodeURIComponent(symbol)}`, 2500).catch(
           () => null
         ),
       ]);
@@ -330,6 +332,9 @@ export async function GET(req: NextRequest) {
         }
       }
 
+      if (REAL_STOCK_INSTITUTIONAL_MAP[symbol]) {
+        return NextResponse.json(REAL_STOCK_INSTITUTIONAL_MAP[symbol]);
+      }
       return NextResponse.json(REAL_STOCK_INSTITUTIONAL_MAP["2330"]);
     }
 

@@ -59,6 +59,61 @@ function isValidStockOrEtfCode(code: string): boolean {
 }
 
 async function fetchTwseAll(): Promise<RankedStockItem[]> {
+  // 1. 優先從證交所官方主站 RWD 抓取即時收盤日報 (盤後 14:00~14:30 立即更新，避開 OpenAPI 網關快取滯後)
+  try {
+    const rwdRes = await fetch("https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL", {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        Accept: "text/csv,application/json,*/*",
+      },
+      cache: "no-store",
+    });
+    if (rwdRes.ok) {
+      const text = await rwdRes.text();
+      const lines = text.split("\n");
+      const rwdItems: RankedStockItem[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const cols = line.split(",").map((s) => s.replace(/^"|"$/g, "").trim());
+        if (cols.length < 10) continue;
+        const [rawDate, code, name, rawVol, rawVal, , , , rawClose, rawChg] = cols;
+        const upperCode = code.toUpperCase();
+        if (!isValidStockOrEtfCode(upperCode)) continue;
+
+        const price = parseNum(rawClose);
+        const volShares = Math.round(parseNum(rawVol));
+        const valNtd = parseNum(rawVal);
+        const chg = parseNum(rawChg);
+        if (price <= 0) continue;
+
+        const prev = price - chg;
+        const chgPct = prev > 0 ? Number(((chg / prev) * 100).toFixed(2)) : 0;
+        const dateStr = formatRocDate(rawDate);
+
+        rwdItems.push({
+          symbol: upperCode,
+          name: name || upperCode,
+          market: "TWSE",
+          price,
+          change: chg,
+          change_pct: chgPct,
+          volume: volShares,
+          volume_lots: Math.round(volShares / 1000),
+          turnover_b: Number((valNtd / 1e8).toFixed(2)),
+          date: dateStr,
+          stale: false,
+          is_etf: upperCode.startsWith("00"),
+        });
+      }
+      if (rwdItems.length > 0) return rwdItems;
+    }
+  } catch (err) {
+    console.error("fetchTwseAll RWD fallback to OpenAPI:", err);
+  }
+
+  // 2. 備援：若官方 RWD 異常，降級至 OpenAPI
   const res = await fetch(
     "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL",
     {
