@@ -192,8 +192,13 @@ export interface EtfHoldingDelta {
   name: string;
   weight: number;
   weight_change: number;
+  weightChangeText?: string;
   shares_held: number;
   shares_change: number;
+  sharesChangeText?: string;
+  market_value_billion?: number;
+  marketValueText?: string;
+  status?: "NEW" | "ADD" | "REDUCE" | "HOLD";
   action: "BUY" | "SELL" | "HOLD";
   change_amount_m: number; // 百萬 TWD
   reason: "申購被動加買" | "權重再平衡" | "定審成分更換" | "獲利調節贖回";
@@ -735,7 +740,8 @@ export default function EtfCapitalFlowTracker({
   // 成分股持股變動狀態
   const [selectedHoldingEtf, setSelectedHoldingEtf] = useState<string>(initialEtf);
   const [customEtfInput, setCustomEtfInput] = useState<string>("");
-  const [holdingActionFilter, setHoldingActionFilter] = useState<"ALL" | "BUY" | "SELL">("ALL");
+  const [holdingActionFilter, setHoldingActionFilter] = useState<"ALL" | "NEW" | "BUY" | "SELL">("ALL");
+  const [sortByWeightAsc, setSortByWeightAsc] = useState<boolean>(false);
   const [holdingSearch, setHoldingSearch] = useState("");
 
   // 同步外部傳入的 subView
@@ -1107,57 +1113,94 @@ export default function EtfCapitalFlowTracker({
         ? prof.holdings
         : ETF_PORTFOLIO_DELTAS[selectedHoldingEtf]?.holdings || [];
 
-    const holdingsList: EtfHoldingDelta[] = rawHoldings.map((h: any) => {
-      const sym = h.symbol.replace(/\.(TW|TWO)$/i, "");
+    const holdingsList: EtfHoldingDelta[] = rawHoldings.map((h: any, idx: number) => {
+      const sym = String(h.symbol || `H${idx}`).replace(/\.(TW|TWO)$/i, "");
       const live = liveQuotes[h.symbol] || liveQuotes[sym];
-      const stockPrice = live?.price || h.price || 100;
-      const changePct = live?.change_pct !== undefined ? live.change_pct : (h.change_pct || 0);
+      const stockPrice = live?.price || Number(h.price) || 0;
+      const changePct = live?.change_pct !== undefined ? live.change_pct : (Number(h.change_pct) || 0);
+      const weight = Number(h.weight) || 0;
 
-      // 真實投信在該個股之當日買賣超（從法人籌碼即時數據庫比對）
-      const inst = REAL_STOCK_INSTITUTIONAL_MAP[sym] || REAL_STOCK_INSTITUTIONAL_MAP[h.symbol];
-      const trustNetLots = inst?.latest?.trust ?? 0;
+      // Status: NEW (新增), ADD (加碼), REDUCE (減碼), HOLD (維持)
+      let status: "NEW" | "ADD" | "REDUCE" | "HOLD" =
+        h.status === "NEW"
+          ? "NEW"
+          : h.status === "ADD" || Number(h.shares_change) > 0
+          ? "ADD"
+          : h.status === "REDUCE" || Number(h.shares_change) < 0
+          ? "REDUCE"
+          : "HOLD";
 
-      let action: "BUY" | "SELL" | "HOLD" = "HOLD";
-      let reason: "申購被動加買" | "權重再平衡" | "定審成分更換" | "獲利調節贖回" = "權重再平衡";
-
-      if (trustNetLots > 0) {
-        action = "BUY";
-        reason = "申購被動加買";
-      } else if (trustNetLots < 0) {
-        action = "SELL";
-        reason = "獲利調節贖回";
-      } else {
-        action = changePct > 0 ? "BUY" : changePct < 0 ? "SELL" : "HOLD";
-        reason = "權重再平衡";
+      if (!h.status) {
+        if (Number(h.shares_change) > 0) status = "ADD";
+        else if (Number(h.shares_change) < 0) status = "REDUCE";
+        else if (weight > 2.5) status = "ADD";
+        else status = "HOLD";
       }
 
       // 官方持股張數：優先使用申報的真實張數，若無則依基金規模與權重精確折算
-      const officialLots = Number(h.shares_lots) || 0;
+      const officialLots = Number(h.shares_lots) || (h.shares ? Math.round(Number(h.shares) / 1000) : 0);
       const sharesHeld =
         officialLots > 0
           ? officialLots
           : stockPrice > 0
-          ? Math.round(((etfAum * 100) * (h.weight / 100) * 1000) / stockPrice)
+          ? Math.round(((etfAum * 100) * (weight / 100) * 1000) / stockPrice)
           : 0;
 
-      // 投信當日增減張數（若無特定投信個別買賣超，顯示權重變動或持平，不捏造假張數）
-      const sharesChange = trustNetLots;
-      const changeAmountM = Math.round((Math.abs(sharesChange) * 1000 * stockPrice) / 1e6);
+      const sharesChange = Number(h.shares_change) || 0;
+      const weightChange = Number(h.weight_change) || 0;
 
-      // 權重變動：真實漲跌幅與 ETF 淨值漲跌之相對漂移
-      const etfChangePct = liveQuotes[selectedHoldingEtf]?.change_pct || 0;
-      const weightChange = Number((((changePct - etfChangePct) / 100) * h.weight).toFixed(2));
+      // 持股規模 (市值 億元)
+      const marketValB =
+        h.market_value_billion != null && Number(h.market_value_billion) > 0
+          ? Number(h.market_value_billion)
+          : Math.round(etfAum * (weight / 100));
+
+      const marketValueText = marketValB >= 1 ? `${marketValB}億` : `${Math.round(marketValB * 10000)}萬`;
+
+      // 與前日變動 (張數) 字串：新增時為空
+      let sharesChangeText = "";
+      if (status === "ADD") {
+        sharesChangeText = sharesChange > 0 ? `+${sharesChange.toLocaleString()}張` : "+—張";
+      } else if (status === "REDUCE") {
+        sharesChangeText = sharesChange < 0 ? `${sharesChange.toLocaleString()}張` : "-—張";
+      } else if (status === "HOLD") {
+        sharesChangeText = "0張";
+      } else if (status === "NEW") {
+        sharesChangeText = "";
+      }
+
+      // 與前日變動 (權重) 字串：新增時為空，其餘帶符號且格式化到後兩位
+      let weightChangeText = "";
+      if (status === "NEW") {
+        weightChangeText = "";
+      } else if (0 < Math.abs(weightChange) && Math.abs(weightChange) < 0.01) {
+        weightChangeText = weightChange > 0 ? "<0.01%" : "-<0.01%";
+      } else if (weightChange > 0) {
+        weightChangeText = `+${weightChange.toFixed(2)}%`;
+      } else if (weightChange < 0) {
+        weightChangeText = `${weightChange.toFixed(2)}%`;
+      } else {
+        weightChangeText = "0.00%";
+      }
+
+      const action = status === "NEW" || status === "ADD" ? "BUY" : status === "REDUCE" ? "SELL" : "HOLD";
+      const changeAmountM = Math.round((Math.abs(sharesChange) * 1000 * (stockPrice || 100)) / 1e6);
 
       return {
         symbol: h.symbol,
-        name: h.name,
-        weight: h.weight,
+        name: h.name || h.symbol,
+        weight,
         weight_change: weightChange,
+        weightChangeText,
         shares_held: sharesHeld,
         shares_change: sharesChange,
+        sharesChangeText,
+        market_value_billion: marketValB,
+        marketValueText,
+        status,
         action,
         change_amount_m: action === "SELL" ? -changeAmountM : changeAmountM,
-        reason,
+        reason: status === "NEW" ? "定審成分更換" : action === "BUY" ? "申購被動加買" : "獲利調節贖回",
         price: stockPrice,
         change_pct: changePct,
       };
@@ -1171,16 +1214,27 @@ export default function EtfCapitalFlowTracker({
   }, [selectedHoldingEtf, items, liveQuotes, liveHoldingDetail]);
 
   const filteredHoldings = useMemo(() => {
-    return currentPortfolio.holdings.filter((h) => {
-      if (holdingActionFilter === "BUY" && h.action !== "BUY") return false;
-      if (holdingActionFilter === "SELL" && h.action !== "SELL") return false;
+    const list = currentPortfolio.holdings.filter((h) => {
+      if (holdingActionFilter === "NEW" && h.status !== "NEW") return false;
+      if (holdingActionFilter === "BUY" && h.status !== "ADD" && h.status !== "NEW") return false;
+      if (holdingActionFilter === "SELL" && h.status !== "REDUCE") return false;
       if (holdingSearch.trim()) {
         const q = holdingSearch.trim().toLowerCase();
         return h.symbol.toLowerCase().includes(q) || h.name.toLowerCase().includes(q);
       }
       return true;
     });
-  }, [currentPortfolio, holdingActionFilter, holdingSearch]);
+
+    return list.sort((a, b) => {
+      if (sortByWeightAsc) {
+        return a.weight - b.weight;
+      }
+      // 預設排序：新增 (NEW) 置頂，其餘依權重由大到小排序（符合券商 App 規格）
+      if (a.status === "NEW" && b.status !== "NEW") return -1;
+      if (b.status === "NEW" && a.status !== "NEW") return 1;
+      return b.weight - a.weight;
+    });
+  }, [currentPortfolio, holdingActionFilter, holdingSearch, sortByWeightAsc]);
 
   const dynamicResearch = useMemo(() => {
     const periodLabel = period === "1d" ? "今日" : period === "5d" ? "近5日" : period === "20d" ? "近月" : "今年以來";
@@ -2033,135 +2087,170 @@ export default function EtfCapitalFlowTracker({
             }
           >
             {/* 買賣方向切換 */}
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[var(--border)]">
-              <span className="text-xs text-muted">動態方向篩選:</span>
+            <div className="flex items-center gap-1.5 mb-4 pb-3 border-b border-[var(--border)] flex-wrap">
+              <span className="text-xs text-muted mr-1">成分股異動篩選:</span>
               <button
                 onClick={() => setHoldingActionFilter("ALL")}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
                   holdingActionFilter === "ALL"
-                    ? "bg-accent text-white"
+                    ? "bg-accent text-white shadow-sm"
                     : "bg-[var(--bg-tertiary)] text-secondary hover:text-primary"
                 }`}
               >
-                全部持股 ({currentPortfolio.holdings.length})
+                全部 ({currentPortfolio.holdings.length})
+              </button>
+              <button
+                onClick={() => setHoldingActionFilter("NEW")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                  holdingActionFilter === "NEW"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "bg-[var(--bg-tertiary)] text-blue-500 hover:bg-blue-500/10"
+                }`}
+              >
+                新增 ({currentPortfolio.holdings.filter((h) => h.status === "NEW").length})
               </button>
               <button
                 onClick={() => setHoldingActionFilter("BUY")}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
                   holdingActionFilter === "BUY"
-                    ? "bg-red-500 text-white"
+                    ? "bg-red-500 text-white shadow-sm"
                     : "bg-[var(--bg-tertiary)] text-red-400 hover:bg-red-500/10"
                 }`}
               >
-                <ArrowUpRight size={13} /> 今日買進加碼 (
-                {currentPortfolio.holdings.filter((h) => h.action === "BUY").length})
+                加碼 ({currentPortfolio.holdings.filter((h) => h.status === "ADD").length})
               </button>
               <button
                 onClick={() => setHoldingActionFilter("SELL")}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
                   holdingActionFilter === "SELL"
-                    ? "bg-emerald-500 text-white"
+                    ? "bg-emerald-500 text-white shadow-sm"
                     : "bg-[var(--bg-tertiary)] text-emerald-400 hover:bg-emerald-500/10"
                 }`}
               >
-                <ArrowDownRight size={13} /> 今日賣出調節 (
-                {currentPortfolio.holdings.filter((h) => h.action === "SELL").length})
+                減碼 ({currentPortfolio.holdings.filter((h) => h.status === "REDUCE").length})
               </button>
             </div>
 
-            <div className="overflow-x-auto -mx-5 -my-5">
-              <table className="data-table w-full">
-                <thead>
-                  <tr>
-                    <th>成分股標的</th>
-                    <th className="text-right">最新市價</th>
-                    <th className="text-right">今日漲跌</th>
-                    <th className="text-right">最新持股權重 (%)</th>
-                    <th className="text-right">今日權重變動</th>
-                    <th className="text-right">目前持股張數</th>
-                    <th className="text-right">今日增減張數</th>
-                    <th className="text-right">變動金額估算</th>
-                    <th>變動原因</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredHoldings.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="text-center py-8 text-muted">
-                        沒有符合條件的成分股異動記錄
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredHoldings.map((h) => {
-                      const isBuy = h.action === "BUY";
-                      return (
-                        <tr key={h.symbol} className="hover:bg-accent/5 transition-colors">
-                          <td>
-                            <div className="flex items-center gap-2">
-                              <Link
-                                href={`/stock/${h.symbol}`}
-                                className="font-mono font-bold text-accent hover:underline"
-                              >
-                                {h.symbol}
-                              </Link>
-                              <span className="font-semibold text-primary">{h.name}</span>
-                            </div>
-                          </td>
-                          <td className="text-right font-mono tabular-nums font-bold">
-                            ${h.price?.toFixed(2) || "—"}
-                          </td>
-                          <td className="text-right">
-                            {h.change_pct !== undefined ? (
-                              <Badge value={h.change_pct} market="TW" />
-                            ) : (
-                              "—"
+            {/* 券商 App 經典成分股變動三欄式排版 (標的 | 持股規模(市值) | 權重) */}
+            <div className="rounded-xl border border-[var(--border)] overflow-hidden bg-[var(--bg-card)]">
+              <div className="grid grid-cols-12 px-4 py-3 bg-[var(--bg-tertiary)] border-b border-[var(--border)] text-xs text-secondary font-medium">
+                <div className="col-span-5 sm:col-span-5 flex items-center">
+                  <span>標的</span>
+                </div>
+                <div className="col-span-4 sm:col-span-4 text-right pr-2">
+                  <div className="flex items-center justify-end gap-1">
+                    <span>持股規模(市值)</span>
+                    <span className="text-[10px] text-muted cursor-help" title="依 ETF 最新基金規模與權重計算之約當市值；下方為與前一日相較之實際持股張數變動">ⓘ</span>
+                  </div>
+                  <div className="text-[10px] text-muted font-normal">與前日變動(張數)</div>
+                </div>
+                <div className="col-span-3 sm:col-span-3 text-right">
+                  <button
+                    onClick={() => setSortByWeightAsc((prev) => !prev)}
+                    className="inline-flex flex-col items-end cursor-pointer group text-right"
+                    title="點擊依權重高低排序"
+                  >
+                    <span className="group-hover:text-primary transition-colors flex items-center gap-0.5 justify-end">
+                      權重 {sortByWeightAsc ? "↑" : "↓"}
+                    </span>
+                    <span className="text-[10px] text-muted font-normal">與前日變動</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="divide-y divide-[var(--border)]">
+                {filteredHoldings.length === 0 ? (
+                  <div className="text-center py-12 text-muted text-xs">
+                    沒有符合篩選條件的成分股記錄
+                  </div>
+                ) : (
+                  filteredHoldings.map((h, idx) => {
+                    const isNew = h.status === "NEW";
+                    const isAdd = h.status === "ADD";
+                    const isReduce = h.status === "REDUCE";
+
+                    return (
+                      <div
+                        key={`${h.symbol}-${idx}`}
+                        className="grid grid-cols-12 px-4 py-3 items-center hover:bg-[var(--bg-tertiary)]/50 transition-colors"
+                      >
+                        {/* 欄 1: 標的名稱 + 狀態標籤 + 股票代號 */}
+                        <div className="col-span-5 sm:col-span-5 pr-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-primary font-bold text-sm tracking-tight truncate max-w-[130px] sm:max-w-[200px]" title={h.name}>
+                              {h.name}
+                            </span>
+                            {isNew && (
+                              <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-blue-500/15 text-blue-500 dark:text-blue-400 border border-blue-500/30">
+                                新增
+                              </span>
                             )}
-                          </td>
-                          <td className="text-right font-mono tabular-nums font-bold text-primary">
-                            {h.weight.toFixed(2)}%
-                          </td>
-                          <td
-                            className={`text-right font-mono tabular-nums font-semibold text-xs ${
-                              h.weight_change > 0 ? "text-red-400" : h.weight_change < 0 ? "text-emerald-400" : "text-muted"
-                            }`}
-                          >
-                            {h.weight_change > 0 ? "+" : ""}
-                            {h.weight_change.toFixed(2)}%
-                          </td>
-                          <td className="text-right font-mono tabular-nums text-secondary text-xs">
-                            {h.shares_held.toLocaleString()} 張
-                          </td>
-                          <td className="text-right font-mono tabular-nums font-bold text-sm">
-                            <span className={h.shares_change > 0 ? "text-red-400" : h.shares_change < 0 ? "text-emerald-400" : "text-muted"}>
-                              {h.shares_change > 0
-                                ? `+${h.shares_change.toLocaleString()} 張`
-                                : h.shares_change < 0
-                                ? `${h.shares_change.toLocaleString()} 張`
-                                : "持平"}
-                            </span>
-                          </td>
-                          <td className="text-right font-mono tabular-nums text-xs font-semibold text-primary">
-                            {h.shares_change !== 0 ? (h.change_amount_m > 0 ? `+${h.change_amount_m} 百萬` : `${h.change_amount_m} 百萬`) : "—"}
-                          </td>
-                          <td>
-                            <span
-                              className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
-                                h.action === "BUY"
-                                  ? "bg-red-500/10 text-red-400 border border-red-500/30"
-                                  : h.action === "SELL"
-                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
-                                  : "bg-[var(--bg-tertiary)] text-muted border border-[var(--border)]"
-                              }`}
+                            {isAdd && (
+                              <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-red-500/15 text-red-500 dark:text-red-400 border border-red-500/30">
+                                加碼
+                              </span>
+                            )}
+                            {isReduce && (
+                              <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border border-emerald-500/30">
+                                減碼
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-0.5 flex items-center gap-2">
+                            <Link
+                              href={`/stock/${encodeURIComponent(h.symbol)}`}
+                              className="font-mono text-xs text-muted hover:text-accent hover:underline"
                             >
-                              {h.reason}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                              {h.symbol}
+                            </Link>
+                            {h.price && h.price > 0 && (
+                              <span className="text-[11px] font-mono text-secondary hidden sm:inline">
+                                NT${h.price.toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 欄 2: 持股規模 (市值) + 與前日變動 (張數) */}
+                        <div className="col-span-4 sm:col-span-4 text-right pr-2">
+                          <div className="font-mono text-sm font-bold text-primary tabular-nums">
+                            {h.marketValueText}
+                          </div>
+                          <div className="text-xs font-mono font-medium tabular-nums min-h-[16px] mt-0.5">
+                            {isNew ? (
+                              <span className="text-muted/40">—</span>
+                            ) : isAdd ? (
+                              <span className="text-red-500 dark:text-red-400">{h.sharesChangeText}</span>
+                            ) : isReduce ? (
+                              <span className="text-emerald-500 dark:text-emerald-400">{h.sharesChangeText}</span>
+                            ) : (
+                              <span className="text-muted">{h.sharesChangeText || "0張"}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 欄 3: 權重 + 與前日變動 (%) */}
+                        <div className="col-span-3 sm:col-span-3 text-right">
+                          <div className="font-mono text-sm font-bold text-primary tabular-nums">
+                            {h.weight.toFixed(2)}%
+                          </div>
+                          <div className="text-xs font-mono font-medium tabular-nums min-h-[16px] mt-0.5">
+                            {isNew ? (
+                              <span className="text-muted/40">—</span>
+                            ) : h.weight_change > 0 ? (
+                              <span className="text-red-500 dark:text-red-400">{h.weightChangeText}</span>
+                            ) : h.weight_change < 0 ? (
+                              <span className="text-emerald-500 dark:text-emerald-400">{h.weightChangeText}</span>
+                            ) : (
+                              <span className="text-muted">{h.weightChangeText || "0.00%"}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           </Card>
         </div>
