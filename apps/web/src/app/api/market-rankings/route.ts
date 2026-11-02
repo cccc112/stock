@@ -68,6 +68,7 @@ async function fetchTwseAll(): Promise<RankedStockItem[]> {
         Accept: "text/csv,application/json,*/*",
       },
       cache: "no-store",
+      signal: AbortSignal.timeout(3500),
     });
     if (rwdRes.ok) {
       const text = await rwdRes.text();
@@ -123,6 +124,7 @@ async function fetchTwseAll(): Promise<RankedStockItem[]> {
         Accept: "application/json",
       },
       cache: "no-store",
+      signal: AbortSignal.timeout(2500),
     }
   );
   if (!res.ok) return [];
@@ -163,52 +165,57 @@ async function fetchTwseAll(): Promise<RankedStockItem[]> {
 }
 
 async function fetchTpexAll(): Promise<RankedStockItem[]> {
-  const res = await fetch(
-    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes",
-    {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        Accept: "application/json",
-      },
-      cache: "no-store",
+  try {
+    const res = await fetch(
+      "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes",
+      {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          Accept: "application/json",
+        },
+        cache: "no-store",
+        signal: AbortSignal.timeout(2000),
+      }
+    );
+    if (!res.ok) return [];
+    const rows = await res.json();
+    if (!Array.isArray(rows)) return [];
+
+    const items: RankedStockItem[] = [];
+    for (const row of rows) {
+      const code = String(row?.SecuritiesCompanyCode || "").trim().toUpperCase();
+      if (!isValidStockOrEtfCode(code)) continue;
+
+      const price = parseNum(row?.Close);
+      const volShares = Math.round(parseNum(row?.TradingShares));
+      const valNtd = parseNum(row?.TransactionAmount);
+      const chg = parseNum(row?.Change);
+      if (price <= 0) continue;
+
+      const prev = price - chg;
+      const chgPct = prev > 0 ? Number(((chg / prev) * 100).toFixed(2)) : 0;
+      const dateStr = formatRocDate(row?.Date);
+
+      items.push({
+        symbol: code,
+        name: String(row?.CompanyName || code).trim(),
+        market: "TPEx",
+        price,
+        change: chg,
+        change_pct: chgPct,
+        volume: volShares,
+        volume_lots: Math.round(volShares / 1000),
+        turnover_b: Number((valNtd / 1e8).toFixed(2)),
+        date: dateStr,
+        stale: false,
+        is_etf: code.startsWith("00"),
+      });
     }
-  );
-  if (!res.ok) return [];
-  const rows = await res.json();
-  if (!Array.isArray(rows)) return [];
-
-  const items: RankedStockItem[] = [];
-  for (const row of rows) {
-    const code = String(row?.SecuritiesCompanyCode || "").trim().toUpperCase();
-    if (!isValidStockOrEtfCode(code)) continue;
-
-    const price = parseNum(row?.Close);
-    const volShares = Math.round(parseNum(row?.TradingShares));
-    const valNtd = parseNum(row?.TransactionAmount);
-    const chg = parseNum(row?.Change);
-    if (price <= 0) continue;
-
-    const prev = price - chg;
-    const chgPct = prev > 0 ? Number(((chg / prev) * 100).toFixed(2)) : 0;
-    const dateStr = formatRocDate(row?.Date);
-
-    items.push({
-      symbol: code,
-      name: String(row?.CompanyName || code).trim(),
-      market: "TPEx",
-      price,
-      change: chg,
-      change_pct: chgPct,
-      volume: volShares,
-      volume_lots: Math.round(volShares / 1000),
-      turnover_b: Number((valNtd / 1e8).toFixed(2)),
-      date: dateStr,
-      stale: false,
-      is_etf: code.startsWith("00"),
-    });
+    return items;
+  } catch {
+    return [];
   }
-  return items;
 }
 
 function sortRankings(

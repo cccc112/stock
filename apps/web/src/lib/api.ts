@@ -174,12 +174,16 @@ export const apiMarket = {
   },
   getRankings: async (limit: number = 10, sort_by: string = 'volume') => {
     try {
-      const res = await axios.get('/api/market-rankings', { params: { limit, sort_by }, timeout: 8000 });
+      const res = await axios.get('/api/market-rankings', { params: { limit, sort_by }, timeout: 12000 });
       if (res?.data && (res.data.twse?.length || res.data.tpex?.length)) return res;
     } catch {
-      // fallback
+      // fallback to backend
     }
-    return api.get('/market/rankings', { params: { limit, sort_by } });
+    try {
+      return await api.get('/market/rankings', { params: { limit, sort_by }, timeout: 3000 });
+    } catch {
+      return null;
+    }
   },
   getPopularETFs: () => api.get('/market/etfs'),
   getCapitalFlow: async () => {

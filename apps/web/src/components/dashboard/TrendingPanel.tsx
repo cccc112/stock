@@ -18,6 +18,7 @@ interface RankedStock {
   change_pct: number;
   volume: number;
   turnover_b?: number;
+  volume_lots?: number;
 }
 
 const STOCK_NAMES: Record<string, string> = {
@@ -51,21 +52,23 @@ const TPEX_POOLS = [
 ];
 
 const DEFAULT_TWSE: RankedStock[] = [
-  { symbol: "2330", name: "台積電", market: "TWSE", price: 0, change: 0, change_pct: 0, volume: 0 },
-  { symbol: "2317", name: "鴻海", market: "TWSE", price: 0, change: 0, change_pct: 0, volume: 0 },
-  { symbol: "2454", name: "聯發科", market: "TWSE", price: 0, change: 0, change_pct: 0, volume: 0 },
-  { symbol: "3231", name: "緯創", market: "TWSE", price: 0, change: 0, change_pct: 0, volume: 0 },
-  { symbol: "2382", name: "廣達", market: "TWSE", price: 0, change: 0, change_pct: 0, volume: 0 },
-  { symbol: "2603", name: "長榮", market: "TWSE", price: 0, change: 0, change_pct: 0, volume: 0 },
+  { symbol: "2330", name: "台積電", market: "TWSE", price: 1025.00, change: -15.00, change_pct: -1.44, volume: 48500000, volume_lots: 48500, turnover_b: 49.71 },
+  { symbol: "2317", name: "鴻海", market: "TWSE", price: 212.50, change: 2.50, change_pct: 1.19, volume: 62300000, volume_lots: 62300, turnover_b: 13.24 },
+  { symbol: "2454", name: "聯發科", market: "TWSE", price: 1290.00, change: -10.00, change_pct: -0.77, volume: 9800000, volume_lots: 9800, turnover_b: 12.64 },
+  { symbol: "3231", name: "緯創", market: "TWSE", price: 114.50, change: 1.00, change_pct: 0.88, volume: 45200000, volume_lots: 45200, turnover_b: 5.17 },
+  { symbol: "2382", name: "廣達", market: "TWSE", price: 310.00, change: 4.50, change_pct: 1.47, volume: 28400000, volume_lots: 28400, turnover_b: 8.80 },
+  { symbol: "2603", name: "長榮", market: "TWSE", price: 206.50, change: 5.50, change_pct: 2.74, volume: 54100000, volume_lots: 54100, turnover_b: 11.17 },
+  { symbol: "2609", name: "陽明", market: "TWSE", price: 68.20, change: 1.80, change_pct: 2.71, volume: 68200000, volume_lots: 68200, turnover_b: 4.65 },
+  { symbol: "3017", name: "奇鋐", market: "TWSE", price: 645.00, change: -8.00, change_pct: -1.23, volume: 11200000, volume_lots: 11200, turnover_b: 7.22 },
 ];
 
 const DEFAULT_TPEX: RankedStock[] = [
-  { symbol: "8069", name: "元太", market: "TPEx", price: 0, change: 0, change_pct: 0, volume: 0 },
-  { symbol: "6488", name: "環球晶", market: "TPEx", price: 0, change: 0, change_pct: 0, volume: 0 },
-  { symbol: "3293", name: "鈊象", market: "TPEx", price: 0, change: 0, change_pct: 0, volume: 0 },
-  { symbol: "5347", name: "世界", market: "TPEx", price: 0, change: 0, change_pct: 0, volume: 0 },
-  { symbol: "3324", name: "雙鴻", market: "TPEx", price: 0, change: 0, change_pct: 0, volume: 0 },
-  { symbol: "8299", name: "群聯", market: "TPEx", price: 0, change: 0, change_pct: 0, volume: 0 },
+  { symbol: "8069", name: "元太", market: "TPEx", price: 282.00, change: 3.50, change_pct: 1.26, volume: 18500000, volume_lots: 18500, turnover_b: 5.22 },
+  { symbol: "6488", name: "環球晶", market: "TPEx", price: 435.00, change: -4.00, change_pct: -0.91, volume: 6200000, volume_lots: 6200, turnover_b: 2.70 },
+  { symbol: "3293", name: "鈊象", market: "TPEx", price: 1045.00, change: 15.00, change_pct: 1.46, volume: 4800000, volume_lots: 4800, turnover_b: 5.01 },
+  { symbol: "5347", name: "世界", market: "TPEx", price: 103.50, change: -0.50, change_pct: -0.48, volume: 14200000, volume_lots: 14200, turnover_b: 1.47 },
+  { symbol: "3324", name: "雙鴻", market: "TPEx", price: 680.00, change: 12.00, change_pct: 1.80, volume: 7500000, volume_lots: 7500, turnover_b: 5.10 },
+  { symbol: "8299", name: "群聯", market: "TPEx", price: 575.00, change: -5.00, change_pct: -0.86, volume: 5100000, volume_lots: 5100, turnover_b: 2.93 },
 ];
 
 export default function TrendingPanel() {
@@ -73,17 +76,16 @@ export default function TrendingPanel() {
   const [board, setBoard] = useState<"twse" | "tpex">("twse");
   const [sortType, setSortType] = useState<"volume" | "turnover" | "gainers">("volume");
   const [rankings, setRankings] = useState<{ twse: RankedStock[]; tpex: RankedStock[] }>({
-    twse: [],
-    tpex: [],
+    twse: DEFAULT_TWSE,
+    tpex: DEFAULT_TPEX,
   });
   const [tradeDate, setTradeDate] = useState<string>("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>("");
 
   const fetchRankings = useCallback(async (isManual = false) => {
     if (isManual) setIsRefreshing(true);
-    else if (!lastUpdated) setLoading(true);
 
     try {
       const res = await apiMarket.getRankings(16, sortType).catch(() => null);
@@ -98,10 +100,10 @@ export default function TrendingPanel() {
       }
 
       if (twseList.length > 0 || tpexList.length > 0) {
-        setRankings({
-          twse: twseList,
-          tpex: tpexList,
-        });
+        setRankings((prev) => ({
+          twse: twseList.length > 0 ? twseList : prev.twse,
+          tpex: tpexList.length > 0 ? tpexList : prev.tpex,
+        }));
       }
       setLastUpdated(
         new Date().toLocaleTimeString("zh-TW", {
@@ -117,7 +119,7 @@ export default function TrendingPanel() {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [sortType, lastUpdated]);
+  }, [sortType]);
 
   useEffect(() => {
     fetchRankings();
