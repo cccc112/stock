@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCachedTwMarketData } from "../market-rankings/route";
 import { ETF_CATALOG } from "@/lib/etfCatalog";
+import etfBaselinesData from "@/data/etf_holding_baselines.json";
 
 export const dynamic = "force-dynamic";
 
@@ -223,186 +224,24 @@ interface HoldingPcfDelta {
   weightDiff: number;
 }
 
-// 全台股熱門 ETF 官方實質申報之精準成分股增減基準庫 (PCF Ground-Truth)
-const KNOWN_ETF_DIFF_MAP: Record<string, Record<string, HoldingPcfDelta>> = {
-  // 1. 00406A 主動中信台灣收益 (券商 App 實拍完全對齊)
-  "00406A": {
-    "2881": { status: "NEW", sharesDiff: 0, weightDiff: 0 },
-    "2882": { status: "NEW", sharesDiff: 0, weightDiff: 0 },
-    "2887": { status: "NEW", sharesDiff: 0, weightDiff: 0 },
-    "2884": { status: "NEW", sharesDiff: 0, weightDiff: 0 },
-    "2890": { status: "NEW", sharesDiff: 0, weightDiff: 0 },
-    "2330": { status: "ADD", sharesDiff: 290, weightDiff: 0.04 },
-    "2454": { status: "ADD", sharesDiff: 165, weightDiff: 0.38 },
-    "2383": { status: "ADD", sharesDiff: 20, weightDiff: -0.1 },
-    "3037": { status: "ADD", sharesDiff: 200, weightDiff: 0.005 },
-    "3653": { status: "ADD", sharesDiff: 60, weightDiff: 0.14 },
-    "3017": { status: "ADD", sharesDiff: 45, weightDiff: 0.08 },
-    "6223": { status: "ADD", sharesDiff: 15, weightDiff: 0.03 },
-    "8046": { status: "REDUCE", sharesDiff: -80, weightDiff: -0.12 },
-    "1303": { status: "REDUCE", sharesDiff: -150, weightDiff: -0.25 },
-  },
-  // 2. 0050 元大台灣50
-  "0050": {
-    "2330": { status: "ADD", sharesDiff: 1850, weightDiff: 0.22 },
-    "2454": { status: "ADD", sharesDiff: 160, weightDiff: 0.08 },
-    "2317": { status: "ADD", sharesDiff: 820, weightDiff: 0.05 },
-    "2382": { status: "ADD", sharesDiff: 210, weightDiff: 0.02 },
-    "2881": { status: "ADD", sharesDiff: 450, weightDiff: 0.01 },
-    "2882": { status: "ADD", sharesDiff: 480, weightDiff: 0.01 },
-    "2308": { status: "ADD", sharesDiff: 150, weightDiff: 0.02 },
-    "2886": { status: "ADD", sharesDiff: 120, weightDiff: 0.01 },
-    "2891": { status: "ADD", sharesDiff: 210, weightDiff: 0.02 },
-    "2884": { status: "ADD", sharesDiff: 320, weightDiff: 0.01 },
-    "3711": { status: "ADD", sharesDiff: 110, weightDiff: 0.03 },
-    "6669": { status: "ADD", sharesDiff: 18, weightDiff: 0.04 },
-    "2379": { status: "ADD", sharesDiff: 30, weightDiff: 0.02 },
-    "2303": { status: "REDUCE", sharesDiff: -180, weightDiff: -0.04 },
-    "1301": { status: "REDUCE", sharesDiff: -350, weightDiff: -0.05 },
-    "3008": { status: "REDUCE", sharesDiff: -15, weightDiff: -0.03 },
-    "3034": { status: "REDUCE", sharesDiff: -25, weightDiff: -0.02 },
-    "2357": { status: "REDUCE", sharesDiff: -40, weightDiff: -0.02 },
-    "2002": { status: "REDUCE", sharesDiff: -120, weightDiff: -0.03 },
-    "1101": { status: "REDUCE", sharesDiff: -180, weightDiff: -0.04 },
-  },
-  // 3. 00878 國泰永續高股息
-  "00878": {
-    "2454": { status: "ADD", sharesDiff: 1200, weightDiff: 0.12 },
-    "3702": { status: "ADD", sharesDiff: 850, weightDiff: 0.15 },
-    "2886": { status: "ADD", sharesDiff: 1100, weightDiff: 0.08 },
-    "2891": { status: "ADD", sharesDiff: 1400, weightDiff: 0.06 },
-    "2382": { status: "ADD", sharesDiff: 320, weightDiff: 0.04 },
-    "3231": { status: "ADD", sharesDiff: 750, weightDiff: 0.03 },
-    "2882": { status: "ADD", sharesDiff: 900, weightDiff: 0.04 },
-    "2881": { status: "ADD", sharesDiff: 850, weightDiff: 0.03 },
-    "2884": { status: "ADD", sharesDiff: 650, weightDiff: 0.02 },
-    "2379": { status: "ADD", sharesDiff: 120, weightDiff: 0.02 },
-    "2357": { status: "REDUCE", sharesDiff: -300, weightDiff: -0.05 },
-    "2303": { status: "REDUCE", sharesDiff: -600, weightDiff: -0.03 },
-    "3034": { status: "REDUCE", sharesDiff: -80, weightDiff: -0.02 },
-  },
-  // 4. 00919 群益台灣精選高息 (最新實質持股組合)
-  "00919": {
-    "2881": { status: "ADD", sharesDiff: 380, weightDiff: 0.08 },
-    "2882": { status: "ADD", sharesDiff: 320, weightDiff: 0.05 },
-    "2891": { status: "ADD", sharesDiff: 280, weightDiff: 0.04 },
-    "2382": { status: "ADD", sharesDiff: 180, weightDiff: 0.03 },
-    "2887": { status: "ADD", sharesDiff: 450, weightDiff: 0.02 },
-    "2357": { status: "REDUCE", sharesDiff: -80, weightDiff: -0.04 },
-    "2883": { status: "ADD", sharesDiff: 260, weightDiff: 0.02 },
-    "2603": { status: "ADD", sharesDiff: 190, weightDiff: 0.03 },
-    "3034": { status: "REDUCE", sharesDiff: -65, weightDiff: -0.03 },
-    "2379": { status: "ADD", sharesDiff: 70, weightDiff: 0.02 },
-  },
-  // 5. 00929 復華台灣科技優息
-  "00929": {
-    "3711": { status: "ADD", sharesDiff: 1100, weightDiff: 0.14 },
-    "2454": { status: "ADD", sharesDiff: 520, weightDiff: 0.10 },
-    "2379": { status: "ADD", sharesDiff: 380, weightDiff: 0.08 },
-    "2385": { status: "ADD", sharesDiff: 220, weightDiff: 0.03 },
-    "3231": { status: "ADD", sharesDiff: 450, weightDiff: 0.04 },
-    "2449": { status: "ADD", sharesDiff: 310, weightDiff: 0.03 },
-    "6239": { status: "ADD", sharesDiff: 180, weightDiff: 0.02 },
-    "3034": { status: "REDUCE", sharesDiff: -250, weightDiff: -0.05 },
-    "2303": { status: "REDUCE", sharesDiff: -350, weightDiff: -0.04 },
-    "5483": { status: "REDUCE", sharesDiff: -140, weightDiff: -0.03 },
-  },
-  // 6. 0056 元大高股息
-  "0056": {
-    "2603": { status: "ADD", sharesDiff: 1200, weightDiff: 0.15 },
-    "2382": { status: "ADD", sharesDiff: 450, weightDiff: 0.08 },
-    "3231": { status: "ADD", sharesDiff: 680, weightDiff: 0.06 },
-    "2454": { status: "ADD", sharesDiff: 180, weightDiff: 0.04 },
-    "3702": { status: "ADD", sharesDiff: 520, weightDiff: 0.05 },
-    "2886": { status: "ADD", sharesDiff: 800, weightDiff: 0.03 },
-    "2609": { status: "ADD", sharesDiff: 950, weightDiff: 0.06 },
-    "3037": { status: "ADD", sharesDiff: 320, weightDiff: 0.04 },
-    "2376": { status: "ADD", sharesDiff: 150, weightDiff: 0.02 },
-    "2356": { status: "ADD", sharesDiff: 480, weightDiff: 0.02 },
-    "2891": { status: "ADD", sharesDiff: 650, weightDiff: 0.04 },
-    "2357": { status: "REDUCE", sharesDiff: -220, weightDiff: -0.05 },
-    "2303": { status: "REDUCE", sharesDiff: -400, weightDiff: -0.04 },
-  },
-  // 7. 00940 元大台灣價值高息
-  "00940": {
-    "2603": { status: "ADD", sharesDiff: 3500, weightDiff: 0.18 },
-    "2454": { status: "ADD", sharesDiff: 220, weightDiff: 0.05 },
-    "2886": { status: "ADD", sharesDiff: 1200, weightDiff: 0.03 },
-    "3005": { status: "ADD", sharesDiff: 650, weightDiff: 0.04 },
-    "2891": { status: "ADD", sharesDiff: 950, weightDiff: 0.03 },
-    "2609": { status: "ADD", sharesDiff: 1100, weightDiff: 0.05 },
-    "2474": { status: "REDUCE", sharesDiff: -400, weightDiff: -0.04 },
-    "2303": { status: "REDUCE", sharesDiff: -800, weightDiff: -0.05 },
-    "2409": { status: "REDUCE", sharesDiff: -1500, weightDiff: -0.04 },
-    "6121": { status: "REDUCE", sharesDiff: -200, weightDiff: -0.02 },
-  },
-  // 8. 006208 富邦台50
-  "006208": {
-    "2330": { status: "ADD", sharesDiff: 920, weightDiff: 0.22 },
-    "2454": { status: "ADD", sharesDiff: 80, weightDiff: 0.08 },
-    "2317": { status: "ADD", sharesDiff: 410, weightDiff: 0.05 },
-    "2382": { status: "ADD", sharesDiff: 105, weightDiff: 0.02 },
-    "2881": { status: "ADD", sharesDiff: 225, weightDiff: 0.01 },
-    "2882": { status: "ADD", sharesDiff: 240, weightDiff: 0.01 },
-    "2308": { status: "ADD", sharesDiff: 75, weightDiff: 0.02 },
-    "2303": { status: "REDUCE", sharesDiff: -90, weightDiff: -0.04 },
-    "1301": { status: "REDUCE", sharesDiff: -175, weightDiff: -0.05 },
-  },
-  // 9. 00713 元大台灣高息低波
-  "00713": {
-    "2886": { status: "ADD", sharesDiff: 520, weightDiff: 0.03 },
-    "2891": { status: "ADD", sharesDiff: 480, weightDiff: 0.02 },
-    "2454": { status: "ADD", sharesDiff: 110, weightDiff: 0.04 },
-    "2603": { status: "ADD", sharesDiff: 650, weightDiff: 0.08 },
-    "2884": { status: "ADD", sharesDiff: 350, weightDiff: 0.02 },
-    "2382": { status: "ADD", sharesDiff: 150, weightDiff: 0.03 },
-    "2357": { status: "REDUCE", sharesDiff: -120, weightDiff: -0.03 },
-  },
-  // 10. 00982A 主動群益台灣強棒 (新掛牌主動式熱門標的)
-  "00982A": {
-    "2881": { status: "NEW", sharesDiff: 0, weightDiff: 0 },
-    "2882": { status: "NEW", sharesDiff: 0, weightDiff: 0 },
-    "2887": { status: "NEW", sharesDiff: 0, weightDiff: 0 },
-    "2330": { status: "ADD", sharesDiff: 320, weightDiff: 0.18 },
-    "2454": { status: "ADD", sharesDiff: 140, weightDiff: 0.22 },
-    "3017": { status: "ADD", sharesDiff: 95, weightDiff: 0.15 },
-    "3653": { status: "ADD", sharesDiff: 80, weightDiff: 0.12 },
-    "2383": { status: "ADD", sharesDiff: 50, weightDiff: 0.06 },
-    "6223": { status: "ADD", sharesDiff: 45, weightDiff: 0.08 },
-    "3037": { status: "ADD", sharesDiff: 110, weightDiff: 0.05 },
-    "3443": { status: "ADD", sharesDiff: 25, weightDiff: 0.04 },
-    "8046": { status: "REDUCE", sharesDiff: -60, weightDiff: -0.08 },
-    "1303": { status: "REDUCE", sharesDiff: -120, weightDiff: -0.15 },
-  },
-  // 11. 00980A 主動野村臺灣優選
-  "00980A": {
-    "2881": { status: "NEW", sharesDiff: 0, weightDiff: 0 },
-    "2882": { status: "NEW", sharesDiff: 0, weightDiff: 0 },
-    "2330": { status: "ADD", sharesDiff: 280, weightDiff: 0.12 },
-    "2454": { status: "ADD", sharesDiff: 110, weightDiff: 0.18 },
-    "2317": { status: "ADD", sharesDiff: 190, weightDiff: 0.09 },
-    "2382": { status: "ADD", sharesDiff: 85, weightDiff: 0.07 },
-    "3711": { status: "ADD", sharesDiff: 70, weightDiff: 0.06 },
-    "2303": { status: "REDUCE", sharesDiff: -150, weightDiff: -0.06 },
-  },
-  // 12. 00981A 主動統一台股增長
-  "00981A": {
-    "2881": { status: "NEW", sharesDiff: 0, weightDiff: 0 },
-    "2884": { status: "NEW", sharesDiff: 0, weightDiff: 0 },
-    "2330": { status: "ADD", sharesDiff: 350, weightDiff: 0.15 },
-    "2454": { status: "ADD", sharesDiff: 130, weightDiff: 0.20 },
-    "3017": { status: "ADD", sharesDiff: 110, weightDiff: 0.14 },
-    "3653": { status: "ADD", sharesDiff: 75, weightDiff: 0.10 },
-    "6669": { status: "ADD", sharesDiff: 30, weightDiff: 0.08 },
-    "8046": { status: "REDUCE", sharesDiff: -70, weightDiff: -0.10 },
-  },
-};
+// 持久化歷史基準庫 (含 00406A, 0050, 0056, 00878, 00919, 00929, 00940, 006208, 00713, 00981A, 00982A 等真實申報)
+const BASELINES_MAP = etfBaselinesData as Record<
+  string,
+  {
+    date: string;
+    holdings: Record<string, { name: string; sharesLots: number; weight: number }>;
+  }
+>;
 
-// 伺服器持股快照歷史庫 (支援所有全市場 ETF 跨日自動比對)
+// 伺服器持股快照歷史庫 (跨日自動比對)
 const etfHoldingHistoryStore = new Map<string, Record<string, { sharesLots: number; weight: number }>>();
 
 /**
- * 通用動態 PCF 成分股差量運算引擎 (適用於全台股 360+ 檔與任何 ETF)
+ * 官方 PCF / 每日持股實質增減張數運算引擎
+ * 核心準則：
+ * 1. 嚴格比對真實申報前日與今日張數 (sharesLots - prevSharesLots)
+ * 2. 嚴格禁止偽造、假雜湊或隨機推測數據
+ * 3. 若無前日申報比對數據，誠實呈現為 HOLD（維持），變動張數為 0，變動顯示「—」
  */
 function resolveHoldingPcfDelta(
   code: string,
@@ -413,17 +252,18 @@ function resolveHoldingPcfDelta(
   isTail: boolean = false
 ): HoldingPcfDelta {
   const c = code.toUpperCase();
-  // 1. 優先匹配已校準基準庫
-  const known = KNOWN_ETF_DIFF_MAP[c]?.[sym];
-  if (known) return known;
 
-  // 2. 比對伺服器歷史持股快照 (真正的 S_t - S_t-1 日期差值運算)
-  const history = etfHoldingHistoryStore.get(c);
-  if (history) {
-    const prev = history[sym];
+  // 1. 取得前一日基準持股快照 (優先讀取記憶體歷史庫，次序讀取持久化預置基線)
+  const prevSnapshot =
+    etfHoldingHistoryStore.get(c) ||
+    BASELINES_MAP[`${c}_PREV`]?.holdings ||
+    BASELINES_MAP[c]?.holdings;
+
+  if (prevSnapshot) {
+    const prev = prevSnapshot[sym];
     if (!prev) {
-      // 昨天的持股快照中無此股票 -> 今日新納入 (NEW)
-      return { status: "NEW", sharesDiff: 0, weightDiff: 0 };
+      // 昨天的持股清單中完全無此股票 -> 今日實質新買進納入 (NEW)
+      return { status: "NEW", sharesDiff: sharesLots, weightDiff: weight };
     }
     const sDiff = sharesLots - prev.sharesLots;
     const wDiff = Number((weight - prev.weight).toFixed(2));
@@ -432,22 +272,9 @@ function resolveHoldingPcfDelta(
     return { status: "HOLD", sharesDiff: 0, weightDiff: wDiff };
   }
 
-  // 3. 首次載入或冷啟動：依真實 PCF 申贖基數進行合理動態估算（絕不產生萬張膨脹數字）
-  // 正常一檔 ETF 每日申贖換算之單一個股張數約在 10 ~ 450 張之間
-  const charSum = sym.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-  const driftMod = (charSum % 7) - 3; // -3 ~ +3
-
-  // 依權重計算合理的申贖張數 (例如權重 15% -> ~345 張，權重 5% -> ~125 張，權重 1% -> ~37 張)
-  const realisticLots = Math.round(15 + Math.min(weight, 25) * 22);
-  const realisticWeightDiff = Number((0.01 + Math.abs(driftMod) * 0.02).toFixed(2));
-
-  if (weight >= 3.0 || driftMod > 0) {
-    return { status: "ADD", sharesDiff: realisticLots, weightDiff: realisticWeightDiff };
-  } else if (driftMod < -1) {
-    return { status: "REDUCE", sharesDiff: -Math.round(realisticLots * 0.7), weightDiff: -realisticWeightDiff };
-  } else {
-    return { status: "HOLD", sharesDiff: 0, weightDiff: 0 };
-  }
+  // 2. 若為全新收錄且無前一日比對基線之 ETF：
+  // 誠實回傳維持現有持股狀態，絕不隨機捏造買賣或加減碼！
+  return { status: "HOLD", sharesDiff: 0, weightDiff: 0 };
 }
 
 async function fetchEtfInfoTw(code: string): Promise<MoneyDjDetail | null> {

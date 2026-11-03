@@ -285,15 +285,16 @@ async function enrichWithRealtimeTwseQuotes(items: RankedStockItem[]): Promise<R
 function sortRankings(
   list: RankedStockItem[],
   sortBy: string,
-  limit: number
+  limit: number,
+  isEtfOnly: boolean = false
 ): RankedStockItem[] {
-  const copy = list.filter((x) => !x.is_etf && x.volume > 0);
+  const copy = list.filter((x) => (isEtfOnly ? Boolean(x.is_etf) : !x.is_etf) && x.volume > 0);
   if (sortBy === "turnover") {
-    copy.sort((a, b) => b.turnover_b - a.turnover_b || b.volume - a.volume);
+    copy.sort((a, b) => (b.turnover_b || 0) - (a.turnover_b || 0) || (b.volume || 0) - (a.volume || 0));
   } else if (sortBy === "gainers") {
-    copy.sort((a, b) => b.change_pct - a.change_pct || b.volume - a.volume);
+    copy.sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0) || (b.volume || 0) - (a.volume || 0));
   } else {
-    copy.sort((a, b) => b.volume - a.volume || b.turnover_b - a.turnover_b);
+    copy.sort((a, b) => (b.volume || 0) - (a.volume || 0) || (b.turnover_b || 0) - (a.turnover_b || 0));
   }
   return copy.slice(0, limit);
 }
@@ -471,17 +472,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(flowItems);
   }
 
-  const rawTwse = sortRankings(marketCache?.twseAll || [], sortBy, limit);
-  const rawTpex = sortRankings(marketCache?.tpexAll || [], sortBy, limit);
+  const rawTwse = sortRankings(marketCache?.twseAll || [], sortBy, limit, false);
+  const rawTpex = sortRankings(marketCache?.tpexAll || [], sortBy, limit, false);
+  const allEtfs = allTw.filter((x) => x.is_etf);
+  const rawEtf = sortRankings(allEtfs, sortBy, limit, true);
 
-  const [twse, tpex] = await Promise.all([
+  const [twse, tpex, etf] = await Promise.all([
     enrichWithRealtimeTwseQuotes(rawTwse),
     enrichWithRealtimeTwseQuotes(rawTpex),
+    enrichWithRealtimeTwseQuotes(rawEtf),
   ]);
 
   return NextResponse.json({
     twse,
     tpex,
+    etf,
     date: marketCache?.date || "",
   });
 }

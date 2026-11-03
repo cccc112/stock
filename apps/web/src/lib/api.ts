@@ -175,7 +175,7 @@ export const apiMarket = {
   getRankings: async (limit: number = 10, sort_by: string = 'volume') => {
     try {
       const res = await axios.get('/api/market-rankings', { params: { limit, sort_by }, timeout: 12000 });
-      if (res?.data && (res.data.twse?.length || res.data.tpex?.length)) return res;
+      if (res?.data && (res.data.twse?.length || res.data.tpex?.length || res.data.etf?.length)) return res;
     } catch {
       // fallback to backend
     }

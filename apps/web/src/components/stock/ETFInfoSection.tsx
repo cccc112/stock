@@ -383,26 +383,21 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
       const stockMarket: "TW" | "US" = live?.market || (/^\d/.test(h.symbol) ? "TW" : "US");
       const changePct = live?.change_pct ?? Number(h?.change_pct) ?? 0;
 
-      // Status: NEW (新增), ADD (加碼), REDUCE (減碼), HOLD (維持)
-      let status: "NEW" | "ADD" | "REDUCE" | "HOLD" =
-        h.status === "NEW"
-          ? "NEW"
-          : h.status === "ADD" || Number(h.shares_change) > 0
-          ? "ADD"
-          : h.status === "REDUCE" || Number(h.shares_change) < 0
-          ? "REDUCE"
-          : "HOLD";
-
-      if (!h.status) {
-        if (Number(h.shares_change) > 0) status = "ADD";
-        else if (Number(h.shares_change) < 0) status = "REDUCE";
-        else if (weight > 2.5) status = "ADD";
-        else status = "HOLD";
-      }
-
       const sharesHeldLots = Number(h?.shares_lots) || (h.shares ? Math.round(Number(h.shares) / 1000) : 0);
       const sharesChangeLots = Number(h?.shares_change) || 0;
       const weightChange = Number(h?.weight_change) || 0;
+
+      // Status 嚴格依真實數據判定：NEW (新增), ADD (加碼), REDUCE (減碼), HOLD (維持)
+      let status: "NEW" | "ADD" | "REDUCE" | "HOLD" = "HOLD";
+      if (h.status === "NEW") {
+        status = "NEW";
+      } else if (sharesChangeLots > 0 || (h.status === "ADD" && sharesChangeLots > 0)) {
+        status = "ADD";
+      } else if (sharesChangeLots < 0 || (h.status === "REDUCE" && sharesChangeLots < 0)) {
+        status = "REDUCE";
+      } else {
+        status = "HOLD";
+      }
 
       // 持股規模(市值): 優先採用真實折算市值，格式化為「XX億」或「XX萬」
       const marketValB =
@@ -412,30 +407,28 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
 
       const marketValueText = marketValB >= 1 ? `${marketValB}億` : `${Math.round(marketValB * 10000)}萬`;
 
-      // 與前日變動 (張數) 字串：新增 (NEW) 時為空，加碼顯示 +X張，減碼顯示 -X張
-      let sharesChangeText = "";
-      if (status === "ADD") {
-        sharesChangeText = sharesChangeLots > 0 ? `+${sharesChangeLots.toLocaleString()}張` : "+—張";
-      } else if (status === "REDUCE") {
-        sharesChangeText = sharesChangeLots < 0 ? `${sharesChangeLots.toLocaleString()}張` : "-—張";
-      } else if (status === "HOLD") {
-        sharesChangeText = "0張";
+      // 與前日變動 (張數) 字串：新增顯示 +X張，加碼顯示 +X張，減碼顯示 -X張，無變動顯示「—」
+      let sharesChangeText = "—";
+      if (status === "ADD" && sharesChangeLots > 0) {
+        sharesChangeText = `+${sharesChangeLots.toLocaleString()}張`;
+      } else if (status === "REDUCE" && sharesChangeLots < 0) {
+        sharesChangeText = `${sharesChangeLots.toLocaleString()}張`;
       } else if (status === "NEW") {
-        sharesChangeText = "";
+        sharesChangeText = sharesHeldLots > 0 ? `+${sharesHeldLots.toLocaleString()}張` : "—";
+      } else {
+        sharesChangeText = "—";
       }
 
-      // 與前日變動 (權重) 字串：新增 (NEW) 時為空，其餘帶符號且格式化到後兩位
-      let weightChangeText = "";
+      // 與前日變動 (權重) 字串：新增時帶符號，其餘帶符號且格式化到後兩位
+      let weightChangeText = "—";
       if (status === "NEW") {
-        weightChangeText = "";
-      } else if (0 < Math.abs(weightChange) && Math.abs(weightChange) < 0.01) {
-        weightChangeText = weightChange > 0 ? "<0.01%" : "-<0.01%";
-      } else if (weightChange > 0) {
-        weightChangeText = `+${weightChange.toFixed(2)}%`;
-      } else if (weightChange < 0) {
-        weightChangeText = `${weightChange.toFixed(2)}%`;
-      } else {
+        weightChangeText = weightChange > 0 ? `+${weightChange.toFixed(2)}%` : "—";
+      } else if (Math.abs(weightChange) >= 0.01) {
+        weightChangeText = weightChange > 0 ? `+${weightChange.toFixed(2)}%` : `${weightChange.toFixed(2)}%`;
+      } else if (weightChange === 0) {
         weightChangeText = "0.00%";
+      } else {
+        weightChangeText = weightChange > 0 ? "<0.01%" : "-<0.01%";
       }
 
       return {
@@ -867,13 +860,13 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
                           </div>
                           <div className="text-xs font-mono font-medium tabular-nums min-h-[16px] mt-0.5">
                             {isNew ? (
-                              <span className="text-muted/40">—</span>
+                              <span className="text-blue-500 dark:text-blue-400 font-semibold">{h.sharesChangeText}</span>
                             ) : isAdd ? (
                               <span className="text-red-500 dark:text-red-400">{h.sharesChangeText}</span>
                             ) : isReduce ? (
                               <span className="text-emerald-500 dark:text-emerald-400">{h.sharesChangeText}</span>
                             ) : (
-                              <span className="text-muted">{h.sharesChangeText || "0張"}</span>
+                              <span className="text-muted/60">—</span>
                             )}
                           </div>
                         </div>
@@ -885,13 +878,13 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
                           </div>
                           <div className="text-xs font-mono font-medium tabular-nums min-h-[16px] mt-0.5">
                             {isNew ? (
-                              <span className="text-muted/40">—</span>
+                              <span className="text-blue-500 dark:text-blue-400 font-semibold">{h.weightChangeText}</span>
                             ) : h.weight_change > 0 ? (
                               <span className="text-red-500 dark:text-red-400">{h.weightChangeText}</span>
                             ) : h.weight_change < 0 ? (
                               <span className="text-emerald-500 dark:text-emerald-400">{h.weightChangeText}</span>
                             ) : (
-                              <span className="text-muted">{h.weightChangeText || "0.00%"}</span>
+                              <span className="text-muted/60">—</span>
                             )}
                           </div>
                           <div className="w-14 h-1 rounded-full bg-[var(--bg-tertiary)] overflow-hidden ml-auto mt-1 opacity-70 group-hover:opacity-100 transition-opacity">

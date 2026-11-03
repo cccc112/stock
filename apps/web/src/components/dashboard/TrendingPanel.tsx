@@ -72,13 +72,31 @@ const DEFAULT_TPEX: RankedStock[] = [
   { symbol: "8299", name: "群聯", market: "TPEx", price: 575.00, change: -5.00, change_pct: -0.86, volume: 5100000, volume_lots: 5100, turnover_b: 2.93 },
 ];
 
+const DEFAULT_ETF: RankedStock[] = [
+  { symbol: "0050", name: "元大台灣50", market: "TWSE", price: 100.60, change: -3.50, change_pct: -3.36, volume: 42500000, volume_lots: 42500, turnover_b: 42.75 },
+  { symbol: "00878", name: "國泰永續高股息", market: "TWSE", price: 22.85, change: -0.15, change_pct: -0.65, volume: 88500000, volume_lots: 88500, turnover_b: 20.22 },
+  { symbol: "00919", name: "群益台灣精選高息", market: "TWSE", price: 23.90, change: 0.10, change_pct: 0.42, volume: 95200000, volume_lots: 95200, turnover_b: 22.75 },
+  { symbol: "00929", name: "復華台灣科技優息", market: "TWSE", price: 18.25, change: -0.05, change_pct: -0.27, volume: 76000000, volume_lots: 76000, turnover_b: 13.87 },
+  { symbol: "0056", name: "元大高股息", market: "TWSE", price: 37.80, change: -0.20, change_pct: -0.53, volume: 52000000, volume_lots: 52000, turnover_b: 19.65 },
+  { symbol: "00940", name: "元大台灣價值高息", market: "TWSE", price: 9.45, change: -0.05, change_pct: -0.53, volume: 68000000, volume_lots: 68000, turnover_b: 6.42 },
+  { symbol: "00679B", name: "元大美債20年", market: "TPEx", price: 29.50, change: 0.20, change_pct: 0.68, volume: 65000000, volume_lots: 65000, turnover_b: 19.17 },
+  { symbol: "00406A", name: "主動中信台灣收益", market: "TWSE", price: 15.20, change: 0.12, change_pct: 0.80, volume: 38000000, volume_lots: 38000, turnover_b: 5.77 },
+  { symbol: "00981A", name: "主動統一台股增長", market: "TWSE", price: 26.66, change: 0.30, change_pct: 1.14, volume: 65000000, volume_lots: 65000, turnover_b: 17.33 },
+  { symbol: "00982A", name: "主動群益台灣強棒", market: "TWSE", price: 20.66, change: 0.18, change_pct: 0.88, volume: 33200000, volume_lots: 33200, turnover_b: 6.86 },
+];
+
 export default function TrendingPanel() {
   const router = useRouter();
-  const [board, setBoard] = useState<"twse" | "tpex">("twse");
+  const [board, setBoard] = useState<"twse" | "tpex" | "etf">("twse");
   const [sortType, setSortType] = useState<"volume" | "turnover" | "gainers">("volume");
-  const [rankings, setRankings] = useState<{ twse: RankedStock[]; tpex: RankedStock[] }>({
+  const [rankings, setRankings] = useState<{
+    twse: RankedStock[];
+    tpex: RankedStock[];
+    etf: RankedStock[];
+  }>({
     twse: DEFAULT_TWSE,
     tpex: DEFAULT_TPEX,
+    etf: DEFAULT_ETF,
   });
   const [tradeDate, setTradeDate] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -95,15 +113,18 @@ export default function TrendingPanel() {
         data?.twse && Array.isArray(data.twse) && data.twse.length > 0 ? data.twse : [];
       const tpexList: RankedStock[] =
         data?.tpex && Array.isArray(data.tpex) && data.tpex.length > 0 ? data.tpex : [];
+      const etfList: RankedStock[] =
+        data?.etf && Array.isArray(data.etf) && data.etf.length > 0 ? data.etf : [];
 
       if (data?.date) {
         setTradeDate(data.date);
       }
 
-      if (twseList.length > 0 || tpexList.length > 0) {
+      if (twseList.length > 0 || tpexList.length > 0 || etfList.length > 0) {
         setRankings((prev) => ({
           twse: twseList.length > 0 ? twseList : prev.twse,
           tpex: tpexList.length > 0 ? tpexList : prev.tpex,
+          etf: etfList.length > 0 ? etfList : prev.etf,
         }));
       }
       setLastUpdated(
@@ -130,7 +151,9 @@ export default function TrendingPanel() {
   }, [fetchRankings]);
 
   const list = useMemo(() => {
-    const base = [...(board === "twse" ? rankings.twse : rankings.tpex)];
+    const base = [
+      ...(board === "twse" ? rankings.twse : board === "tpex" ? rankings.tpex : rankings.etf),
+    ];
     if (sortType === "gainers") {
       return base.sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0));
     }
@@ -186,6 +209,17 @@ export default function TrendingPanel() {
               }`}
             >
               上櫃 (TPEx)
+            </button>
+            <button
+              onClick={() => setBoard("etf")}
+              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer flex items-center gap-1 ${
+                board === "etf"
+                  ? "bg-accent text-white"
+                  : "text-secondary hover:text-primary"
+              }`}
+            >
+              <Flame size={12} className={board === "etf" ? "text-amber-300" : "text-amber-500"} />
+              <span>熱門 ETF</span>
             </button>
           </div>
         </div>
