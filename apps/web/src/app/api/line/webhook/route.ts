@@ -72,7 +72,7 @@ async function replyLineMessage(replyToken: string, messages: any[]) {
 export async function GET() {
   return NextResponse.json({
     status: "ok",
-    service: "AI Stock Monitor LINE Bot Webhook",
+    service: "OmniTick LINE Bot Webhook",
     timestamp: new Date().toISOString(),
   });
 }
@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
         await replyLineMessage(replyToken, [
           {
             type: "text",
-            text: `【AI 投資戰情室】\n\n您可直接在此聊天室輸入：\n1. 股票或 ETF 代碼（如「2330」或「0050」秒查即時行情與籌碼）\n2. 輸入「/bind 您的6位驗證碼」完成網頁戰情室綁定\n\n查看完整即時雷達：\nhttps://stock-green-ten.vercel.app/alerts`,
+            text: `【OmniTick 奧米全時智投】\n\n您可直接在此聊天室輸入：\n1. 股票或 ETF 代碼（輸入「2330」或「0050」秒查即時行情與籌碼）\n2. 輸入「/bind 您的6位驗證碼」完成網頁戰情室綁定\n\n查看完整即時雷達戰情室：\nhttps://stock-green-ten.vercel.app/alerts`,
           },
         ]);
       }
