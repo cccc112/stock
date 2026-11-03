@@ -251,6 +251,8 @@ export default function TrendingPanel() {
             <tbody>
               {list.map((stock, idx) => {
                 const changePct = stock.change_pct ?? 0;
+                const isLimitUp = Boolean(((stock as any).limit_up && (stock as any).limit_up > 0 && stock.price >= (stock as any).limit_up) || changePct >= 9.5);
+                const isLimitDown = Boolean(((stock as any).limit_down && (stock as any).limit_down > 0 && stock.price <= (stock as any).limit_down) || changePct <= -9.5);
                 const volRatio = Math.min(100, Math.round(((stock.volume || 0) / maxVol) * 100));
                 return (
                   <tr
@@ -273,10 +275,22 @@ export default function TrendingPanel() {
                     </td>
                     <td className="text-right font-mono font-semibold">
                       {stock.price > 0 ? (
-                        <span>
-                          <span className="text-xs text-muted mr-1 font-normal">NT$</span>
-                          {formatNumber(stock.price, 2)}
-                        </span>
+                        isLimitUp ? (
+                          <span className="inline-block px-1.5 py-0.5 rounded bg-red-600 text-white font-bold text-xs shadow-sm">
+                            <span className="text-[10px] mr-1 opacity-80">NT$</span>
+                            {formatNumber(stock.price, 2)}
+                          </span>
+                        ) : isLimitDown ? (
+                          <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-600 text-white font-bold text-xs shadow-sm">
+                            <span className="text-[10px] mr-1 opacity-80">NT$</span>
+                            {formatNumber(stock.price, 2)}
+                          </span>
+                        ) : (
+                          <span>
+                            <span className="text-xs text-muted mr-1 font-normal">NT$</span>
+                            {formatNumber(stock.price, 2)}
+                          </span>
+                        )
                       ) : (
                         "-"
                       )}
@@ -291,7 +305,17 @@ export default function TrendingPanel() {
                       {stock.price > 0 ? stock.change.toFixed(2) : "-"}
                     </td>
                     <td className="text-right">
-                      <Badge value={changePct} market="TW" size="sm" />
+                      {isLimitUp ? (
+                        <span className="inline-block px-2 py-0.5 rounded-md bg-red-600 text-white font-mono font-bold text-xs shadow-sm animate-pulse">
+                          漲停 +{changePct.toFixed(2)}%
+                        </span>
+                      ) : isLimitDown ? (
+                        <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-600 text-white font-mono font-bold text-xs shadow-sm animate-pulse">
+                          跌停 {changePct.toFixed(2)}%
+                        </span>
+                      ) : (
+                        <Badge value={changePct} market="TW" size="sm" />
+                      )}
                     </td>
                     <td className="text-right">
                       <div className="flex flex-col items-end gap-1">

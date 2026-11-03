@@ -63,6 +63,8 @@ interface StockData {
   trade_time?: string;
   bid?: number;
   ask?: number;
+  limit_up?: number;
+  limit_down?: number;
 }
 
 export default function StockDetailPage({ params }: { params: Promise<{ symbol: string }> }) {
@@ -137,6 +139,14 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   };
 
   const market = stock?.market ?? (symbol.match(/^\d/) ? 'TW' : 'US');
+  const isLimitUp = Boolean(
+    (stock?.limit_up && stock.limit_up > 0 && stock.price >= stock.limit_up) ||
+      (stock?.change_pct ?? 0) >= 9.5
+  );
+  const isLimitDown = Boolean(
+    (stock?.limit_down && stock.limit_down > 0 && stock.price <= stock.limit_down) ||
+      (stock?.change_pct ?? 0) <= -9.5
+  );
 
   if (loading) {
     return (
@@ -166,13 +176,34 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
               {market === 'US' ? '美股 (USD 美元計價)' : '台股 (TWD 新台幣)'}
             </span>
           </div>
-          <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-bold font-mono tabular-nums flex items-baseline">
-              <span className="text-xl text-secondary mr-1 font-semibold">{market === 'US' ? 'USD $' : 'NT$'}</span>
-              <AnimatedPrice price={stock.price} showIndicator={true} />
+          <div className="flex items-baseline gap-3 flex-wrap">
+            <span
+              className={`text-3xl font-bold font-mono tabular-nums flex items-baseline transition-all ${
+                isLimitUp
+                  ? "bg-red-600 text-white px-3 py-1 rounded-xl shadow-lg shadow-red-500/25"
+                  : isLimitDown
+                  ? "bg-emerald-600 text-white px-3 py-1 rounded-xl shadow-lg shadow-emerald-500/25"
+                  : ""
+              }`}
+            >
+              <span className={`text-xl mr-1 font-semibold ${isLimitUp || isLimitDown ? "text-white/80" : "text-secondary"}`}>
+                {market === "US" ? "USD $" : "NT$"}
+              </span>
+              <AnimatedPrice price={stock.price} showIndicator={!isLimitUp && !isLimitDown} />
             </span>
-            <span className={`text-base font-mono tabular-nums font-medium ${getChangeColorClass(stock.change, market)}`}>
-              {stock.change > 0 ? '+' : ''}{stock.change.toFixed(2)} ({stock.change_pct > 0 ? '+' : ''}{stock.change_pct.toFixed(2)}%)
+            <span
+              className={`text-base font-mono tabular-nums font-bold ${
+                isLimitUp
+                  ? "bg-red-600 text-white px-2.5 py-1 rounded-lg shadow-md animate-pulse"
+                  : isLimitDown
+                  ? "bg-emerald-600 text-white px-2.5 py-1 rounded-lg shadow-md animate-pulse"
+                  : getChangeColorClass(stock.change, market)
+              }`}
+            >
+              {isLimitUp ? "🔥 漲停 " : isLimitDown ? "❄️ 跌停 " : ""}
+              {stock.change > 0 ? "+" : ""}
+              {stock.change.toFixed(2)} ({stock.change_pct > 0 ? "+" : ""}
+              {stock.change_pct.toFixed(2)}%)
             </span>
           </div>
           <div className="mt-2 flex items-center gap-2 text-xs text-muted flex-wrap">
@@ -242,18 +273,10 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                   tabs={[
                     {
                       id: 'kline',
-                      label: assetType === 'ETF' ? 'K線與成分股追蹤總覽' : 'K線與趨勢畫線',
+                      label: 'K線圖',
                       content: (
-                        <div className="pt-2 space-y-6">
-                          <div>
-                            <CandlestickChart symbol={canonical} market={market} priceLines={priceLines} />
-                            <AIChartAnalyzer symbol={canonical} onLinesCalculated={setPriceLines} />
-                          </div>
-                          {assetType !== 'STOCK' && (
-                            <div className="pt-4 border-t border-[var(--border)]">
-                              <ETFInfoSection key={`inline-${canonical}`} symbol={canonical} />
-                            </div>
-                          )}
+                        <div className="pt-2">
+                          <CandlestickChart symbol={canonical} market={market} priceLines={priceLines} />
                         </div>
                       )
                     },

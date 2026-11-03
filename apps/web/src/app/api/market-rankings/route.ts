@@ -15,6 +15,8 @@ export interface RankedStockItem {
   date: string;
   stale: boolean;
   is_etf?: boolean;
+  limit_up?: number;
+  limit_down?: number;
 }
 
 let cachedData: {
@@ -218,6 +220,68 @@ async function fetchTpexAll(): Promise<RankedStockItem[]> {
   }
 }
 
+async function enrichWithRealtimeTwseQuotes(items: RankedStockItem[]): Promise<RankedStockItem[]> {
+  if (!items || items.length === 0) return items;
+  try {
+    const exCh = items
+      .map((s) => (s.market === "TPEx" ? "otc_" : "tse_") + s.symbol + ".tw")
+      .join("|");
+    const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${encodeURIComponent(
+      exCh
+    )}&json=1&delay=0&_=${Date.now()}`;
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        Referer: "https://mis.twse.com.tw/stock/fibest.jsp",
+      },
+      cache: "no-store",
+      signal: AbortSignal.timeout(2500),
+    });
+    if (!res.ok) return items;
+    const json = await res.json();
+    const arr = Array.isArray(json?.msgArray) ? json.msgArray : [];
+    if (arr.length === 0) return items;
+
+    const byCode: Record<string, any> = {};
+    for (const m of arr) {
+      if (m?.c) byCode[String(m.c).toUpperCase()] = m;
+    }
+
+    const parseP = (v: any) => {
+      if (!v || v === "-") return 0;
+      const n = parseFloat(String(v).replace(/,/g, ""));
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    return items.map((it) => {
+      const live = byCode[it.symbol.toUpperCase()];
+      if (!live) return it;
+      const z = parseP(live.z);
+      const pz = parseP(live.pz);
+      const y = parseP(live.y);
+      const vLots = parseP(live.v);
+      const livePrice = z > 0 ? z : pz > 0 ? pz : it.price;
+      const prevClose = y > 0 ? y : it.price - it.change;
+      const chg = livePrice > 0 && prevClose > 0 ? Number((livePrice - prevClose).toFixed(2)) : it.change;
+      const pct = prevClose > 0 ? Number((((livePrice - prevClose) / prevClose) * 100).toFixed(2)) : it.change_pct;
+      const volLots = vLots > 0 ? Math.round(vLots) : it.volume_lots;
+      return {
+        ...it,
+        price: livePrice,
+        change: chg,
+        change_pct: pct,
+        volume_lots: volLots,
+        volume: volLots * 1000,
+        limit_up: parseP(live.u),
+        limit_down: parseP(live.w),
+      };
+    });
+  } catch {
+    return items;
+  }
+}
+
 function sortRankings(
   list: RankedStockItem[],
   sortBy: string,
@@ -407,8 +471,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(flowItems);
   }
 
-  const twse = sortRankings(marketCache?.twseAll || [], sortBy, limit);
-  const tpex = sortRankings(marketCache?.tpexAll || [], sortBy, limit);
+  const rawTwse = sortRankings(marketCache?.twseAll || [], sortBy, limit);
+  const rawTpex = sortRankings(marketCache?.tpexAll || [], sortBy, limit);
+
+  const [twse, tpex] = await Promise.all([
+    enrichWithRealtimeTwseQuotes(rawTwse),
+    enrichWithRealtimeTwseQuotes(rawTpex),
+  ]);
 
   return NextResponse.json({
     twse,

@@ -755,34 +755,24 @@ export async function GET(req: NextRequest) {
 
   try {
     if (person === "TRUMP") {
-      // 結合川普 Truth Social 原始貼文與重大政經/關稅政策即時動態
-      const [originalTruths, trumpPolicyNews] = await Promise.allSettled([
-        fetchTrumpTruthSocialOriginalPosts(includeAll),
-        fetchRssForPerson("TRUMP"),
-      ]);
-      const truths = originalTruths.status === "fulfilled" ? originalTruths.value : [];
-      const news = trumpPolicyNews.status === "fulfilled" ? trumpPolicyNews.value : [];
-      const merged = [...truths, ...news]
-        .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(0, 30);
-      return NextResponse.json({ data: merged });
+      // 100% 僅保留川普 Truth Social 原始貼文，徹底剔除第三方新聞媒體報導
+      const truths = await fetchTrumpTruthSocialOriginalPosts(includeAll);
+      return NextResponse.json({ data: truths });
     }
 
     if (person === "ALL") {
-      const [originalTruths, trumpNews, muskList, huangList, powellList] = await Promise.allSettled([
+      const [originalTruths, muskList, huangList, powellList] = await Promise.allSettled([
         fetchTrumpTruthSocialOriginalPosts(includeAll),
-        fetchRssForPerson("TRUMP"),
         fetchRssForPerson("MUSK"),
         fetchRssForPerson("HUANG"),
         fetchRssForPerson("POWELL"),
       ]);
       const truths = originalTruths.status === "fulfilled" ? originalTruths.value : [];
-      const tNews = trumpNews.status === "fulfilled" ? trumpNews.value : [];
       const musk = muskList.status === "fulfilled" ? muskList.value : [];
       const huang = huangList.status === "fulfilled" ? huangList.value : [];
       const powell = powellList.status === "fulfilled" ? powellList.value : [];
 
-      const merged = [...truths, ...tNews, ...musk, ...huang, ...powell]
+      const merged = [...truths, ...musk, ...huang, ...powell]
         .sort((a, b) => b.timestamp - a.timestamp)
         .slice(0, 45);
       return NextResponse.json({ data: merged });

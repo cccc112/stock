@@ -32,8 +32,8 @@ const CELEBRITIES = [
   {
     id: "TRUMP",
     name: "川普 Donald Trump",
-    sub: "@realDonaldTrump · 財經/關稅/政策",
-    badge: "關稅 · 晶片 · 總經",
+    sub: "@realDonaldTrump · 100% 原始發文",
+    badge: "Truth Social 原始貼文",
   },
   {
     id: "MUSK",
@@ -269,7 +269,7 @@ export default function CelebrityRadar() {
           <MessageSquareQuote size={18} className="text-accent" />
           <span>
             {selectedPerson === "TRUMP"
-              ? `川普 Truth Social 原始貼文與政策快訊 (${items.length} 則)`
+              ? `川普 Truth Social 原始貼文 (${items.length} 則)`
               : selectedPerson === "ALL"
               ? `全球政經與科技領袖即時動態 (${items.length} 則)`
               : `名人原始貼文與發言即時追蹤 (${items.length} 則)`}

@@ -77,20 +77,30 @@ const YF_HEADERS = {
 };
 
 function mapPeriodToYf(period: string): { range: string; interval: string } {
-  switch (period) {
-    case "1d":
-      return { range: "5d", interval: "5m" };
-    case "5d":
-      return { range: "5d", interval: "15m" };
-    case "1mo":
+  switch (period.toLowerCase()) {
     case "1m":
+      return { range: "1d", interval: "1m" };
+    case "5m":
+      return { range: "5d", interval: "5m" };
+    case "15m":
+      return { range: "5d", interval: "15m" };
+    case "30m":
+      return { range: "1mo", interval: "30m" };
+    case "60m":
+    case "1h":
+      return { range: "1mo", interval: "60m" };
+    case "1d":
+      return { range: "1d", interval: "1m" };
+    case "5d":
+      return { range: "5d", interval: "5m" };
+    case "1mo":
       return { range: "1mo", interval: "1d" };
     case "3mo":
-    case "3m":
       return { range: "3mo", interval: "1d" };
     case "6mo":
-    case "6m":
       return { range: "6mo", interval: "1d" };
+    case "ytd":
+      return { range: "ytd", interval: "1d" };
     case "1y":
       return { range: "1y", interval: "1d" };
     case "2y":
@@ -157,7 +167,20 @@ async function fetchTwseStockDayBars(code: string) {
 
 async function fetchTwseMisNameAndQuote(code: string) {
   try {
-    const exCh = `tse_${code}.tw|otc_${code}.tw`;
+    const rawUpper = code.toUpperCase().trim();
+    const clean = rawUpper.replace(/\.(TW|TWO)$/i, "");
+
+    // 支援台股加權指數 (^TWII/t00) 與櫃買指數 (^TWOII/o00)
+    let exCh = `tse_${clean}.tw|otc_${clean}.tw`;
+    let targetC = clean;
+    if (rawUpper === "^TWII" || clean === "TWII" || clean === "T00") {
+      exCh = "tse_t00.tw";
+      targetC = "t00";
+    } else if (rawUpper === "^TWOII" || clean === "TWOII" || clean === "O00") {
+      exCh = "otc_o00.tw";
+      targetC = "o00";
+    }
+
     const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${encodeURIComponent(
       exCh
     )}&json=1&delay=0&_=${Date.now()}`;
@@ -173,9 +196,10 @@ async function fetchTwseMisNameAndQuote(code: string) {
     const arr = Array.isArray(data?.msgArray) ? data.msgArray : [];
     
     // 精準找到對應股票代碼且有真實資訊之項目 (排除 {"tv":"-","s":"-","c":"","z":"-"})
-    const upperCode = code.toUpperCase();
+    const targetCLow = targetC.toLowerCase();
     const info =
-      arr.find((m: any) => String(m?.c || "").toUpperCase() === upperCode && (m?.n || m?.y || m?.z !== "-")) ||
+      arr.find((m: any) => String(m?.c || "").toLowerCase() === targetCLow && (m?.n || m?.y || m?.z !== "-")) ||
+      arr.find((m: any) => String(m?.c || "").toLowerCase() === targetCLow) ||
       arr.find((m: any) => m?.n) ||
       arr[0];
     if (!info) return null;
@@ -257,13 +281,19 @@ export async function GET(req: NextRequest) {
 
   const upper = rawSym.toUpperCase();
   const cleanCode = upper.replace(/\.(TW|TWO)$/i, "");
+  const isTwIndex = upper === "^TWII" || cleanCode === "TWII" || cleanCode === "T00" || upper === "^TWOII" || cleanCode === "TWOII" || cleanCode === "O00";
   const isTw =
+    isTwIndex ||
     (/^\d/.test(cleanCode) && !upper.includes("-USD") && !upper.includes("=")) ||
     upper.endsWith(".TW") ||
     upper.endsWith(".TWO");
-  const market: "TW" | "US" = isTw || upper === "^TWII" ? "TW" : "US";
+  const market: "TW" | "US" = isTw ? "TW" : "US";
 
-  const candidateYfSymbols = isTw
+  const candidateYfSymbols = isTwIndex
+    ? upper.includes("TWO") || cleanCode === "O00"
+      ? ["^TWOII"]
+      : ["^TWII"]
+    : isTw
     ? upper.endsWith(".TWO")
       ? [`${cleanCode}.TWO`, `${cleanCode}.TW`]
       : [`${cleanCode}.TW`, `${cleanCode}.TWO`]
@@ -278,7 +308,7 @@ export async function GET(req: NextRequest) {
       const q = result?.indicators?.quote?.[0] || {};
       if (timestamps.length > 0 && Array.isArray(q.close)) {
         const isIntraday = interval.endsWith("m") || interval.endsWith("h");
-        const bars = [];
+        const barsMap = new Map<number | string, any>();
         for (let i = 0; i < timestamps.length; i++) {
           const c = Number(q.close?.[i]);
           if (!Number.isFinite(c) || c <= 0) continue;
@@ -286,11 +316,13 @@ export async function GET(req: NextRequest) {
           const h = Number(q.high?.[i]) || Math.max(o, c);
           const l = Number(q.low?.[i]) || Math.min(o, c);
           const v = Number(q.volume?.[i]) || 0;
-          const ts = timestamps[i];
+          const ts = Math.round(Number(timestamps[i]));
+          if (!Number.isFinite(ts) || ts <= 0) continue;
+
           const timeVal = isIntraday
             ? ts
             : new Date(ts * 1000).toISOString().slice(0, 10);
-          bars.push({
+          barsMap.set(timeVal, {
             time: timeVal,
             open: Number(o.toFixed(2)),
             high: Number(h.toFixed(2)),
@@ -299,14 +331,35 @@ export async function GET(req: NextRequest) {
             volume: Math.round(v),
           });
         }
-        if (bars.length > 0) {
-          return NextResponse.json(bars);
+        
+        const sortedBars = Array.from(barsMap.values());
+        if (isIntraday) {
+          sortedBars.sort((a, b) => (a.time as number) - (b.time as number));
+        } else {
+          sortedBars.sort((a, b) => String(a.time).localeCompare(String(b.time)));
+        }
+
+        // 確保嚴格遞增 (Strictly Ascending Time) 杜絕 Lightweight Charts 渲染崩潰空白
+        const strictlyAscending: any[] = [];
+        for (const bar of sortedBars) {
+          if (strictlyAscending.length === 0) {
+            strictlyAscending.push(bar);
+          } else {
+            const prev = strictlyAscending[strictlyAscending.length - 1];
+            if (isIntraday ? (bar.time as number) > (prev.time as number) : String(bar.time) > String(prev.time)) {
+              strictlyAscending.push(bar);
+            }
+          }
+        }
+
+        if (strictlyAscending.length > 0) {
+          return NextResponse.json(strictlyAscending);
         }
       }
     }
 
     // Fallback to TWSE STOCK_DAY for newly listed ETFs / Taiwan stocks
-    if (isTw) {
+    if (isTw && !isTwIndex) {
       const twseBars = await fetchTwseStockDayBars(cleanCode);
       if (twseBars.length > 0) {
         return NextResponse.json(twseBars);
@@ -318,7 +371,7 @@ export async function GET(req: NextRequest) {
 
   // 2. Quote Mode (`?symbol=...`)
   const [twseMis, yfResultPrimary, twMarketData] = await Promise.all([
-    isTw ? fetchTwseMisNameAndQuote(cleanCode) : Promise.resolve(null),
+    isTw ? fetchTwseMisNameAndQuote(isTwIndex ? (upper.includes("TWO") ? "o00" : "t00") : cleanCode) : Promise.resolve(null),
     fetchYahooChart(candidateYfSymbols[0], "1d", "1m"),
     isTw ? getCachedTwMarketData().catch(() => null) : Promise.resolve(null),
   ]);
@@ -363,10 +416,12 @@ export async function GET(req: NextRequest) {
   const yfPrice =
     Number(meta.regularMarketPrice) ||
     (closes.length > 0 ? Number(closes[closes.length - 1]) : 0);
+  
+  // 嚴格取昨日官方收盤價 (絕不取 closes[closes.length - 2]，否則會變成上一分鐘的價格)
   const yfPrevClose =
-    closes.length >= 2
-      ? Number(closes[closes.length - 2])
-      : Number(meta.chartPreviousClose || meta.previousClose || yfPrice);
+    Number(meta.chartPreviousClose) ||
+    Number(meta.previousClose) ||
+    (closes.length > 0 ? Number(closes[0]) : yfPrice);
 
   const price =
     twseMis?.hasRealtimePrice && twseMis.price > 0
@@ -374,12 +429,13 @@ export async function GET(req: NextRequest) {
       : yfPrice > 0
       ? yfPrice
       : twMarketHit?.price || 0;
+  
   const prevClose =
-    twseMis?.hasRealtimePrice && twseMis.prevClose > 0
+    twseMis && twseMis.prevClose > 0
       ? twseMis.prevClose
       : yfPrevClose > 0
       ? yfPrevClose
-      : twMarketHit
+      : twMarketHit && twMarketHit.price > 0 && twMarketHit.change !== undefined
       ? Number((twMarketHit.price - twMarketHit.change).toFixed(2))
       : price;
 

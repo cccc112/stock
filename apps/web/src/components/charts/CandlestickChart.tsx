@@ -6,6 +6,7 @@ import { DrawingLayer, DrawingToolbar, useDrawings, type BarInfo } from "@/compo
 import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 import { apiStocks } from "@/lib/api";
 import { InfoTip } from "@/components/ui/TermTooltip";
+import { SlidersHorizontal, Check, X, RotateCcw } from "lucide-react";
 
 interface CandlestickChartProps {
   symbol: string;
@@ -188,7 +189,29 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
   const [upperTrendColor, setUpperTrendColor] = useState('#ef4444');
   const [tooltipData, setTooltipData] = useState<any>(null);
   const [overlay, setOverlay] = useState<{ chart: IChartApi; series: ISeriesApi<SeriesType>; bars: BarInfo[] } | null>(null);
-  const drawingsApi = useDrawings(symbol, activePeriod === '1d' || activePeriod === '5d');
+
+  const DEFAULT_VISIBLE_PERIODS = ['1m', '5m', '15m', '60m', '1d', '5d', '6mo', '1y'];
+  const [visiblePeriods, setVisiblePeriods] = useState<string[]>(DEFAULT_VISIBLE_PERIODS);
+  const [showPeriodCustomizer, setShowPeriodCustomizer] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('user_kline_periods');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setVisiblePeriods(parsed);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
+  const isIntradayPeriod = ['1m', '5m', '15m', '30m', '60m', '1h', '1d', '5d'].includes(activePeriod);
+  const drawingsApi = useDrawings(symbol, isIntradayPeriod);
 
   const isGreenUp = typeof document !== 'undefined' && document.documentElement.getAttribute('data-color-scheme') === 'green-up';
   const upColor = isGreenUp ? '#22c55e' : '#ef4444';
@@ -227,7 +250,7 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
       },
       timeScale: { 
         borderColor, 
-        timeVisible: activePeriod === '1d' || activePeriod === '5d',
+        timeVisible: isIntradayPeriod,
         fixLeftEdge: true,
         fixRightEdge: true,
       },
@@ -335,46 +358,101 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
           return;
         }
 
-        const isIntraday = activePeriod === '1d' || activePeriod === '5d';
+        const isIntraday = ['1m', '5m', '15m', '30m', '60m', '1h', '1d', '5d'].includes(activePeriod);
 
         let candleData: any[] = [];
         let volumeData: any[] = [];
 
         if (isIntraday) {
-          candleData = bars.map((bar: any) => ({
-            time: Math.floor(new Date(bar.time).getTime() / 1000) as Time,
-            open: bar.open,
-            high: bar.high,
-            low: bar.low,
-            close: bar.close,
+          const map = new Map<number, any>();
+          bars.forEach((bar: any) => {
+            let tSec: number;
+            if (typeof bar.time === 'number') {
+              tSec = bar.time > 1e11 ? Math.floor(bar.time / 1000) : Math.floor(bar.time);
+            } else if (typeof bar.time === 'string') {
+              const num = Number(bar.time);
+              if (!isNaN(num) && num > 1e8) {
+                tSec = num > 1e11 ? Math.floor(num / 1000) : Math.floor(num);
+              } else {
+                tSec = Math.floor(new Date(bar.time).getTime() / 1000);
+              }
+            } else {
+              return;
+            }
+            if (!Number.isFinite(tSec) || tSec <= 0) return;
+            map.set(tSec, {
+              time: tSec as Time,
+              open: Number(bar.open),
+              high: Number(bar.high),
+              low: Number(bar.low),
+              close: Number(bar.close),
+              volume: Number(bar.volume || 0),
+            });
+          });
+
+          const sorted = Array.from(map.values()).sort((a, b) => (a.time as number) - (b.time as number));
+          // 保證嚴格遞增 (Strictly Ascending Time) 杜絕 Lightweight Charts 渲染崩潰空白
+          const strictlyAscending: any[] = [];
+          for (const item of sorted) {
+            if (strictlyAscending.length === 0 || (item.time as number) > (strictlyAscending[strictlyAscending.length - 1].time as number)) {
+              strictlyAscending.push(item);
+            }
+          }
+
+          candleData = strictlyAscending.map((b) => ({
+            time: b.time,
+            open: b.open,
+            high: b.high,
+            low: b.low,
+            close: b.close,
           }));
-          volumeData = bars.map((bar: any) => ({
-            time: Math.floor(new Date(bar.time).getTime() / 1000) as Time,
-            value: bar.volume,
-            color: bar.close >= bar.open ? upColor + 'e6' : downColor + 'e6',
+          volumeData = strictlyAscending.map((b) => ({
+            time: b.time,
+            value: b.volume,
+            color: b.close >= b.open ? upColor + 'e6' : downColor + 'e6',
           }));
         } else {
-          const uniqueBars = new Map();
+          const uniqueBars = new Map<string, any>();
           bars.forEach((bar: any) => {
-            const d = new Date(bar.time);
-            const timeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            uniqueBars.set(timeStr, { ...bar, timeStr });
+            let dateStr = "";
+            if (typeof bar.time === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(bar.time)) {
+              dateStr = bar.time;
+            } else {
+              const d = typeof bar.time === 'number'
+                ? new Date(bar.time > 1e11 ? bar.time : bar.time * 1000)
+                : new Date(bar.time);
+              if (isNaN(d.getTime())) return;
+              dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            }
+            uniqueBars.set(dateStr, {
+              time: dateStr as Time,
+              open: Number(bar.open),
+              high: Number(bar.high),
+              low: Number(bar.low),
+              close: Number(bar.close),
+              volume: Number(bar.volume || 0),
+            });
           });
           
-          const sortedUniqueBars = Array.from(uniqueBars.values()).sort((a, b) => a.timeStr.localeCompare(b.timeStr));
+          const sorted = Array.from(uniqueBars.values()).sort((a, b) => String(a.time).localeCompare(String(b.time)));
+          const strictlyAscending: any[] = [];
+          for (const item of sorted) {
+            if (strictlyAscending.length === 0 || String(item.time) > String(strictlyAscending[strictlyAscending.length - 1].time)) {
+              strictlyAscending.push(item);
+            }
+          }
 
-          candleData = sortedUniqueBars.map((bar: any) => ({
-            time: bar.timeStr as Time,
-            open: bar.open,
-            high: bar.high,
-            low: bar.low,
-            close: bar.close,
+          candleData = strictlyAscending.map((b) => ({
+            time: b.time,
+            open: b.open,
+            high: b.high,
+            low: b.low,
+            close: b.close,
           }));
-
-          volumeData = sortedUniqueBars.map((bar: any) => ({
-            time: bar.timeStr as Time,
-            value: bar.volume,
-            color: bar.close >= bar.open ? upColor + 'e6' : downColor + 'e6',
+          volumeData = strictlyAscending.map((b) => ({
+            time: b.time,
+            value: b.volume,
+            color: b.close >= b.open ? upColor + 'e6' : downColor + 'e6',
           }));
         }
 
@@ -512,25 +590,52 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiKey, overlay, setAiLines]);
 
-  const periods = [
-    { label: '日線', value: '1d' },
-    { label: '5天', value: '5d' },
-    { label: '1月', value: '1mo' },
-    { label: '3月', value: '3mo' },
-    { label: '6月', value: '6mo' },
-    { label: '今年', value: 'ytd' },
-    { label: '1年', value: '1y' },
-    { label: '5年', value: '5y' },
+  const ALL_PERIOD_OPTIONS = [
+    { label: '1分K', value: '1m', group: '分K' },
+    { label: '5分K', value: '5m', group: '分K' },
+    { label: '15分K', value: '15m', group: '分K' },
+    { label: '30分K', value: '30m', group: '分K' },
+    { label: '60分K', value: '60m', group: '分K' },
+    { label: '當日分時', value: '1d', group: '分時' },
+    { label: '5天分時', value: '5d', group: '分時' },
+    { label: '1月日K', value: '1mo', group: '日K' },
+    { label: '3月日K', value: '3mo', group: '日K' },
+    { label: '6月日K', value: '6mo', group: '日K' },
+    { label: '今年日K', value: 'ytd', group: '日K' },
+    { label: '1年日K', value: '1y', group: '日K' },
+    { label: '5年週K', value: '5y', group: '週K' },
   ];
+
+  const togglePeriodVisibility = (val: string) => {
+    setVisiblePeriods((prev) => {
+      const next = prev.includes(val) ? prev.filter((p) => p !== val) : [...prev, val];
+      if (next.length === 0) return prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('user_kline_periods', JSON.stringify(next));
+      }
+      return next;
+    });
+  };
+
+  const resetDefaultPeriods = () => {
+    setVisiblePeriods(DEFAULT_VISIBLE_PERIODS);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('user_kline_periods', JSON.stringify(DEFAULT_VISIBLE_PERIODS));
+    }
+  };
+
+  const displayPeriods = ALL_PERIOD_OPTIONS.filter(
+    (p) => visiblePeriods.includes(p.value) || p.value === activePeriod
+  );
 
   return (
     <div className="relative w-full">
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
-        {periods.map(p => (
+      <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide flex-wrap sm:flex-nowrap">
+        {displayPeriods.map(p => (
           <button
             key={p.value}
             onClick={() => setActivePeriod(p.value)}
-            className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${
+            className={`px-3 py-1 text-xs font-medium rounded-full transition-all whitespace-nowrap cursor-pointer ${
               activePeriod === p.value
                 ? 'bg-accent text-white shadow-[0_0_12px_rgba(59,130,246,0.5)]'
                 : 'bg-[var(--bg-tertiary)] hover:bg-[var(--border)] text-secondary'
@@ -539,6 +644,75 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
             {p.label}
           </button>
         ))}
+
+        <div className="relative inline-flex items-center">
+          <button
+            type="button"
+            onClick={() => setShowPeriodCustomizer((v) => !v)}
+            className={`px-2.5 py-1 text-xs font-medium rounded-full transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              showPeriodCustomizer
+                ? 'bg-accent/20 text-accent border border-accent/40'
+                : 'bg-[var(--bg-tertiary)] hover:bg-[var(--border)] text-secondary hover:text-primary'
+            }`}
+            title="自訂 K 線刻度快捷按鈕"
+          >
+            <SlidersHorizontal size={13} />
+            <span>自訂刻度</span>
+          </button>
+
+          {showPeriodCustomizer && (
+            <div className="absolute top-9 left-0 sm:right-0 sm:left-auto z-50 w-72 p-3 bg-[var(--bg-secondary)]/95 backdrop-blur border border-[var(--border)] rounded-xl shadow-2xl text-xs space-y-2.5 animate-fade-in">
+              <div className="flex items-center justify-between pb-1.5 border-b border-[var(--border)]">
+                <span className="font-bold text-primary flex items-center gap-1.5">
+                  <SlidersHorizontal size={13} className="text-accent" />
+                  <span>自訂快捷按鈕</span>
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={resetDefaultPeriods}
+                    className="text-[11px] text-accent hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <RotateCcw size={10} /> 預設
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPeriodCustomizer(false)}
+                    className="p-1 text-secondary hover:text-primary cursor-pointer"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-secondary">勾選您想顯示在上方工具列的 K 線刻度：</p>
+
+              <div className="grid grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
+                {ALL_PERIOD_OPTIONS.map((opt) => {
+                  const isChecked = visiblePeriods.includes(opt.value);
+                  return (
+                    <label
+                      key={opt.value}
+                      className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-colors ${
+                        isChecked
+                          ? 'bg-accent/15 text-primary font-semibold'
+                          : 'hover:bg-[var(--bg-tertiary)] text-secondary'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => togglePeriodVisibility(opt.value)}
+                        className="rounded text-accent focus:ring-accent accent-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs">{opt.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
       
       <DrawingToolbar

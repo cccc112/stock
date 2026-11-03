@@ -73,15 +73,38 @@ export default function MarketOverview() {
                 <span>{idx.name}</span>
                 <span className="font-mono text-[10px] text-muted">{idx.symbol.replace("^", "")}</span>
               </div>
-              <div className="text-xl sm:text-2xl font-bold font-mono tabular-nums tracking-tight text-primary">
-                {idx.price > 0 ? formatNumber(idx.price, 2) : "—"}
+              <div className="flex items-center gap-2">
+                <span className={`text-xl sm:text-2xl font-bold font-mono tabular-nums tracking-tight ${
+                  idx.change_pct >= 9.5
+                    ? "px-2 py-0.5 rounded bg-red-600 text-white shadow-sm"
+                    : idx.change_pct <= -9.5
+                    ? "px-2 py-0.5 rounded bg-emerald-600 text-white shadow-sm"
+                    : "text-primary"
+                }`}>
+                  {idx.price > 0 ? formatNumber(idx.price, 2) : "—"}
+                </span>
+                {idx.change_pct >= 9.5 ? (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-600 text-white animate-pulse">漲停</span>
+                ) : idx.change_pct <= -9.5 ? (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-600 text-white animate-pulse">跌停</span>
+                ) : null}
               </div>
               <div>
                 {idx.price > 0 ? (
-                  <Badge value={idx.change_pct} market={idx.market} size="sm">
-                    {idx.change > 0 ? `+${idx.change.toFixed(2)}` : idx.change.toFixed(2)}{" "}
-                    ({idx.change_pct > 0 ? `+${idx.change_pct.toFixed(2)}` : idx.change_pct.toFixed(2)}%)
-                  </Badge>
+                  idx.change_pct >= 9.5 ? (
+                    <span className="inline-block px-2 py-0.5 rounded-md bg-red-600 text-white font-mono font-bold text-xs shadow-sm">
+                      +{idx.change.toFixed(2)} (+{idx.change_pct.toFixed(2)}%)
+                    </span>
+                  ) : idx.change_pct <= -9.5 ? (
+                    <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-600 text-white font-mono font-bold text-xs shadow-sm">
+                      {idx.change.toFixed(2)} ({idx.change_pct.toFixed(2)}%)
+                    </span>
+                  ) : (
+                    <Badge value={idx.change_pct} market={idx.market} size="sm">
+                      {idx.change > 0 ? `+${idx.change.toFixed(2)}` : idx.change.toFixed(2)}{" "}
+                      ({idx.change_pct > 0 ? `+${idx.change_pct.toFixed(2)}` : idx.change_pct.toFixed(2)}%)
+                    </Badge>
+                  )
                 ) : (
                   <span className="text-muted text-xs">報價連線中...</span>
                 )}
