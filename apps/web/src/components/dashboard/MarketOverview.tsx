@@ -6,6 +6,7 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { formatNumber } from "@/lib/utils";
 import { apiStocks } from "@/lib/api";
+import AnimatedPrice from "@/components/ui/AnimatedPrice";
 
 interface IndexCard {
   id: string;
@@ -74,15 +75,19 @@ export default function MarketOverview() {
                 <span className="font-mono text-[10px] text-muted">{idx.symbol.replace("^", "")}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`text-xl sm:text-2xl font-bold font-mono tabular-nums tracking-tight ${
+                <div className={`text-xl sm:text-2xl font-bold font-mono tabular-nums tracking-tight ${
                   idx.change_pct >= 9.5
                     ? "px-2 py-0.5 rounded bg-red-600 text-white shadow-sm"
                     : idx.change_pct <= -9.5
                     ? "px-2 py-0.5 rounded bg-emerald-600 text-white shadow-sm"
                     : "text-primary"
                 }`}>
-                  {idx.price > 0 ? formatNumber(idx.price, 2) : "—"}
-                </span>
+                  {idx.price > 0 ? (
+                    <AnimatedPrice price={idx.price} showIndicator={false} />
+                  ) : (
+                    "—"
+                  )}
+                </div>
                 {idx.change_pct >= 9.5 ? (
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-600 text-white animate-pulse">漲停</span>
                 ) : idx.change_pct <= -9.5 ? (

@@ -245,16 +245,25 @@ export default function CelebrityRadar() {
             <button
               key={cel.id}
               onClick={() => setSelectedPerson(cel.id)}
-              className={`p-2.5 sm:p-3 rounded-xl border text-left transition-all cursor-pointer ${
+              className={`p-2.5 sm:p-3 rounded-xl border text-left transition-all cursor-pointer relative overflow-hidden ${
                 active
                   ? "bg-accent/15 border-accent shadow-md shadow-accent/10"
                   : "bg-[var(--bg-secondary)] border-[var(--border)] hover:border-accent/50"
               }`}
             >
+              {active && (
+                <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-accent/25 to-transparent pointer-events-none rounded-bl-full animate-pulse" />
+              )}
               <div className="flex items-center justify-between gap-1 mb-1">
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)] text-accent font-semibold">
                   {cel.badge}
                 </span>
+                {active && (
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
+                  </span>
+                )}
               </div>
               <div className="text-xs sm:text-sm font-bold text-primary truncate">{cel.name}</div>
               <div className="text-[10px] text-secondary truncate mt-0.5">{cel.sub}</div>
@@ -329,14 +338,22 @@ export default function CelebrityRadar() {
                 {/* 頂部：名人資訊 + 操作按鈕 */}
                 <div className="flex flex-wrap items-center justify-between gap-2.5">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center font-bold text-accent text-xs flex-shrink-0">
-                      {item.personId === "TRUMP"
-                        ? "DT"
-                        : item.personId === "MUSK"
-                        ? "EM"
-                        : item.personId === "HUANG"
-                        ? "JH"
-                        : "JP"}
+                    <div className="relative">
+                      <div className="w-9 h-9 rounded-full bg-accent/15 border border-accent/30 flex items-center justify-center font-bold text-accent text-xs flex-shrink-0">
+                        {item.personId === "TRUMP"
+                          ? "DT"
+                          : item.personId === "MUSK"
+                          ? "EM"
+                          : item.personId === "HUANG"
+                          ? "JH"
+                          : "JP"}
+                      </div>
+                      {Date.now() - item.timestamp < 3600000 * 6 && (
+                        <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
+                        </span>
+                      )}
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">

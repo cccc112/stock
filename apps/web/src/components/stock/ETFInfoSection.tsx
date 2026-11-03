@@ -894,6 +894,12 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
                               <span className="text-muted">{h.weightChangeText || "0.00%"}</span>
                             )}
                           </div>
+                          <div className="w-14 h-1 rounded-full bg-[var(--bg-tertiary)] overflow-hidden ml-auto mt-1 opacity-70 group-hover:opacity-100 transition-opacity">
+                            <div
+                              className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-700 ease-out"
+                              style={{ width: `${Math.min(100, (h.weight / 12) * 100)}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
                     );
@@ -915,12 +921,12 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
                         {(Number(sw.weight) || 0).toFixed(2)}%
                       </span>
                     </div>
-                    <div className="w-full h-2 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
-                      <div
-                        className="h-full bg-accent/80 rounded-full"
-                        style={{ width: `${Math.min(100, Number(sw.weight) || 0)}%` }}
-                      />
-                    </div>
+                      <div className="w-full h-2 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-400 rounded-full transition-all duration-1000 ease-out shadow-sm"
+                          style={{ width: `${Math.min(100, Number(sw.weight) || 0)}%` }}
+                        />
+                      </div>
                   </div>
                 ))}
               </div>

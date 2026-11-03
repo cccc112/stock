@@ -9,8 +9,8 @@ import TaiwanBearMascot from "@/components/ui/TaiwanBearMascot";
 import { BeginnerModeProvider } from "@/components/ui/TermTooltip";
 
 export const metadata: Metadata = {
-  title: "AI Stock Monitor - 智慧台美股投資系統",
-  description: "結合 AI 與量化分析的台美股即時監控戰情室",
+  title: "OmniTick - 奧米全時智投終端 · 證交所直連 0 秒即時撮合",
+  description: "直連證交所 0 秒極速撮合、AI 多因子量化模型、ETF 申報持股異動與全球政經即時雷達",
 };
 
 export default function RootLayout({

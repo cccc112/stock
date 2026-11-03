@@ -6,6 +6,7 @@ import { Menu, Search, Sun, Moon } from "lucide-react";
 import { SIDEBAR_TOGGLE_EVENT } from "@/components/layout/Sidebar";
 import { apiStocks } from "@/lib/api";
 import UserMenu from "@/components/auth/UserMenu";
+import BrandLogo from "@/components/ui/BrandLogo";
 
 export default function TopBar() {
   const [time, setTime] = useState("");
@@ -143,7 +144,7 @@ export default function TopBar() {
 
   return (
     <div className="top-bar gap-3">
-      <div className="flex items-center gap-3 flex-1 max-w-xl">
+      <div className="flex items-center gap-2.5 flex-1 max-w-xl">
         <button
           className="menu-btn flex-shrink-0"
           aria-label="開啟選單"
@@ -151,6 +152,13 @@ export default function TopBar() {
         >
           <Menu size={20} />
         </button>
+
+        <div className="flex items-center gap-1.5 md:hidden flex-shrink-0">
+          <BrandLogo size={24} />
+          <span className="font-extrabold font-mono text-sm tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-300 bg-clip-text text-transparent">
+            OmniTick
+          </span>
+        </div>
 
         <div ref={boxRef} className="relative flex-1">
           <form onSubmit={handleSubmit}>

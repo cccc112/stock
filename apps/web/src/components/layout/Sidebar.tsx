@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import BrandLogo from "@/components/ui/BrandLogo";
 
 interface NavItem {
   name: string;
@@ -139,11 +140,10 @@ export default function Sidebar() {
       )}
 
       <aside className={cn("sidebar", isOpen ? "open" : "")}>
-        <div className="sidebar-header">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-sky-500/25 to-indigo-500/25 border border-sky-400/30 text-accent flex items-center justify-center flex-shrink-0 shadow-sm">
-            <TrendingUp size={16} />
-          </div>
-          <span className="font-semibold tracking-tight">AI 投資戰情室</span>
+        <div className="sidebar-header flex items-center justify-between">
+          <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+            <BrandLogo size={32} showText={true} />
+          </Link>
           <span className="tech-glow-dot ml-0.5" />
           <button
             className="sidebar-close"

@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { apiMarket, apiStocks } from "@/lib/api";
 import { Term } from "@/components/ui/TermTooltip";
 import { RefreshCw, Flame, ArrowUpRight, DollarSign } from "lucide-react";
+import AnimatedPrice from "@/components/ui/AnimatedPrice";
 
 interface RankedStock {
   symbol: string;
@@ -286,10 +287,7 @@ export default function TrendingPanel() {
                             {formatNumber(stock.price, 2)}
                           </span>
                         ) : (
-                          <span>
-                            <span className="text-xs text-muted mr-1 font-normal">NT$</span>
-                            {formatNumber(stock.price, 2)}
-                          </span>
+                          <AnimatedPrice price={stock.price} currencyPrefix="NT$" showIndicator={false} />
                         )
                       ) : (
                         "-"
