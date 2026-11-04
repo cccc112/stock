@@ -184,7 +184,7 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activePeriod, setActivePeriod] = useState(period);
-  const [showAutoTrends, setShowAutoTrends] = useState(true);
+  const [showAutoTrends, setShowAutoTrends] = useState(false);
   const [showMA, setShowMA] = useState(true);
   const [upperTrendColor, setUpperTrendColor] = useState('#ef4444');
   const [tooltipData, setTooltipData] = useState<any>(null);

@@ -26,6 +26,7 @@ import {
   Check,
   MousePointer,
   HelpCircle,
+  TrendingUp,
 } from "lucide-react";
 
 export type Tool = 'cursor' | 'trend' | 'ray' | 'channel' | 'hline' | 'vline' | 'fib' | 'rect';
@@ -542,7 +543,7 @@ export type DrawingsApi = ReturnType<typeof useDrawings>;
 export function DrawingToolbar({
   api,
   bars = [],
-  showAutoTrends = true,
+  showAutoTrends = false,
   onToggleAutoTrends,
   showMA = true,
   onToggleMA,
@@ -645,11 +646,12 @@ export function DrawingToolbar({
           {onToggleAutoTrends && (
             <button
               type="button"
-              title="自動標記波段高點壓力線與低點支撐線"
+              title="切換顯示/隱藏 上下趨勢通道線（上壓力線與下支撐線）"
               className={btn(showAutoTrends)}
               onClick={onToggleAutoTrends}
             >
-              <span>自動趨勢線</span>
+              <TrendingUp size={13} />
+              <span>上下趨勢線</span>
             </button>
           )}
 
