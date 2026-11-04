@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Background Radial Gradient -->
+    <radialGradient id="avBg" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#141F36" />
+      <stop offset="60%" stop-color="#0A0E1A" />
+      <stop offset="100%" stop-color="#05070D" />
+    </radialGradient>
+
+    <!-- Core Ring Gradient -->
+    <linearGradient id="avRing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F2FE" />
+      <stop offset="40%" stop-color="#3B82F6" />
+      <stop offset="80%" stop-color="#10B981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+
+    <!-- Candlestick Center Gradient -->
+    <linearGradient id="avPulse" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#10B981" />
+      <stop offset="50%" stop-color="#00F2FE" />
+      <stop offset="100%" stop-color="#FFFFFF" />
+    </linearGradient>
+
+    <!-- Glow Filter -->
+    <filter id="avGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="22" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <filter id="avAmbient" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="45" result="b2" />
+      <feMerge>
+        <feMergeNode in="b2" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Circular Base (Perfect for LINE avatar circle crop) -->
+  <rect width="1024" height="1024" fill="url(#avBg)" />
+
+  <!-- Ambient Light Sphere -->
+  <circle cx="512" cy="500" r="300" fill="#00F2FE" opacity="0.10" filter="url(#avAmbient)" />
+  <circle cx="512" cy="540" r="260" fill="#10B981" opacity="0.08" filter="url(#avAmbient)" />
+
+  <!-- Tech Orbit Guides -->
+  <circle cx="512" cy="512" r="420" fill="none" stroke="#1E293B" stroke-width="2.5" stroke-dasharray="8 10" opacity="0.7" />
+  <circle cx="512" cy="512" r="360" fill="none" stroke="#00F2FE" stroke-width="2" opacity="0.18" />
+
+  <!-- Core 'O' Glyph Ring (Centered within safe circular zone) -->
+  <circle cx="512" cy="512" r="310" fill="none" stroke="url(#avRing)" stroke-width="56" filter="url(#avGlow)" />
+
+  <!-- Ring Orbit Nodes -->
+  <circle cx="512" cy="202" r="16" fill="#FFFFFF" filter="url(#avGlow)" />
+  <circle cx="822" cy="512" r="14" fill="#10B981" filter="url(#avGlow)" />
+  <circle cx="293" cy="731" r="11" fill="#3B82F6" opacity="0.9" />
+
+  <!-- Quant K-Line & Surge Wave (Inside Ring) -->
+  <g filter="url(#avGlow)">
+    <!-- Bar 1 (Left) -->
+    <line x1="375" y1="440" x2="375" y2="600" stroke="#3B82F6" stroke-width="7" stroke-linecap="round" opacity="0.75" />
+    <rect x="357" y="475" width="36" height="85" rx="10" fill="#3B82F6" opacity="0.85" />
+
+    <!-- Bar 2 (Surging Center) -->
+    <line x1="512" y1="290" x2="512" y2="690" stroke="#00F2FE" stroke-width="10" stroke-linecap="round" />
+    <rect x="488" y="360" width="48" height="240" rx="14" fill="url(#avPulse)" />
+
+    <!-- Bar 3 (Right High) -->
+    <line x1="649" y1="370" x2="649" y2="620" stroke="#10B981" stroke-width="7" stroke-linecap="round" opacity="0.8" />
+    <rect x="631" y="415" width="36" height="150" rx="10" fill="#10B981" opacity="0.9" />
+
+    <!-- Razor Surge Line -->
+    <path d="M 310 590 Q 410 560 480 470 T 715 340" fill="none" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+
+  <!-- Surging Flare Peak Dot -->
+  <circle cx="715" cy="340" r="20" fill="#00F2FE" filter="url(#avGlow)" />
+  <circle cx="715" cy="340" r="10" fill="#FFFFFF" />
+</svg>
