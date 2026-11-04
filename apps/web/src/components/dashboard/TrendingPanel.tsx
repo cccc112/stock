@@ -145,8 +145,8 @@ export default function TrendingPanel() {
 
   useEffect(() => {
     fetchRankings();
-    // 盤中每 15 秒自動輪詢最新成交量價與排行
-    const interval = setInterval(() => fetchRankings(false), 15000);
+    // 盤中每 5 秒自動無縫輪詢最新成交量價與排行
+    const interval = setInterval(() => fetchRankings(false), 5000);
     return () => clearInterval(interval);
   }, [fetchRankings]);
 
@@ -176,8 +176,9 @@ export default function TrendingPanel() {
       headerAction={
         <div className="flex items-center gap-2">
           {lastUpdated && (
-            <span className="text-[11px] font-mono text-accent/80 hidden sm:inline">
-              15秒自動同步 ({lastUpdated})
+            <span className="text-[11px] font-mono text-accent/80 hidden sm:inline flex items-center gap-1">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>5秒自動同步 ({lastUpdated})</span>
             </span>
           )}
           <button

@@ -60,7 +60,8 @@ export default function MarketOverview() {
     };
 
     fetchAll();
-    const timer = setInterval(fetchAll, 30000);
+    // 盤中 5 秒自動無縫更新大盤與總體資產報價
+    const timer = setInterval(fetchAll, 5000);
     return () => clearInterval(timer);
   }, []);
 

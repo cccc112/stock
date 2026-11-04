@@ -78,26 +78,45 @@ api.interceptors.response.use(
 export const apiStocks = {
   getQuote: async (symbol: string) => {
     try {
-      const res = await axios.get('/api/quote', { params: { symbol }, timeout: 8000 });
+      const res = await axios.get('/api/quote', {
+        params: { symbol, _t: Date.now() },
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+        timeout: 8000,
+      });
       if (res?.data && Number(res.data.price) > 0) return res;
     } catch {
       // fallback to backend
     }
-    return api.get(`/stocks/${encodeURIComponent(symbol)}/quote`);
+    return api.get(`/stocks/${encodeURIComponent(symbol)}/quote`, {
+      params: { _t: Date.now() },
+    });
   },
   getHistory: async (symbol: string, period: string) => {
     try {
-      const res = await axios.get('/api/quote', { params: { symbol, period }, timeout: 8000 });
+      const res = await axios.get('/api/quote', {
+        params: { symbol, period, _t: Date.now() },
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+        timeout: 8000,
+      });
       if (Array.isArray(res?.data) && res.data.length > 0) return res;
     } catch {
       // fallback to backend
     }
-    return api.get(`/stocks/${encodeURIComponent(symbol)}/history`, { params: { period } });
+    return api.get(`/stocks/${encodeURIComponent(symbol)}/history`, {
+      params: { period, _t: Date.now() },
+    });
   },
-  getOrderbook: (symbol: string) => api.get(`/stocks/${encodeURIComponent(symbol)}/orderbook`),
+  getOrderbook: (symbol: string) =>
+    api.get(`/stocks/${encodeURIComponent(symbol)}/orderbook`, {
+      params: { _t: Date.now() },
+    }),
   searchStocks: async (query: string) => {
     try {
-      const res = await axios.get('/api/market-rankings', { params: { q: query }, timeout: 5000 });
+      const res = await axios.get('/api/market-rankings', {
+        params: { q: query, _t: Date.now() },
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+        timeout: 5000,
+      });
       if (Array.isArray(res?.data) && res.data.length > 0) return res;
     } catch {
       // fallback
@@ -162,7 +181,11 @@ export const apiSimulator = {
 export const apiMarket = {
   getTrending: async () => {
     try {
-      const res = await axios.get('/api/market-rankings', { params: { limit: 8, sort_by: 'volume' }, timeout: 8000 });
+      const res = await axios.get('/api/market-rankings', {
+        params: { limit: 8, sort_by: 'volume', _t: Date.now() },
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+        timeout: 8000,
+      });
       const twse = Array.isArray(res?.data?.twse) ? res.data.twse : [];
       const tpex = Array.isArray(res?.data?.tpex) ? res.data.tpex : [];
       const combined = [...twse.slice(0, 6), ...tpex.slice(0, 4)].sort((a, b) => (b.volume || 0) - (a.volume || 0));
@@ -170,25 +193,36 @@ export const apiMarket = {
     } catch {
       // fallback
     }
-    return api.get('/market/trending');
+    return api.get('/market/trending', { params: { _t: Date.now() } });
   },
   getRankings: async (limit: number = 10, sort_by: string = 'volume') => {
     try {
-      const res = await axios.get('/api/market-rankings', { params: { limit, sort_by }, timeout: 12000 });
+      const res = await axios.get('/api/market-rankings', {
+        params: { limit, sort_by, _t: Date.now() },
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+        timeout: 12000,
+      });
       if (res?.data && (res.data.twse?.length || res.data.tpex?.length || res.data.etf?.length)) return res;
     } catch {
       // fallback to backend
     }
     try {
-      return await api.get('/market/rankings', { params: { limit, sort_by }, timeout: 3000 });
+      return await api.get('/market/rankings', {
+        params: { limit, sort_by, _t: Date.now() },
+        timeout: 3000,
+      });
     } catch {
       return null;
     }
   },
-  getPopularETFs: () => api.get('/market/etfs'),
+  getPopularETFs: () => api.get('/market/etfs', { params: { _t: Date.now() } }),
   getCapitalFlow: async () => {
     try {
-      const res = await axios.get('/api/market-rankings', { params: { type: 'capital-flow' }, timeout: 6000 });
+      const res = await axios.get('/api/market-rankings', {
+        params: { type: 'capital-flow', _t: Date.now() },
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+        timeout: 6000,
+      });
       if (Array.isArray(res?.data) && res.data.length > 0) return res;
     } catch {
       // fallback

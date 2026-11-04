@@ -185,9 +185,9 @@ export function useWatchlist() {
   const [isLoading, setIsLoading] = useState(false);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
 
-  const fetchWatchlist = useCallback(async () => {
+  const fetchWatchlist = useCallback(async (isManual = false) => {
     try {
-      setIsLoading(true);
+      if (isManual) setIsLoading(true);
       const records = getStoredWatchlistRecords();
       setCategories(getStoredCategories());
 
@@ -196,58 +196,61 @@ export function useWatchlist() {
         return;
       }
 
-      // 並行抓取即時報價，超時或無連線時以優質備援呈現
+      // 並行抓取即時報價，嚴格禁止寫死偽造價格
       const results = await Promise.allSettled(
         records.map((r) =>
           Promise.race([
             apiStocks.getQuote(r.symbol).then((res) => res.data),
-            new Promise((_, reject) => setTimeout(() => reject("timeout"), 2500)),
+            new Promise((_, reject) => setTimeout(() => reject("timeout"), 6000)),
           ])
         )
       );
 
-      const fallbackPrices: Record<string, { price: number; change: number; pct: number; name: string }> = {
-        "2330": { price: 2370, change: 10, pct: 0.42, name: "台積電" },
-        "2317": { price: 245.5, change: -0.5, pct: -0.2, name: "鴻海" },
-        "3231": { price: 183.5, change: -1.5, pct: -0.81, name: "緯創" },
-        "2603": { price: 271.5, change: 5.5, pct: 2.07, name: "長榮" },
-        "NVDA": { price: 204.22, change: 4.12, pct: 2.06, name: "NVIDIA" },
-        "AAPL": { price: 275.32, change: 2.15, pct: 0.79, name: "Apple" },
-      };
+      setItems((prevItems) => {
+        const prevMap = new Map(prevItems.map((p) => [p.symbol, p]));
+        const stocks: WatchlistStock[] = [];
 
-      const stocks: WatchlistStock[] = [];
-      results.forEach((res, idx) => {
-        const rec = records[idx];
-        if (res.status === "fulfilled" && res.value) {
-          const d = res.value as any;
-          stocks.push({
-            symbol: d.symbol,
-            name: d.name || d.symbol,
-            price: d.price ?? 0,
-            change: d.change ?? 0,
-            change_pct: d.change_pct ?? 0,
-            volume: d.volume ?? 0,
-            market: d.market ?? (rec.symbol.endsWith(".TW") ? "TW" : "US"),
-            category: rec.category || "預設",
-            addedAt: rec.addedAt,
-          });
-        } else {
-          const fb = fallbackPrices[rec.symbol] || { price: 100, change: 1.5, pct: 1.5, name: rec.symbol };
-          stocks.push({
-            symbol: rec.symbol,
-            name: fb.name,
-            price: fb.price,
-            change: fb.change,
-            change_pct: fb.pct,
-            volume: 25000,
-            market: rec.symbol.endsWith(".TW") || /^\d{4}$/.test(rec.symbol) ? "TW" : "US",
-            category: rec.category || "預設",
-            addedAt: rec.addedAt,
-          });
-        }
+        results.forEach((res, idx) => {
+          const rec = records[idx];
+          const existing = prevMap.get(rec.symbol);
+
+          if (res.status === "fulfilled" && res.value && Number((res.value as any).price) > 0) {
+            const d = res.value as any;
+            stocks.push({
+              symbol: d.symbol || rec.symbol,
+              name: d.name || existing?.name || rec.symbol,
+              price: Number(d.price),
+              change: Number(d.change ?? 0),
+              change_pct: Number(d.change_pct ?? 0),
+              volume: Number(d.volume ?? 0),
+              market: d.market ?? (rec.symbol.endsWith(".TW") || /^\d{4}$/.test(rec.symbol) ? "TW" : "US"),
+              category: rec.category || existing?.category || "預設",
+              addedAt: rec.addedAt || existing?.addedAt,
+            });
+          } else if (existing) {
+            // 請求超時或暫時性網路抖動時，保留現有真實價格，絕不覆蓋假數據
+            stocks.push({
+              ...existing,
+              category: rec.category || existing.category,
+            });
+          } else {
+            // 初次載入但報價尚未返回
+            stocks.push({
+              symbol: rec.symbol,
+              name: rec.symbol,
+              price: 0,
+              change: 0,
+              change_pct: 0,
+              volume: 0,
+              market: rec.symbol.endsWith(".TW") || /^\d{4}$/.test(rec.symbol) ? "TW" : "US",
+              category: rec.category || "預設",
+              addedAt: rec.addedAt,
+            });
+          }
+        });
+
+        return stocks;
       });
-
-      setItems(stocks);
     } catch (error) {
       console.error("Failed to fetch watchlist", error);
     } finally {
@@ -256,16 +259,20 @@ export function useWatchlist() {
   }, []);
 
   useEffect(() => {
-    fetchWatchlist();
+    fetchWatchlist(true);
+
+    // 盤中 5 秒自動無縫更新最新自選股撮合價
+    const timer = setInterval(() => fetchWatchlist(false), 5000);
 
     const handleUpdate = () => {
-      fetchWatchlist();
+      fetchWatchlist(false);
     };
 
     window.addEventListener("watchlist_changed", handleUpdate);
     window.addEventListener("stock_auth_changed", handleUpdate);
 
     return () => {
+      clearInterval(timer);
       window.removeEventListener("watchlist_changed", handleUpdate);
       window.removeEventListener("stock_auth_changed", handleUpdate);
     };

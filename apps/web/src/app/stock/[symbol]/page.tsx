@@ -86,8 +86,10 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
     if (manual) setIsRefreshing(true);
     try {
       const res = await apiStocks.getQuote(symbol);
-      setStock(res.data);
-      setLastUpdate(new Date().toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }));
+      if (res?.data && Number(res.data.price) > 0) {
+        setStock(res.data);
+        setLastUpdate(new Date().toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }));
+      }
     } catch (e) {
       console.error("Failed to fetch quote", e);
     } finally {
@@ -119,8 +121,8 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
       .then((resData) => setDeepSummary(resData))
       .catch(() => {});
 
-    // 盤中 10 秒自動輪詢最新撮合價
-    const timer = setInterval(() => fetchQuote(), 10000);
+    // 盤中 3 秒自動無縫更新最新撮合價
+    const timer = setInterval(() => fetchQuote(), 3000);
     return () => {
       window.removeEventListener("watchlist_changed", handleSync);
       window.removeEventListener("stock_auth_changed", handleSync);
@@ -226,8 +228,9 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                 (交易所時間：{stock.trade_time})
               </span>
             )}
-            <span className="px-1.5 py-0.5 rounded bg-accent/10 text-accent font-semibold border border-accent/20">
-              {stock.source === 'twse_realtime' ? 'TWSE 0秒即時撮合' : stock.source === 'twse_day' ? 'TWSE 收盤價' : '即時行情源'}
+            <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20 text-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>{stock.source === 'twse_realtime' ? 'TWSE 0秒即時連線' : stock.source === 'twse_day' ? 'TWSE 收盤價' : '即時行情連線'}</span>
             </span>
             {stock.stale && (
               <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">

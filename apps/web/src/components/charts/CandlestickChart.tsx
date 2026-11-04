@@ -345,16 +345,20 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
       }
     });
 
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
+    const fetchData = async (isBackground = false) => {
+      if (!isBackground) {
+        setLoading(true);
+        setError(null);
+      }
       try {
         const res = await apiStocks.getHistory(symbol, activePeriod);
         const bars = Array.isArray(res.data) ? res.data : [];
 
         if (bars.length === 0) {
-          setError("暫無歷史資料");
-          setLoading(false);
+          if (!isBackground) {
+            setError("暫無歷史資料");
+            setLoading(false);
+          }
           return;
         }
 
@@ -467,12 +471,14 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
         if (upperData.length > 0) upperTrendSeries.setData(upperData);
         if (lowerData.length > 0) lowerTrendSeries.setData(lowerData);
 
-        chart.timeScale().fitContent();
-        // 第一次 fitContent 時右側價格刻度寬度尚未確定；刻度變寬後繪圖區變窄，
-        // 最後幾根 K 棒會被擠出畫面（例如只顯示到前兩天）。版面穩定後再縮放一次。
-        requestAnimationFrame(() => {
-          try { chart.timeScale().fitContent(); } catch { /* chart 已被銷毀 */ }
-        });
+        if (!isBackground) {
+          chart.timeScale().fitContent();
+          // 第一次 fitContent 時右側價格刻度寬度尚未確定；刻度變寬後繪圖區變窄，
+          // 最後幾根 K 棒會被擠出畫面（例如只顯示到前兩天）。版面穩定後再縮放一次。
+          requestAnimationFrame(() => {
+            try { chart.timeScale().fitContent(); } catch { /* chart 已被銷毀 */ }
+          });
+        }
 
         // 提供畫線圖層需要的資料：每根 K 棒的時間戳(秒)與 OHLC
         const barInfos: BarInfo[] = candleData.map((c: any) => ({
@@ -482,13 +488,21 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
         setOverlay({ chart, series: mainSeries as ISeriesApi<SeriesType>, bars: barInfos });
       } catch (e) {
         console.error("Failed to fetch history", e);
-        setError("無法載入圖表資料");
+        if (!isBackground) setError("無法載入圖表資料");
       } finally {
-        setLoading(false);
+        if (!isBackground) setLoading(false);
       }
     };
 
     fetchData();
+
+    // 盤中/短期刻度自動背景定時同步，無需手動 F5 刷新
+    let refreshTimer: any = null;
+    if (['1m', '5m', '15m', '30m', '60m', '1d', '5d'].includes(activePeriod)) {
+      refreshTimer = setInterval(() => {
+        fetchData(true);
+      }, 5000);
+    }
 
     const handleResize = (width: number, height: number) => {
       if (chartRef.current && width > 0 && height > 0) {
@@ -509,6 +523,7 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
     }
 
     return () => {
+      if (refreshTimer) clearInterval(refreshTimer);
       setOverlay(null);
       upperTrendRef.current = null;
       lowerTrendRef.current = null;

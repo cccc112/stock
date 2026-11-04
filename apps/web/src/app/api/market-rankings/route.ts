@@ -483,10 +483,19 @@ export async function GET(req: NextRequest) {
     enrichWithRealtimeTwseQuotes(rawEtf),
   ]);
 
-  return NextResponse.json({
-    twse,
-    tpex,
-    etf,
-    date: marketCache?.date || "",
-  });
+  return NextResponse.json(
+    {
+      twse,
+      tpex,
+      etf,
+      date: marketCache?.date || "",
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    }
+  );
 }

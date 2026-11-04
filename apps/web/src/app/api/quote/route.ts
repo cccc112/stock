@@ -353,7 +353,13 @@ export async function GET(req: NextRequest) {
         }
 
         if (strictlyAscending.length > 0) {
-          return NextResponse.json(strictlyAscending);
+          return NextResponse.json(strictlyAscending, {
+            headers: {
+              "Cache-Control": isIntraday
+                ? "no-store, no-cache, must-revalidate, max-age=0"
+                : "public, max-age=60, s-maxage=60",
+            },
+          });
         }
       }
     }
@@ -362,11 +368,19 @@ export async function GET(req: NextRequest) {
     if (isTw && !isTwIndex) {
       const twseBars = await fetchTwseStockDayBars(cleanCode);
       if (twseBars.length > 0) {
-        return NextResponse.json(twseBars);
+        return NextResponse.json(twseBars, {
+          headers: {
+            "Cache-Control": "public, max-age=120, s-maxage=120",
+          },
+        });
       }
     }
 
-    return NextResponse.json([]);
+    return NextResponse.json([], {
+      headers: {
+        "Cache-Control": "no-store, no-cache, max-age=0",
+      },
+    });
   }
 
   // 2. Quote Mode (`?symbol=...`)
@@ -469,27 +483,36 @@ export async function GET(req: NextRequest) {
     meta.longName ||
     cleanCode;
 
-  return NextResponse.json({
-    symbol: isTw ? cleanCode : upper,
-    name: finalName,
-    price: Number(price.toFixed(2)),
-    change,
-    change_pct: changePct,
-    volume: Math.round(volume),
-    high: Number(high.toFixed(2)),
-    low: Number(low.toFixed(2)),
-    open: Number(open.toFixed(2)),
-    prev_close: Number(prevClose.toFixed(2)),
-    market,
-    source: twseMis?.hasRealtimePrice ? "twse_realtime" : twMarketHit ? "twse_day" : "yahoo",
-    stale: false,
-    bid: twseMis?.bid || 0,
-    ask: twseMis?.ask || 0,
-    bids: twseMis?.bids || [],
-    asks: twseMis?.asks || [],
-    trade_time: twseMis?.tradeTime || "",
-    trade_date: twseMis?.tradeDate || "",
-    limit_up: twseMis?.limitUp || 0,
-    limit_down: twseMis?.limitDown || 0,
-  });
+  return NextResponse.json(
+    {
+      symbol: isTw ? cleanCode : upper,
+      name: finalName,
+      price: Number(price.toFixed(2)),
+      change,
+      change_pct: changePct,
+      volume: Math.round(volume),
+      high: Number(high.toFixed(2)),
+      low: Number(low.toFixed(2)),
+      open: Number(open.toFixed(2)),
+      prev_close: Number(prevClose.toFixed(2)),
+      market,
+      source: twseMis?.hasRealtimePrice ? "twse_realtime" : twMarketHit ? "twse_day" : "yahoo",
+      stale: false,
+      bid: twseMis?.bid || 0,
+      ask: twseMis?.ask || 0,
+      bids: twseMis?.bids || [],
+      asks: twseMis?.asks || [],
+      trade_time: twseMis?.tradeTime || "",
+      trade_date: twseMis?.tradeDate || "",
+      limit_up: twseMis?.limitUp || 0,
+      limit_down: twseMis?.limitDown || 0,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    }
+  );
 }
