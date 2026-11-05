@@ -5,6 +5,7 @@ import AlertFeed from "@/components/dashboard/AlertFeed";
 import AIInsightCard from "@/components/dashboard/AIInsightCard";
 import TrendingPanel from "@/components/dashboard/TrendingPanel";
 import AITradeCard from "@/components/dashboard/AITradeCard";
+import BearHeroRadar from "@/components/dashboard/BearHeroRadar";
 
 export default function DashboardPage() {
   return (
@@ -13,6 +14,9 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold tracking-tight mb-1">戰情總覽</h1>
         <p className="text-secondary text-sm">掌握即時大盤動態與自選股表現</p>
       </header>
+
+      {/* 3D 熊霸智慧量化哨兵站 */}
+      <BearHeroRadar />
 
       <MarketOverview />
 

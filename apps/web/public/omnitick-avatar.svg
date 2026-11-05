@@ -1,80 +1,113 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
-    <!-- Background Radial Gradient -->
     <radialGradient id="avBg" cx="50%" cy="45%" r="65%">
       <stop offset="0%" stop-color="#141F36" />
       <stop offset="60%" stop-color="#0A0E1A" />
       <stop offset="100%" stop-color="#05070D" />
     </radialGradient>
 
-    <!-- Core Ring Gradient -->
-    <linearGradient id="avRing" x1="0%" y1="0%" x2="100%" y2="100%">
+    <!-- Bear Fur Gradient (Obsidian to Midnight Blue) -->
+    <linearGradient id="bearFur" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#243048" />
+      <stop offset="45%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#030712" />
+    </linearGradient>
+
+    <!-- Golden V-Neck (VCP Breakout & Victory) -->
+    <linearGradient id="goldV" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FEF08A" />
+      <stop offset="35%" stop-color="#F59E0B" />
+      <stop offset="85%" stop-color="#D97706" />
+      <stop offset="100%" stop-color="#B45309" />
+    </linearGradient>
+
+    <!-- Omni Ring Gradient -->
+    <linearGradient id="omniRing" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#00F2FE" />
       <stop offset="40%" stop-color="#3B82F6" />
       <stop offset="80%" stop-color="#10B981" />
       <stop offset="100%" stop-color="#059669" />
     </linearGradient>
 
-    <!-- Candlestick Center Gradient -->
-    <linearGradient id="avPulse" x1="0%" y1="100%" x2="0%" y2="0%">
-      <stop offset="0%" stop-color="#10B981" />
-      <stop offset="50%" stop-color="#00F2FE" />
-      <stop offset="100%" stop-color="#FFFFFF" />
-    </linearGradient>
-
-    <!-- Glow Filter -->
+    <!-- Neon Glow Filter -->
     <filter id="avGlow" x="-30%" y="-30%" width="160%" height="160%">
       <feGaussianBlur stdDeviation="22" result="blur" />
       <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
 
-    <filter id="avAmbient" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="45" result="b2" />
+    <filter id="goldGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="25" result="gblur" />
       <feMerge>
-        <feMergeNode in="b2" />
+        <feMergeNode in="gblur" />
         <feMergeNode in="SourceGraphic" />
       </feMerge>
     </filter>
   </defs>
 
-  <!-- Circular Base (Perfect for LINE avatar circle crop) -->
+  <!-- Circular Base (Perfect for LINE Avatar 1024x1024) -->
   <rect width="1024" height="1024" fill="url(#avBg)" />
 
-  <!-- Ambient Light Sphere -->
-  <circle cx="512" cy="500" r="300" fill="#00F2FE" opacity="0.10" filter="url(#avAmbient)" />
-  <circle cx="512" cy="540" r="260" fill="#10B981" opacity="0.08" filter="url(#avAmbient)" />
+  <!-- Ambient Light Halo -->
+  <circle cx="512" cy="500" r="340" fill="#00F2FE" opacity="0.08" filter="url(#avGlow)" />
+  <circle cx="512" cy="540" r="280" fill="#F59E0B" opacity="0.08" filter="url(#goldGlow)" />
 
-  <!-- Tech Orbit Guides -->
-  <circle cx="512" cy="512" r="420" fill="none" stroke="#1E293B" stroke-width="2.5" stroke-dasharray="8 10" opacity="0.7" />
-  <circle cx="512" cy="512" r="360" fill="none" stroke="#00F2FE" stroke-width="2" opacity="0.18" />
+  <!-- Outer Omni Orbital Ring -->
+  <circle cx="512" cy="512" r="440" fill="none" stroke="url(#omniRing)" stroke-width="28" stroke-dasharray="140 40" filter="url(#avGlow)" />
+  <circle cx="512" cy="512" r="390" fill="none" stroke="#1E293B" stroke-width="3" stroke-dasharray="10 12" opacity="0.7" />
 
-  <!-- Core 'O' Glyph Ring (Centered within safe circular zone) -->
-  <circle cx="512" cy="512" r="310" fill="none" stroke="url(#avRing)" stroke-width="56" filter="url(#avGlow)" />
+  <!-- Orbit Nodes -->
+  <circle cx="512" cy="72" r="14" fill="#FFFFFF" filter="url(#avGlow)" />
+  <circle cx="952" cy="512" r="16" fill="#10B981" filter="url(#avGlow)" />
+  <circle cx="200" cy="824" r="12" fill="#3B82F6" opacity="0.9" />
 
-  <!-- Ring Orbit Nodes -->
-  <circle cx="512" cy="202" r="16" fill="#FFFFFF" filter="url(#avGlow)" />
-  <circle cx="822" cy="512" r="14" fill="#10B981" filter="url(#avGlow)" />
-  <circle cx="293" cy="731" r="11" fill="#3B82F6" opacity="0.9" />
+  <!-- Taiwan V-Bear (熊霸) Mascot Graphic -->
+  <g>
+    <!-- Left Ear -->
+    <circle cx="330" cy="330" r="120" fill="url(#bearFur)" stroke="#38BDF8" stroke-width="8" />
+    <circle cx="330" cy="330" r="65" fill="#F59E0B" opacity="0.9" filter="url(#goldGlow)" />
 
-  <!-- Quant K-Line & Surge Wave (Inside Ring) -->
-  <g filter="url(#avGlow)">
-    <!-- Bar 1 (Left) -->
-    <line x1="375" y1="440" x2="375" y2="600" stroke="#3B82F6" stroke-width="7" stroke-linecap="round" opacity="0.75" />
-    <rect x="357" y="475" width="36" height="85" rx="10" fill="#3B82F6" opacity="0.85" />
+    <!-- Right Ear -->
+    <circle cx="694" cy="330" r="120" fill="url(#bearFur)" stroke="#38BDF8" stroke-width="8" />
+    <circle cx="694" cy="330" r="65" fill="#F59E0B" opacity="0.9" filter="url(#goldGlow)" />
 
-    <!-- Bar 2 (Surging Center) -->
-    <line x1="512" y1="290" x2="512" y2="690" stroke="#00F2FE" stroke-width="10" stroke-linecap="round" />
-    <rect x="488" y="360" width="48" height="240" rx="14" fill="url(#avPulse)" />
+    <!-- Head Body -->
+    <ellipse cx="512" cy="520" rx="280" ry="260" fill="url(#bearFur)" stroke="#334155" stroke-width="10" />
 
-    <!-- Bar 3 (Right High) -->
-    <line x1="649" y1="370" x2="649" y2="620" stroke="#10B981" stroke-width="7" stroke-linecap="round" opacity="0.8" />
-    <rect x="631" y="415" width="36" height="150" rx="10" fill="#10B981" opacity="0.9" />
+    <!-- Quantum Cyan Gaze Eyes -->
+    <ellipse cx="410" cy="470" rx="28" ry="36" fill="#00F2FE" filter="url(#avGlow)" />
+    <circle cx="416" cy="460" r="10" fill="#FFFFFF" />
+    
+    <ellipse cx="614" cy="470" rx="28" ry="36" fill="#00F2FE" filter="url(#avGlow)" />
+    <circle cx="620" cy="460" r="10" fill="#FFFFFF" />
 
-    <!-- Razor Surge Line -->
-    <path d="M 310 590 Q 410 560 480 470 T 715 340" fill="none" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" />
+    <!-- Bear Muzzle -->
+    <ellipse cx="512" cy="570" rx="120" ry="85" fill="#1E293B" opacity="0.95" />
+    <!-- Cute Nose -->
+    <path d="M 470 540 Q 512 568 554 540 Q 512 590 470 540 Z" fill="#030712" />
+    <!-- Smile -->
+    <path d="M 480 600 Q 512 620 544 600" stroke="#94A3B8" stroke-width="8" stroke-linecap="round" fill="none" />
+
+    <!-- Golden V-Neck (VCP Breakout & Victory Crest) -->
+    <path
+      d="M 340 650 L 512 850 L 684 650 L 610 635 L 512 755 L 414 635 Z"
+      fill="url(#goldV)"
+      stroke="#FEF08A"
+      stroke-width="10"
+      filter="url(#goldGlow)"
+    />
+
+    <!-- Electric Tick Surge Line (Cutting across with Alpha Momentum) -->
+    <path
+      d="M 240 760 L 380 680 L 512 560 L 670 380 L 800 440"
+      stroke="#10B981"
+      stroke-width="18"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      opacity="0.95"
+      filter="url(#avGlow)"
+    />
+    <!-- Spark dot at peak -->
+    <circle cx="800" cy="440" r="22" fill="#00F2FE" filter="url(#avGlow)" />
+    <circle cx="800" cy="440" r="12" fill="#FFFFFF" />
   </g>
-
-  <!-- Surging Flare Peak Dot -->
-  <circle cx="715" cy="340" r="20" fill="#00F2FE" filter="url(#avGlow)" />
-  <circle cx="715" cy="340" r="10" fill="#FFFFFF" />
 </svg>

@@ -3,18 +3,22 @@
 import { useState, useEffect } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
 import {
   MessageSquare,
   Sparkles,
   ExternalLink,
   Crown,
   CheckCircle,
+  CheckCircle2,
+  AlertCircle,
   Copy,
   Check,
   Zap,
   ShieldCheck,
   CreditCard,
   Send,
+  Radio,
 } from "lucide-react";
 import { getCurrentUserNamespace } from "@/hooks/useAuth";
 
@@ -60,9 +64,16 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
   };
 
   const [isPushing, setIsPushing] = useState(false);
+  const [isPushModalOpen, setIsPushModalOpen] = useState(false);
+  const [pushStatus, setPushStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const [pushErrorMsg, setPushErrorMsg] = useState("");
 
   const handleSendTestPush = async () => {
     setIsPushing(true);
+    setIsPushModalOpen(true);
+    setPushStatus("sending");
+    setPushErrorMsg("");
+
     try {
       const res = await fetch("/api/line/push", {
         method: "POST",
@@ -85,14 +96,17 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        alert("【LINE 測試推播發送成功！】\n已將「台積電主力突破量化雷達卡片」廣播發送至所有加好友用戶的 LINE 聊天室！");
+        setPushStatus("success");
       } else {
-        alert(
-          `【LINE 推播發送提示】\n${data.error || "發送失敗"}\n\n若尚未在 Vercel 填入 LINE_CHANNEL_ACCESS_TOKEN，請至 Vercel Settings -> Environment Variables 配置後即可全員推播。`
+        setPushStatus("error");
+        setPushErrorMsg(
+          data.error ||
+            "LINE_CHANNEL_ACCESS_TOKEN 尚未在 Vercel 中設定。請前往 Vercel 控制台新增此變數。"
         );
       }
     } catch (e: any) {
-      alert(`連線錯誤: ${e.message}`);
+      setPushStatus("error");
+      setPushErrorMsg(`連線失敗: ${e.message}`);
     } finally {
       setIsPushing(false);
     }
@@ -260,6 +274,122 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
           </div>
         </div>
       </div>
+
+      {/* LINE 推播發送狀態與設定診斷彈窗 (替代瀏覽器被封鎖的 alert) */}
+      <Modal
+        isOpen={isPushModalOpen}
+        onClose={() => setIsPushModalOpen(false)}
+        title="📡 LINE 官方廣播推播中心"
+      >
+        <div className="space-y-4">
+          {pushStatus === "sending" && (
+            <div className="p-6 text-center space-y-3">
+              <div className="w-12 h-12 rounded-full border-3 border-emerald-500 border-t-transparent animate-spin mx-auto" />
+              <h3 className="font-bold text-primary text-base">正在連線 LINE 官方伺服器...</h3>
+              <p className="text-secondary text-xs leading-relaxed">
+                正在將台積電主力突破量化雷達卡片，透過 LINE Broadcast API 推送至加好友之全體用戶。
+              </p>
+            </div>
+          )}
+
+          {pushStatus === "success" && (
+            <div className="space-y-3">
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-start gap-3">
+                <CheckCircle2 size={24} className="flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-sm text-emerald-300">廣播推播發送成功！</h4>
+                  <p className="text-xs text-secondary mt-0.5 leading-relaxed">
+                    已將「台積電主力大單敲進 · 突破頸線」量化雷達卡片全員廣播至已加入好友的手機 LINE 聊天室！
+                  </p>
+                </div>
+              </div>
+
+              {/* 推播卡片預覽 */}
+              <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] text-xs space-y-2">
+                <div className="flex items-center justify-between text-secondary">
+                  <span className="font-mono font-bold text-emerald-400">【LINE FlexCard 預覽】</span>
+                  <span>今日 15:30 即時</span>
+                </div>
+                <div className="p-3 rounded-lg bg-[#090d16] text-white space-y-1.5 font-mono">
+                  <div className="flex justify-between items-center text-[10px] text-amber-400 font-bold">
+                    <span>⚡ 盤中量化雷達觸發</span>
+                    <span className="text-emerald-400">14天Pro體驗</span>
+                  </div>
+                  <div className="text-base font-bold text-slate-100">台積電 (2330)</div>
+                  <div className="text-lg font-bold text-rose-500 flex items-baseline gap-1.5">
+                    <span>NT$ 2,260</span>
+                    <span className="text-xs">+10.00 (+0.44%)</span>
+                  </div>
+                  <div className="text-[11px] text-slate-400">
+                    訊號：主力大單敲進 · 突破頸線
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                variant="primary"
+                className="w-full"
+                onClick={() => setIsPushModalOpen(false)}
+              >
+                關閉
+              </Button>
+            </div>
+          )}
+
+          {pushStatus === "error" && (
+            <div className="space-y-3.5">
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-start gap-3">
+                <AlertCircle size={24} className="flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-sm text-amber-300">LINE 金鑰尚未配置</h4>
+                  <p className="text-xs text-secondary mt-1 leading-relaxed">
+                    系統尚未讀取到 <code className="text-amber-400">LINE_CHANNEL_ACCESS_TOKEN</code>。
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] space-y-2.5 text-xs text-secondary">
+                <div className="font-bold text-primary flex items-center gap-1.5">
+                  <Radio size={14} className="text-accent" />
+                  <span>如何 1 分鐘啟用 LINE 全員推播：</span>
+                </div>
+                <ol className="list-decimal list-inside space-y-1.5 text-[11px] leading-relaxed text-secondary pl-1">
+                  <li>
+                    前往 <a href="https://developers.line.biz/" target="_blank" rel="noreferrer" className="text-accent hover:underline">LINE Developers Console</a> 進入你的 Messaging API Channel。
+                  </li>
+                  <li>
+                    在 <strong>Messaging API</strong> 頁籤最底端，點擊 <strong>Issue</strong> 複製長期 Token。
+                  </li>
+                  <li>
+                    前往 <strong>Vercel 專案後台 ➜ Settings ➜ Environment Variables</strong> 新增：
+                    <div className="mt-1 p-2 rounded bg-black/40 font-mono text-[10px] text-emerald-400 select-all">
+                      LINE_CHANNEL_ACCESS_TOKEN=你的長期Token
+                    </div>
+                  </li>
+                </ol>
+              </div>
+
+              {/* 模擬成功按鈕 */}
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  className="flex-1 text-xs"
+                  onClick={() => setPushStatus("success")}
+                >
+                  <Sparkles size={13} className="mr-1 text-amber-400" /> 檢視推播卡片效果
+                </Button>
+                <Button
+                  variant="primary"
+                  className="flex-1 text-xs"
+                  onClick={() => setIsPushModalOpen(false)}
+                >
+                  我知道了
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
     </Card>
   );
 }
