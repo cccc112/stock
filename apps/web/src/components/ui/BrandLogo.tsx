@@ -22,17 +22,17 @@ export default function BrandLogo({ size = 32, className = "", showText = false 
           viewBox="0 0 120 120"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="relative z-10 drop-shadow-md"
+          className="relative z-10 drop-shadow-md overflow-visible"
         >
           <defs>
-            {/* 量子黑熊外皮漸層 (深黑曜岩 + 科技夜空藍) */}
+            {/* 台灣黑熊外皮漸層 (深黑曜岩 + 夜空黑) */}
             <linearGradient id="bear-coat" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#1e293b" />
-              <stop offset="60%" stopColor="#0f172a" />
+              <stop offset="50%" stopColor="#0f172a" />
               <stop offset="100%" stopColor="#020617" />
             </linearGradient>
 
-            {/* 胸前金黃勝利 V 領 (VCP 突破 / V型反轉能量) */}
+            {/* 胸前金黃勝利 V 領 (VCP 突破 / 絕地反轉) */}
             <linearGradient id="gold-v-glow" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#fef08a" />
               <stop offset="40%" stopColor="#f59e0b" />
@@ -47,7 +47,7 @@ export default function BrandLogo({ size = 32, className = "", showText = false 
             </linearGradient>
 
             <filter id="v-glow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feGaussianBlur stdDeviation="2.5" result="blur" />
               <feComposite in="SourceGraphic" in2="blur" operator="over" />
             </filter>
           </defs>
@@ -58,59 +58,66 @@ export default function BrandLogo({ size = 32, className = "", showText = false 
             cy="60"
             r="54"
             stroke="url(#omni-ring)"
-            strokeWidth="3"
-            strokeDasharray="18 10"
-            opacity="0.8"
+            strokeWidth="2.5"
+            strokeDasharray="16 10"
+            opacity="0.75"
             className="animate-spin"
             style={{ animationDuration: "20s", transformOrigin: "60px 60px" }}
           />
-          <circle cx="60" cy="60" r="48" stroke="#38bdf8" strokeWidth="1" opacity="0.3" />
 
-          {/* 台灣黑熊 - 圓圓立體雙耳 */}
+          {/* 台灣黑熊 - 圓圓立體雙耳 (外耳黑、內耳粉嫩 #fda4af) */}
           {/* 左耳 */}
-          <circle cx="34" cy="36" r="14" fill="url(#bear-coat)" stroke="#38bdf8" strokeWidth="1.5" />
-          <circle cx="34" cy="36" r="8" fill="#f59e0b" opacity="0.85" filter="url(#v-glow)" />
+          <circle cx="34" cy="34" r="14" fill="#0f172a" stroke="#334155" strokeWidth="2" />
+          <circle cx="34" cy="34" r="8" fill="#fda4af" opacity="0.85" />
           {/* 右耳 */}
-          <circle cx="86" cy="36" r="14" fill="url(#bear-coat)" stroke="#38bdf8" strokeWidth="1.5" />
-          <circle cx="86" cy="36" r="8" fill="#f59e0b" opacity="0.85" filter="url(#v-glow)" />
+          <circle cx="86" cy="34" r="14" fill="#0f172a" stroke="#334155" strokeWidth="2" />
+          <circle cx="86" cy="34" r="8" fill="#fda4af" opacity="0.85" />
 
-          {/* 台灣黑熊 - 頭部主體 (圓潤萌態 + 量化霸氣) */}
-          <ellipse cx="60" cy="62" rx="34" ry="32" fill="url(#bear-coat)" stroke="#334155" strokeWidth="2" />
-
-          {/* 智慧戰術眼罩 / 雙眼 */}
-          <ellipse cx="48" cy="54" rx="4" ry="5" fill="#38bdf8" filter="url(#v-glow)" />
-          <circle cx="49" cy="53" r="1.5" fill="#ffffff" />
-          <ellipse cx="72" cy="54" rx="4" ry="5" fill="#38bdf8" filter="url(#v-glow)" />
-          <circle cx="73" cy="53" r="1.5" fill="#ffffff" />
-
-          {/* 熊吻部 (Muzzle) */}
-          <ellipse cx="60" cy="66" rx="14" ry="10" fill="#1e293b" opacity="0.9" />
-          {/* 黑色小巧熊鼻 */}
-          <path d="M 56 63 Q 60 66 64 63 Q 60 69 56 63 Z" fill="#020617" />
-          {/* 微笑嘴角 */}
-          <path d="M 57 69 Q 60 71 63 69" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round" fill="none" />
-
-          {/* 核心靈魂標誌：胸前金黃燦爛「V」字領 (VCP 波動收斂突破 & 勝利反轉) */}
+          {/* 科技耳機天線 (與右下角黑熊同款：天藍弧線 + 頂端感應球) */}
           <path
-            d="M 40 76 L 60 98 L 80 76 L 72 74 L 60 88 L 48 74 Z"
-            fill="url(#gold-v-glow)"
-            stroke="#fef08a"
-            strokeWidth="1.5"
-            filter="url(#v-glow)"
-          />
-
-          {/* 突破星芒連線 (Tick 閃電急速拉升) */}
-          <path
-            d="M 28 88 L 46 76 L 60 60 L 80 40 L 98 48"
-            stroke="#10b981"
+            d="M 30 28 Q 60 14 90 28"
+            stroke="#38bdf8"
             strokeWidth="2.5"
             strokeLinecap="round"
-            strokeLinejoin="round"
+            fill="none"
             opacity="0.9"
+          />
+          <circle cx="60" cy="18" r="3.5" fill="#38bdf8" filter="url(#v-glow)" />
+
+          {/* 台灣黑熊 - 頭部主體 (圓潤萌態) */}
+          <rect x="22" y="28" width="76" height="70" rx="35" fill="#090d16" stroke="#1e293b" strokeWidth="2" />
+
+          {/* 圓滾滾粉紅腮紅 (兩頰可愛紅暈) */}
+          <circle cx="36" cy="70" r="5" fill="#f43f5e" opacity="0.45" />
+          <circle cx="84" cy="70" r="5" fill="#f43f5e" opacity="0.45" />
+
+          {/* 靈動大眼睛 (右下角同款：白眼球 + 黑眼珠 + 白色晶亮高光) */}
+          {/* 左眼 */}
+          <circle cx="47" cy="54" r="6" fill="#f8fafc" />
+          <circle cx="48" cy="53" r="3.2" fill="#0f172a" />
+          <circle cx="49.5" cy="51.5" r="1.2" fill="#ffffff" />
+          {/* 右眼 */}
+          <circle cx="73" cy="54" r="6" fill="#f8fafc" />
+          <circle cx="74" cy="53" r="3.2" fill="#0f172a" />
+          <circle cx="75.5" cy="51.5" r="1.2" fill="#ffffff" />
+
+          {/* 吻部 (乳白色/米白微凸橢圓 #f1f5f9) */}
+          <ellipse cx="60" cy="67" rx="14" ry="10" fill="#f1f5f9" />
+          {/* 黑色倒三角小鼻 */}
+          <path d="M 55 63 L 65 63 L 60 69 Z" fill="#0f172a" />
+          {/* 微笑嘴角 */}
+          <path d="M 57 71 Q 60 74 63 71" stroke="#0f172a" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+
+          {/* ★ 核心靈魂標誌：胸前厚實金黃勝利「V」字領 ★ */}
+          <path
+            d="M 40 82 L 60 100 L 80 82"
+            stroke="url(#gold-v-glow)"
+            strokeWidth="7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
             filter="url(#v-glow)"
           />
-          {/* 頂端突破閃亮火花 */}
-          <circle cx="98" cy="48" r="3.5" fill="#ffffff" filter="url(#v-glow)" />
         </svg>
       </div>
 
@@ -121,7 +128,7 @@ export default function BrandLogo({ size = 32, className = "", showText = false 
               OmniTick
             </span>
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-blue-600/20 text-amber-300 border border-amber-400/30 tracking-wider flex items-center gap-1">
-              <span>熊霸 V-Bear</span>
+              <span>台灣黑熊 熊霸</span>
             </span>
           </div>
           <span className="text-[10px] text-secondary font-medium tracking-wider mt-0.5">
