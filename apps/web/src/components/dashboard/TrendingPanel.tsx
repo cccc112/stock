@@ -64,12 +64,16 @@ const DEFAULT_TWSE: RankedStock[] = [
 ];
 
 const DEFAULT_TPEX: RankedStock[] = [
-  { symbol: "8069", name: "元太", market: "TPEx", price: 282.00, change: 3.50, change_pct: 1.26, volume: 18500000, volume_lots: 18500, turnover_b: 5.22 },
-  { symbol: "6488", name: "環球晶", market: "TPEx", price: 435.00, change: -4.00, change_pct: -0.91, volume: 6200000, volume_lots: 6200, turnover_b: 2.70 },
-  { symbol: "3293", name: "鈊象", market: "TPEx", price: 1045.00, change: 15.00, change_pct: 1.46, volume: 4800000, volume_lots: 4800, turnover_b: 5.01 },
-  { symbol: "5347", name: "世界", market: "TPEx", price: 103.50, change: -0.50, change_pct: -0.48, volume: 14200000, volume_lots: 14200, turnover_b: 1.47 },
-  { symbol: "3324", name: "雙鴻", market: "TPEx", price: 680.00, change: 12.00, change_pct: 1.80, volume: 7500000, volume_lots: 7500, turnover_b: 5.10 },
-  { symbol: "8299", name: "群聯", market: "TPEx", price: 575.00, change: -5.00, change_pct: -0.86, volume: 5100000, volume_lots: 5100, turnover_b: 2.93 },
+  { symbol: "1815", name: "富喬", market: "TPEx", price: 121.50, change: -13.50, change_pct: -10.00, volume: 99744000, volume_lots: 99744, turnover_b: 12.12 },
+  { symbol: "8042", name: "金山電", market: "TPEx", price: 131.50, change: -1.50, change_pct: -1.13, volume: 51968000, volume_lots: 51968, turnover_b: 6.83 },
+  { symbol: "6148", name: "驊宏資", market: "TPEx", price: 43.40, change: -0.80, change_pct: -1.81, volume: 49381000, volume_lots: 49381, turnover_b: 2.14 },
+  { symbol: "6182", name: "合晶", market: "TPEx", price: 74.70, change: -8.10, change_pct: -9.78, volume: 28937000, volume_lots: 28937, turnover_b: 2.16 },
+  { symbol: "3105", name: "穩懋", market: "TPEx", price: 451.00, change: -50.00, change_pct: -9.98, volume: 24515000, volume_lots: 24515, turnover_b: 11.06 },
+  { symbol: "6244", name: "茂迪", market: "TPEx", price: 19.40, change: -0.90, change_pct: -4.43, volume: 20622000, volume_lots: 20622, turnover_b: 0.40 },
+  { symbol: "8358", name: "金居", market: "TPEx", price: 334.00, change: -32.50, change_pct: -8.87, volume: 19489000, volume_lots: 19489, turnover_b: 6.51 },
+  { symbol: "5314", name: "世紀*", market: "TPEx", price: 21.15, change: -1.55, change_pct: -6.83, volume: 19125000, volume_lots: 19125, turnover_b: 0.40 },
+  { symbol: "6147", name: "頎邦", market: "TPEx", price: 157.50, change: -17.50, change_pct: -10.00, volume: 19010000, volume_lots: 19010, turnover_b: 2.99 },
+  { symbol: "6488", name: "環球晶", market: "TPEx", price: 564.00, change: -55.00, change_pct: -8.89, volume: 18954000, volume_lots: 18954, turnover_b: 10.69 },
 ];
 
 const DEFAULT_ETF: RankedStock[] = [

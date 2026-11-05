@@ -228,13 +228,13 @@ export const REAL_TW_TOTAL_TIMELINE = [
 ];
 
 export const REAL_TW_RANKS = {
-  "tradeDate": "2026-10-30",
+  "tradeDate": "2026-11-05",
   "foreign_buys": [
     {
       "symbol": "2609",
       "name": "陽明",
-      "price": 63.5,
-      "change_pct": 2.42,
+      "price": 60.0,
+      "change_pct": -5.51,
       "shares": 16598,
       "trust_shares": -30,
       "total_shares": 16852
@@ -242,8 +242,8 @@ export const REAL_TW_RANKS = {
     {
       "symbol": "1101",
       "name": "台泥",
-      "price": 28.35,
-      "change_pct": 0.53,
+      "price": 27.2,
+      "change_pct": -4.06,
       "shares": 13123,
       "trust_shares": -4560,
       "total_shares": 9551
@@ -251,8 +251,8 @@ export const REAL_TW_RANKS = {
     {
       "symbol": "2834",
       "name": "臺企銀",
-      "price": 18.05,
-      "change_pct": 0.28,
+      "price": 17.5,
+      "change_pct": -3.05,
       "shares": 9125,
       "trust_shares": 0,
       "total_shares": 9063
@@ -260,7 +260,7 @@ export const REAL_TW_RANKS = {
     {
       "symbol": "2412",
       "name": "中華電",
-      "price": 160,
+      "price": 160.0,
       "change_pct": 1.27,
       "shares": 8201,
       "trust_shares": -402,
@@ -269,8 +269,8 @@ export const REAL_TW_RANKS = {
     {
       "symbol": "5880",
       "name": "合庫金",
-      "price": 29,
-      "change_pct": 0.35,
+      "price": 28.5,
+      "change_pct": -1.72,
       "shares": 7940,
       "trust_shares": 967,
       "total_shares": 9472
@@ -289,48 +289,48 @@ export const REAL_TW_RANKS = {
     {
       "symbol": "2887",
       "name": "台新新光金",
-      "price": 42.25,
-      "change_pct": -0.35,
+      "price": 40.1,
+      "change_pct": -5.09,
       "shares": 13184,
       "consecutive_days": 6
     },
     {
       "symbol": "2891",
       "name": "中信金",
-      "price": 75.8,
-      "change_pct": 0.66,
+      "price": 74.9,
+      "change_pct": 2.32,
       "shares": 10429,
       "consecutive_days": 5
     },
     {
       "symbol": "2352",
       "name": "佳世達",
-      "price": 33.8,
-      "change_pct": 3.05,
+      "price": 28.0,
+      "change_pct": -17.16,
       "shares": 8220,
       "consecutive_days": 4
     },
     {
       "symbol": "3711",
       "name": "日月光投控",
-      "price": 668,
-      "change_pct": -2.2,
+      "price": 572.0,
+      "change_pct": -14.37,
       "shares": 7174,
       "consecutive_days": 5
     },
     {
       "symbol": "2884",
       "name": "玉山金",
-      "price": 49.05,
-      "change_pct": 0.1,
+      "price": 47.95,
+      "change_pct": -2.24,
       "shares": 5449,
       "consecutive_days": 4
     },
     {
       "symbol": "2892",
       "name": "第一金",
-      "price": 44.6,
-      "change_pct": 0.34,
+      "price": 42.25,
+      "change_pct": -5.27,
       "shares": 5049,
       "consecutive_days": 3
     }

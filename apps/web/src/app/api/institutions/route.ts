@@ -96,6 +96,51 @@ async function fetchYahooDailyBars(yahooSym: string): Promise<Record<string, { o
   return map;
 }
 
+// 平行補齊最新真實成交價與漲跌幅，確保與個股分析頁價格 100% 一致
+async function injectLivePricesToRanks(ranksData: any) {
+  if (!ranksData) return ranksData;
+  const list = [...(ranksData.foreign_buys || []), ...(ranksData.trust_buys || [])];
+  const uniqueSymbols = Array.from(new Set(list.map((x) => x.symbol)));
+  if (uniqueSymbols.length === 0) return ranksData;
+
+  const priceMap: Record<string, { price: number; change_pct: number }> = {};
+  await Promise.allSettled(
+    uniqueSymbols.map(async (sym) => {
+      try {
+        const yfSym = `${sym}.TW`;
+        const res = await fetch(
+          `https://query1.finance.yahoo.com/v8/finance/chart/${yfSym}?range=1d&interval=1d`,
+          { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(2200) }
+        );
+        if (!res.ok) return;
+        const j = await res.json();
+        const meta = j?.chart?.result?.[0]?.meta;
+        const p = Number(meta?.regularMarketPrice);
+        const prev = Number(meta?.chartPreviousClose) || p;
+        if (p > 0) {
+          const chg = Number((p - prev).toFixed(2));
+          const pct = prev > 0 ? Number(((chg / prev) * 100).toFixed(2)) : 0;
+          priceMap[sym] = { price: p, change_pct: pct };
+        }
+      } catch {}
+    })
+  );
+
+  const updateItem = (item: any) => {
+    const live = priceMap[item.symbol];
+    if (live && live.price > 0) {
+      return { ...item, price: live.price, change_pct: live.change_pct };
+    }
+    return item;
+  };
+
+  return {
+    ...ranksData,
+    foreign_buys: (ranksData.foreign_buys || []).map(updateItem),
+    trust_buys: (ranksData.trust_buys || []).map(updateItem),
+  };
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const type = (searchParams.get("type") || "").trim().toLowerCase();
@@ -107,10 +152,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(REAL_US_13F_DATA);
     }
 
-    // 2. 台股三大法人當日買賣超強勢排行榜 (TWSE 官方 T86 + STOCK_DAY_ALL)
+    // 2. 台股三大法人當日買賣超強勢排行榜 (TWSE 官方 T86 + 即時真實行情校準)
     if (type === "ranks") {
       if (cachedTwRanks && Date.now() - cachedTwRanks.ts < CACHE_TTL_MS) {
-        return NextResponse.json(cachedTwRanks.data);
+        const liveRanks = await injectLivePricesToRanks(cachedTwRanks.data);
+        return NextResponse.json(liveRanks);
       }
 
       try {
@@ -196,7 +242,8 @@ export async function GET(req: NextRequest) {
                 rawD.length === 8 ? `${rawD.slice(0, 4)}-${rawD.slice(4, 6)}-${rawD.slice(6, 8)}` : REAL_TW_RANKS.tradeDate;
               const result = { tradeDate, foreign_buys, trust_buys };
               cachedTwRanks = { ts: Date.now(), data: result };
-              return NextResponse.json(result);
+              const liveResult = await injectLivePricesToRanks(result);
+              return NextResponse.json(liveResult);
             }
           }
         }
@@ -204,7 +251,8 @@ export async function GET(req: NextRequest) {
         // fallback to REAL_TW_RANKS
       }
 
-      return NextResponse.json(REAL_TW_RANKS);
+      const liveFallback = await injectLivePricesToRanks(REAL_TW_RANKS);
+      return NextResponse.json(liveFallback);
     }
 
     // 3. 個股三大法人買賣超 + 真實歷史 K線

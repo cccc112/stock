@@ -213,6 +213,7 @@ export default function InstitutionsPage() {
   );
   const [usData, setUsData] = useState<any[]>(() => REAL_US_13F_DATA);
   const [ranks, setRanks] = useState<any>(() => REAL_TW_RANKS);
+  const [liveQuotesMap, setLiveQuotesMap] = useState<Record<string, { price: number; change_pct: number }>>({});
   const [isSyncing, setIsSyncing] = useState(false);
 
   // 個股籌碼狀態
@@ -272,6 +273,37 @@ export default function InstitutionsPage() {
   useEffect(() => {
     fetchInitialData();
   }, []);
+
+  // 平行拉取法人排行各檔標的之即時市價，保證與個股分析頁價格 100% 同步完全一致
+  useEffect(() => {
+    const list = [...(ranks?.foreign_buys || []), ...(ranks?.trust_buys || [])];
+    const syms = Array.from(new Set(list.map((x: any) => String(x.symbol || "").trim()))).filter(Boolean);
+    if (syms.length === 0) return;
+
+    Promise.allSettled(
+      syms.map(async (sym) => {
+        try {
+          const res = await apiStocks.getQuote(sym);
+          const p = Number(res?.data?.price);
+          if (p > 0) {
+            const pct = Number(res?.data?.change_pct ?? res?.data?.changePercent ?? 0);
+            return { symbol: sym, price: p, change_pct: pct };
+          }
+        } catch {}
+        return null;
+      })
+    ).then((results) => {
+      const map: Record<string, { price: number; change_pct: number }> = {};
+      results.forEach((r) => {
+        if (r.status === "fulfilled" && r.value) {
+          map[r.value.symbol] = { price: r.value.price, change_pct: r.value.change_pct };
+        }
+      });
+      if (Object.keys(map).length > 0) {
+        setLiveQuotesMap((prev) => ({ ...prev, ...map }));
+      }
+    });
+  }, [ranks]);
 
   const fetchStockInstitutions = async (sym: string) => {
     const clean = sym.replace(/\.TW[O]?$/i, "").toUpperCase();
@@ -756,41 +788,45 @@ export default function InstitutionsPage() {
                     資料日期：{ranks?.tradeDate || "最新交易日"} · 點擊任意個股立即展開三大法人與 K 線疊圖
                   </p>
                   <div className="space-y-2.5">
-                    {activeRankList.slice(0, 6).map((stock: any) => (
-                      <div
-                        key={stock.symbol}
-                        onClick={() => selectStockAndSwitch(stock.symbol)}
-                        className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)]/40 hover:bg-[var(--bg-tertiary)] hover:border-accent transition-all cursor-pointer group"
-                      >
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-primary group-hover:text-accent transition-colors font-mono">
-                              {stock.symbol}
-                            </span>
-                            <span className="text-secondary text-xs font-medium">{stock.name}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 font-mono font-semibold">
-                              +{stock.shares ? Math.round(stock.shares).toLocaleString() : 0} 張
-                            </span>
+                    {activeRankList.slice(0, 6).map((stock: any) => {
+                      const curPrice = liveQuotesMap[stock.symbol]?.price ?? stock.price;
+                      const curPct = liveQuotesMap[stock.symbol]?.change_pct ?? stock.change_pct;
+                      return (
+                        <div
+                          key={stock.symbol}
+                          onClick={() => selectStockAndSwitch(stock.symbol)}
+                          className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)]/40 hover:bg-[var(--bg-tertiary)] hover:border-accent transition-all cursor-pointer group"
+                        >
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-primary group-hover:text-accent transition-colors font-mono">
+                                {stock.symbol}
+                              </span>
+                              <span className="text-secondary text-xs font-medium">{stock.name}</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 font-mono font-semibold">
+                                +{stock.shares ? Math.round(stock.shares).toLocaleString() : 0} 張
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-accent mt-0.5 flex items-center gap-0.5">
+                              點擊秒看個股籌碼 K 線 <ChevronRight size={11} />
+                            </div>
                           </div>
-                          <div className="text-[11px] text-accent mt-0.5 flex items-center gap-0.5">
-                            點擊秒看個股籌碼 K 線 <ChevronRight size={11} />
+                          <div className="text-right">
+                            <div className="font-mono font-bold text-sm text-primary">
+                              NT${curPrice}
+                            </div>
+                            <div
+                              className={`font-mono text-xs ${
+                                curPct >= 0 ? "text-up-tw" : "text-down-tw"
+                              } font-semibold`}
+                            >
+                              {curPct > 0 ? "+" : ""}
+                              {curPct}%
+                            </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-mono font-bold text-sm text-primary">
-                            NT${stock.price}
-                          </div>
-                          <div
-                            className={`font-mono text-xs ${
-                              stock.change_pct >= 0 ? "text-up-tw" : "text-down-tw"
-                            } font-semibold`}
-                          >
-                            {stock.change_pct > 0 ? "+" : ""}
-                            {stock.change_pct}%
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </Card>
               </div>
