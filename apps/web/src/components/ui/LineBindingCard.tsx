@@ -14,6 +14,7 @@ import {
   Zap,
   ShieldCheck,
   CreditCard,
+  Send,
 } from "lucide-react";
 import { getCurrentUserNamespace } from "@/hooks/useAuth";
 
@@ -58,6 +59,45 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
     localStorage.setItem(`line_bound_status_${ns}`, nextStatus ? "true" : "false");
   };
 
+  const [isPushing, setIsPushing] = useState(false);
+
+  const handleSendTestPush = async () => {
+    setIsPushing(true);
+    try {
+      const res = await fetch("/api/line/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "broadcast",
+          type: "radar",
+          data: {
+            symbol: "2330",
+            name: "台積電",
+            price: 2260,
+            change: 10,
+            changePct: 0.44,
+            volumeLots: 38500,
+            triggerName: "主力大單敲進 · 突破頸線",
+            triggerDesc: "盤中 15 分 K 突破整理區間，大戶買賣比達 1.82，量能放大 160%",
+            category: "BREAKOUT",
+          },
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert("【LINE 測試推播發送成功！】\n已將「台積電主力突破量化雷達卡片」廣播發送至所有加好友用戶的 LINE 聊天室！");
+      } else {
+        alert(
+          `【LINE 推播發送提示】\n${data.error || "發送失敗"}\n\n若尚未在 Vercel 填入 LINE_CHANNEL_ACCESS_TOKEN，請至 Vercel Settings -> Environment Variables 配置後即可全員推播。`
+        );
+      }
+    } catch (e: any) {
+      alert(`連線錯誤: ${e.message}`);
+    } finally {
+      setIsPushing(false);
+    }
+  };
+
   const handleECPaySubscribe = () => {
     setIsSubscribing(true);
     // Construct simulated ECPay checkout payload or direct link
@@ -98,6 +138,16 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleSendTestPush}
+            disabled={isPushing}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 text-xs font-bold transition-colors cursor-pointer shadow-sm"
+            title="點擊立即測試發送一則台積電即時量化雷達 FlexCard 到加好友用戶的 LINE"
+          >
+            <Send size={13} className={isPushing ? "animate-pulse" : ""} />
+            <span>{isPushing ? "推播發送中..." : "一鍵測試 LINE 廣播"}</span>
+          </button>
+
           {isBound ? (
             <span className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 font-bold">
               <ShieldCheck size={14} /> LINE 帳號已連線綁定
