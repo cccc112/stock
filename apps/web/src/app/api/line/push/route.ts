@@ -1,39 +1,82 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   createRadarAlertFlexCard,
-  createPostMarketFlexCard,
-  createWelcomeFlexCard,
   RadarSignalData,
 } from "@/lib/line/flexCards";
 
 export const dynamic = "force-dynamic";
 
-const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "";
+/**
+ * 取得 LINE Channel Access Token，支援多種常見命名與自訂傳入
+ */
+function getChannelAccessToken(customToken?: string): string {
+  if (customToken && typeof customToken === "string" && customToken.trim().length > 10) {
+    return customToken.trim();
+  }
+  const token =
+    process.env.LINE_CHANNEL_ACCESS_TOKEN ||
+    process.env.LINE_ACCESS_TOKEN ||
+    process.env.CHANNEL_ACCESS_TOKEN ||
+    process.env.NEXT_PUBLIC_LINE_CHANNEL_ACCESS_TOKEN ||
+    "";
+  return token.trim();
+}
 
 /**
- * 查詢 LINE 推播配額與服務狀態 (GET)
+ * 查詢 LINE 推播配額與金鑰配置狀態 (GET)
  */
-export async function GET() {
-  if (!LINE_CHANNEL_ACCESS_TOKEN) {
+export async function GET(req: NextRequest) {
+  const customToken = req.nextUrl.searchParams.get("token") || undefined;
+  const token = getChannelAccessToken(customToken);
+
+  if (!token) {
     return NextResponse.json({
       configured: false,
-      message: "尚未設定 LINE_CHANNEL_ACCESS_TOKEN 環境變數",
+      message:
+        "伺服器環境變數尚未讀取到 LINE 金鑰。若您剛在 Vercel 後台新增，請注意：Vercel 必須在 Deployments 頁面點擊「Redeploy」重新部署後，新變數才會注入生效！",
+      checkedKeys: [
+        "LINE_CHANNEL_ACCESS_TOKEN",
+        "LINE_ACCESS_TOKEN",
+        "CHANNEL_ACCESS_TOKEN",
+      ],
     });
   }
 
+  const maskedToken =
+    token.length > 12
+      ? `${token.slice(0, 8)}...${token.slice(-4)} (長度 ${token.length} 碼)`
+      : `${token.slice(0, 4)}...`;
+
   try {
+    // 檢測配額
     const quotaRes = await fetch("https://api.line.me/v2/bot/message/quota", {
-      headers: { Authorization: `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
     const quotaData = quotaRes.ok ? await quotaRes.json() : null;
 
-    const consumptionRes = await fetch("https://api.line.me/v2/bot/message/quota/consumption", {
-      headers: { Authorization: `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}` },
-    });
+    // 檢測本月已用推播數
+    const consumptionRes = await fetch(
+      "https://api.line.me/v2/bot/message/quota/consumption",
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
     const consumptionData = consumptionRes.ok ? await consumptionRes.json() : null;
+
+    if (!quotaRes.ok && quotaRes.status === 401) {
+      return NextResponse.json({
+        configured: true,
+        valid: false,
+        tokenInfo: maskedToken,
+        error:
+          "金鑰認證失敗 (401 Unauthorized)。請確認您複製的是 LINE Developers 裡面 Messaging API 頁籤最下方的「Channel access token (long-lived)」，而非 Channel Secret 或 Basic ID。",
+      });
+    }
 
     return NextResponse.json({
       configured: true,
+      valid: true,
+      tokenInfo: maskedToken,
       service: "OmniTick LINE Push & Broadcast Dispatcher",
       quota: quotaData,
       consumption: consumptionData,
@@ -41,31 +84,33 @@ export async function GET() {
   } catch (err: any) {
     return NextResponse.json({
       configured: true,
-      error: err.message,
+      valid: false,
+      tokenInfo: maskedToken,
+      error: `連線至 LINE 伺服器失敗: ${err.message}`,
     });
   }
 }
 
 /**
  * 主動發送 LINE 警報推播 (POST)
- *
- * 支援模式：
- * 1. broadcast：向所有已加好友的用戶群體推播
- * 2. push：向指定特定 LINE userId 推播
- * 3. multicast：向多個 LINE userIds 推播
  */
 export async function POST(req: NextRequest) {
-  if (!LINE_CHANNEL_ACCESS_TOKEN) {
-    return NextResponse.json(
-      {
-        error: "LINE_CHANNEL_ACCESS_TOKEN 未配置，請於 Vercel 環境變數中設定後方可主動發送推播",
-      },
-      { status: 500 }
-    );
-  }
-
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const token = getChannelAccessToken(body.token);
+
+    if (!token) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "TOKEN_NOT_FOUND",
+          error:
+            "尚未讀取到 LINE_CHANNEL_ACCESS_TOKEN。若已在 Vercel 設定，請至 Vercel Deployments 點選 Redeploy 重新部署，或直接在畫面中填入 Token 立即發送！",
+        },
+        { status: 400 }
+      );
+    }
+
     const mode = body.mode || "broadcast"; // "broadcast" | "push" | "multicast"
     const targetUserId = body.to || body.userId;
 
@@ -76,17 +121,17 @@ export async function POST(req: NextRequest) {
       const radarData: RadarSignalData = {
         symbol: body.data.symbol || "2330",
         name: body.data.name || "台積電",
-        price: Number(body.data.price) || 0,
-        change: Number(body.data.change) || 0,
-        changePct: Number(body.data.changePct) || 0,
-        volumeLots: body.data.volumeLots,
-        triggerName: body.data.triggerName || "盤中量化訊號觸發",
-        triggerDesc: body.data.triggerDesc || "股價強勢放量突破，主力資金淨流入",
+        price: Number(body.data.price) || 2260,
+        change: Number(body.data.change) || 10,
+        changePct: Number(body.data.changePct) || 0.44,
+        volumeLots: body.data.volumeLots || 38500,
+        triggerName: body.data.triggerName || "主力大單敲進 · 突破頸線",
+        triggerDesc:
+          body.data.triggerDesc || "盤中 15 分 K 突破整理區間，大戶買賣比達 1.82，量能放大 160%",
         category: body.data.category || "BREAKOUT",
       };
       messages = [createRadarAlertFlexCard(radarData)];
     } else if (body.type === "text" || body.text) {
-      // B. 純文字通知
       messages = [
         {
           type: "text",
@@ -94,7 +139,6 @@ export async function POST(req: NextRequest) {
         },
       ];
     } else if (Array.isArray(body.messages) && body.messages.length > 0) {
-      // C. 原生 LINE Message 陣列
       messages = body.messages;
     } else {
       // 預設示範測試雷達卡片
@@ -119,7 +163,7 @@ export async function POST(req: NextRequest) {
     if (mode === "push") {
       if (!targetUserId || typeof targetUserId !== "string") {
         return NextResponse.json(
-          { error: "push 模式必須提供 to (LINE userId)" },
+          { success: false, error: "push 模式必須提供 to (LINE userId)" },
           { status: 400 }
         );
       }
@@ -128,7 +172,7 @@ export async function POST(req: NextRequest) {
     } else if (mode === "multicast") {
       if (!Array.isArray(targetUserId) || targetUserId.length === 0) {
         return NextResponse.json(
-          { error: "multicast 模式必須提供 to (userId 字串陣列)" },
+          { success: false, error: "multicast 模式必須提供 to (userId 字串陣列)" },
           { status: 400 }
         );
       }
@@ -140,21 +184,39 @@ export async function POST(req: NextRequest) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(payload),
     });
 
     if (!lineRes.ok) {
       const errText = await lineRes.text();
+      let parsedErr: any = null;
+      try {
+        parsedErr = JSON.parse(errText);
+      } catch {}
+
       console.error("[LINE Push Failed]", lineRes.status, errText);
+
+      let helpfulMessage = parsedErr?.message || errText;
+      if (lineRes.status === 401) {
+        helpfulMessage =
+          "LINE 金鑰認證失敗 (401 Unauthorized)。請確認複製的是 LINE Developers 裡面 Messaging API 頁籤底部的「Channel access token (long-lived)」，並確認無多餘引號或空格。";
+      } else if (lineRes.status === 400) {
+        helpfulMessage = `LINE 請求格式錯誤 (400): ${parsedErr?.message || errText}`;
+      } else if (lineRes.status === 403) {
+        helpfulMessage =
+          "權限不足 (403 Forbidden)。該官方帳號可能未開啟 Messaging API 推播功能或權限不足。";
+      }
+
       return NextResponse.json(
         {
           success: false,
           status: lineRes.status,
-          error: errText,
+          error: helpfulMessage,
+          raw: parsedErr || errText,
         },
-        { status: lineRes.status }
+        { status: 200 } // 回傳 200 讓前端能順利讀取詳細 JSON 診斷
       );
     }
 
@@ -166,6 +228,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("LINE push dispatch error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: `伺服器執行錯誤: ${err.message}` },
+      { status: 200 }
+    );
   }
 }

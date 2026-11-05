@@ -19,6 +19,8 @@ import {
   CreditCard,
   Send,
   Radio,
+  Key,
+  RefreshCw,
 } from "lucide-react";
 import { getCurrentUserNamespace } from "@/hooks/useAuth";
 
@@ -33,8 +35,24 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
   const [trialDaysLeft, setTrialDaysLeft] = useState(14);
   const [isSubscribing, setIsSubscribing] = useState(false);
 
+  // 測試推播 Modal 相關狀態
+  const [isPushing, setIsPushing] = useState(false);
+  const [isPushModalOpen, setIsPushModalOpen] = useState(false);
+  const [pushStatus, setPushStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const [pushErrorMsg, setPushErrorMsg] = useState("");
+  const [serverDiag, setServerDiag] = useState<{
+    configured?: boolean;
+    tokenInfo?: string;
+    valid?: boolean;
+    error?: string;
+    message?: string;
+  } | null>(null);
+
+  // 自訂/備用 Token（允許使用者在畫面直接貼上即時測試，免等 Vercel 重新部署）
+  const [customToken, setCustomToken] = useState("");
+
   useEffect(() => {
-    // Generate or read persistent user bind code
+    // 讀取持久化綁定碼
     const ns = getCurrentUserNamespace();
     const storageKey = `line_bind_code_${ns}`;
     let code = localStorage.getItem(storageKey);
@@ -46,7 +64,24 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
 
     const boundStatus = localStorage.getItem(`line_bound_status_${ns}`) === "true";
     setIsBound(boundStatus);
+
+    // 讀取暫存的 customToken
+    const savedToken = localStorage.getItem("omnitick_temp_line_token") || "";
+    if (savedToken) setCustomToken(savedToken);
+
+    // 初始檢測伺服器端環境變數狀態
+    fetchServerStatus();
   }, []);
+
+  const fetchServerStatus = async () => {
+    try {
+      const res = await fetch("/api/line/push");
+      const data = await res.json();
+      setServerDiag(data);
+    } catch {
+      // 忽略
+    }
+  };
 
   const handleCopyCode = () => {
     if (navigator.clipboard && bindCode) {
@@ -63,12 +98,14 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
     localStorage.setItem(`line_bound_status_${ns}`, nextStatus ? "true" : "false");
   };
 
-  const [isPushing, setIsPushing] = useState(false);
-  const [isPushModalOpen, setIsPushModalOpen] = useState(false);
-  const [pushStatus, setPushStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
-  const [pushErrorMsg, setPushErrorMsg] = useState("");
+  const handleSendTestPush = async (overrideToken?: string) => {
+    const activeToken = overrideToken || customToken.trim() || undefined;
 
-  const handleSendTestPush = async () => {
+    // 儲存臨時 Token 方便後續重複測試
+    if (activeToken) {
+      localStorage.setItem("omnitick_temp_line_token", activeToken);
+    }
+
     setIsPushing(true);
     setIsPushModalOpen(true);
     setPushStatus("sending");
@@ -81,6 +118,7 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
         body: JSON.stringify({
           mode: "broadcast",
           type: "radar",
+          token: activeToken,
           data: {
             symbol: "2330",
             name: "台積電",
@@ -95,13 +133,14 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
         }),
       });
       const data = await res.json();
-      if (res.ok && data.success) {
+      if (data.success) {
         setPushStatus("success");
+        fetchServerStatus();
       } else {
         setPushStatus("error");
         setPushErrorMsg(
           data.error ||
-            "LINE_CHANNEL_ACCESS_TOKEN 尚未在 Vercel 中設定。請前往 Vercel 控制台新增此變數。"
+            "LINE 推播發送失敗，請確認 Channel Access Token 是否正確。"
         );
       }
     } catch (e: any) {
@@ -114,7 +153,6 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
 
   const handleECPaySubscribe = () => {
     setIsSubscribing(true);
-    // Construct simulated ECPay checkout payload or direct link
     setTimeout(() => {
       alert("【綠界 ECPay 定期定額信用卡】\n方案：Pro 盤中主力雷達全自動推播\n月費：NT$ 399 / 月\n\n已成功導向安全付款授權頁面（測試環境）。");
       setIsSubscribing(false);
@@ -123,11 +161,11 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
 
   return (
     <Card className="p-5 border-emerald-500/40 bg-gradient-to-br from-[var(--bg-secondary)] via-[var(--bg-secondary)] to-emerald-500/5 relative overflow-hidden">
-      {/* 熊霸裝飾背景 */}
+      {/* 台灣黑熊裝飾背景 */}
       <div className="absolute -right-6 -bottom-6 w-32 h-32 opacity-10 pointer-events-none select-none">
         <svg viewBox="0 0 100 100" fill="currentColor" className="text-emerald-500">
           <circle cx="50" cy="50" r="45" />
-          <path d="M 35 45 L 50 65 L 65 45" stroke="white" strokeWidth="8" fill="none" />
+          <path d="M 32 65 L 50 85 L 68 65" stroke="white" strokeWidth="8" fill="none" />
         </svg>
       </div>
 
@@ -153,153 +191,143 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
 
         <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={handleSendTestPush}
+            onClick={() => handleSendTestPush()}
             disabled={isPushing}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 text-xs font-bold transition-colors cursor-pointer shadow-sm"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 text-xs font-bold transition-colors cursor-pointer shadow-sm active:scale-95"
             title="點擊立即測試發送一則台積電即時量化雷達 FlexCard 到加好友用戶的 LINE"
           >
             <Send size={13} className={isPushing ? "animate-pulse" : ""} />
-            <span>{isPushing ? "推播發送中..." : "一鍵測試 LINE 廣播"}</span>
+            <span>{isPushing ? "推播傳送中..." : "一鍵測試 LINE 廣播"}</span>
           </button>
 
-          {isBound ? (
-            <span className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 font-bold">
-              <ShieldCheck size={14} /> LINE 帳號已連線綁定
-            </span>
-          ) : (
-            <a
-              href="https://line.me/R/ti/p/@stock_radar"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#06C755] hover:bg-[#05b34c] text-white text-xs font-bold transition-colors shadow-sm"
-            >
-              加入 LINE 官方帳號 <ExternalLink size={13} />
-            </a>
-          )}
+          <a
+            href="https://line.me/R/ti/p/@stock_radar"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#06C755] hover:bg-[#05b34c] text-white font-bold text-xs shadow-md transition-colors"
+          >
+            <span>加入 LINE 官方帳號</span>
+            <ExternalLink size={13} />
+          </a>
+
           <button
             onClick={handleSimulateBind}
-            className="text-[11px] text-muted hover:text-primary transition-colors underline"
+            className={`text-[11px] px-2.5 py-1 rounded border transition-colors cursor-pointer ${
+              isBound
+                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                : "bg-slate-500/10 text-muted border-slate-500/20 hover:text-secondary"
+            }`}
           >
-            {isBound ? "重設綁定狀態" : "測試模擬已綁定"}
+            {isBound ? "測試模擬已綁定" : "切換模擬綁定"}
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-        {/* Step 1 & 2 綁定操作 */}
-        <div className="md:col-span-2 space-y-3">
-          <div className="text-xs font-semibold text-primary flex items-center gap-1.5">
-            <span className="w-4 h-4 rounded-full bg-accent/20 text-accent flex items-center justify-center text-[10px] font-mono">
-              1
-            </span>
-            <span>三步驟快速完成 LINE 連動</span>
+      {/* 步驟說明卡 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mt-4">
+        {/* Step 1 */}
+        <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] relative space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-mono font-bold text-emerald-400">Step 1. 加好友</span>
+            <Crown size={13} className="text-amber-400" />
           </div>
+          <p className="text-xs text-secondary">
+            點擊右上角加入官方好友或搜尋 ID <span className="font-mono text-primary font-bold">@stock_radar</span>
+          </p>
+        </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-            <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] flex flex-col justify-between">
-              <div>
-                <span className="font-bold text-primary block mb-1">Step 1. 加好友</span>
-                <p className="text-secondary text-[11px] leading-relaxed">
-                  點擊右上角加入官方好友或搜尋 ID <code className="text-emerald-400">@stock_radar</code>
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] flex flex-col justify-between">
-              <div>
-                <span className="font-bold text-primary block mb-1">Step 2. 發送指令</span>
-                <p className="text-secondary text-[11px] leading-relaxed">
-                  在聊天室發送綁定代碼，系統將立即為您連通所有自選股雷達。
-                </p>
-              </div>
-              <div className="mt-2 pt-2 border-t border-[var(--border)]/60 flex items-center justify-between">
-                <span className="font-mono text-emerald-400 font-bold text-xs">{`/bind ${bindCode}`}</span>
-                <button
-                  onClick={handleCopyCode}
-                  className="p-1 rounded bg-[var(--bg-tertiary)] hover:text-accent transition-colors text-secondary"
-                  title="複製指令"
-                >
-                  {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                </button>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] flex flex-col justify-between">
-              <div>
-                <span className="font-bold text-primary block mb-1">Step 3. 聊天室快查</span>
-                <p className="text-secondary text-[11px] leading-relaxed">
-                  直接輸入股號（如 <code className="text-accent">2330</code>、<code className="text-accent">0050</code>）即可秒查即時報價與技術指標。
-                </p>
-              </div>
-              <div className="mt-2 pt-2 border-t border-[var(--border)]/60">
-                <span className="text-[10px] text-muted font-semibold">隨時隨地雙向互動</span>
-              </div>
-            </div>
+        {/* Step 2 */}
+        <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] relative space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-mono font-bold text-emerald-400">Step 2. 發送指令</span>
+            <span className="text-[10px] text-muted">連通自選股</span>
+          </div>
+          <p className="text-xs text-secondary">
+            在聊天室發送綁定代碼，系統將立即為您連通所有自選股雷達。
+          </p>
+          <div className="flex items-center justify-between p-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] font-mono text-xs">
+            <span className="font-bold text-emerald-400">/bind {bindCode}</span>
+            <button
+              onClick={handleCopyCode}
+              className="text-secondary hover:text-primary transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+            </button>
           </div>
         </div>
 
-        {/* 訂閱與 14 天體驗狀態卡 */}
-        <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-emerald-500/30 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-primary flex items-center gap-1.5">
-                <Crown size={14} className="text-amber-400" /> Pro 尊榮方案
+        {/* Step 3 */}
+        <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] relative space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-mono font-bold text-emerald-400">Step 3. 聊天室快查</span>
+            <Zap size={13} className="text-amber-400" />
+          </div>
+          <p className="text-xs text-secondary">
+            直接輸入股號（如 <span className="font-mono text-primary font-bold">2330</span>、<span className="font-mono text-primary font-bold">0050</span>）即可秒查即時報價與技術指標。
+          </p>
+          <span className="text-[10px] text-muted block">隨時隨地雙向互動</span>
+        </div>
+      </div>
+
+      {/* 方案與付款區 */}
+      {!compact && (
+        <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-[var(--bg-primary)] to-emerald-500/10 border border-amber-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-amber-400 flex items-center gap-1">
+                <Crown size={14} /> Pro 尊榮方案
               </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold">
-                14 天免費倒數
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">
+                {trialDaysLeft} 天免費倒數
               </span>
             </div>
-            <p className="text-[11px] text-secondary leading-relaxed mb-3">
+            <p className="text-xs text-secondary leading-relaxed">
               綁定成功即享 14 天 Pro 雷達即時推播。試用到期後自動轉為每日 15:30 籌碼精華，無任何扣款風險。
             </p>
-            <div className="text-xs text-primary font-bold flex items-baseline gap-1">
-              <span className="text-lg text-emerald-400">NT$ 399</span>
-              <span className="text-muted text-[11px]">/ 月 (或 NT$ 3,990 / 年)</span>
-            </div>
           </div>
 
-          <div className="mt-3 pt-3 border-t border-[var(--border)] space-y-2">
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+            <div className="text-right">
+              <div className="text-base font-extrabold font-mono text-primary">NT$ 399</div>
+              <div className="text-[10px] text-secondary">/ 月（或 NT$ 3,990 / 年）</div>
+            </div>
             <Button
               size="sm"
               variant="primary"
-              className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500"
               onClick={handleECPaySubscribe}
               disabled={isSubscribing}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm whitespace-nowrap"
             >
-              <CreditCard size={14} /> 綠界 ECPay 定期定額訂閱
+              <CreditCard size={13} />
+              <span>{isSubscribing ? "導向綠界中..." : "綠界 ECPay 定期定額訂閱"}</span>
             </Button>
-            <div className="text-[10px] text-center text-muted flex items-center justify-center gap-1">
-              <CheckCircle size={10} className="text-emerald-400" /> SSL 256-bit 加密 · 隨時可取消
-            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* LINE 推播發送狀態與設定診斷彈窗 (替代瀏覽器被封鎖的 alert) */}
+      {/* 推播測試視覺反饋 Modal */}
       <Modal
         isOpen={isPushModalOpen}
         onClose={() => setIsPushModalOpen(false)}
         title="📡 LINE 官方廣播推播中心"
       >
-        <div className="space-y-4">
+        <div className="space-y-4 pt-1">
           {pushStatus === "sending" && (
-            <div className="p-6 text-center space-y-3">
-              <div className="w-12 h-12 rounded-full border-3 border-emerald-500 border-t-transparent animate-spin mx-auto" />
-              <h3 className="font-bold text-primary text-base">正在連線 LINE 官方伺服器...</h3>
-              <p className="text-secondary text-xs leading-relaxed">
-                正在將台積電主力突破量化雷達卡片，透過 LINE Broadcast API 推送至加好友之全體用戶。
-              </p>
+            <div className="py-8 flex flex-col items-center justify-center space-y-3">
+              <div className="w-10 h-10 rounded-full border-3 border-emerald-500 border-t-transparent animate-spin" />
+              <p className="text-sm font-bold text-primary">正在連線 LINE Messaging API 發送廣播...</p>
+              <p className="text-xs text-secondary">正在打包台積電主力大單突破 FlexCard</p>
             </div>
           )}
 
           {pushStatus === "success" && (
-            <div className="space-y-3">
+            <div className="space-y-3.5">
               <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-start gap-3">
-                <CheckCircle2 size={24} className="flex-shrink-0 mt-0.5" />
+                <CheckCircle2 size={24} className="flex-shrink-0 mt-0.5 text-emerald-400" />
                 <div>
                   <h4 className="font-bold text-sm text-emerald-300">廣播推播發送成功！</h4>
                   <p className="text-xs text-secondary mt-0.5 leading-relaxed">
-                    已將「台積電主力大單敲進 · 突破頸線」量化雷達卡片全員廣播至已加入好友的手機 LINE 聊天室！
+                    已將「台積電主力大單敲進 · 突破頸線」量化雷達卡片全員廣播至已加入好友的手機 LINE 聊天室！請查看您的手機 LINE。
                   </p>
                 </div>
               </div>
@@ -308,7 +336,7 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
               <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] text-xs space-y-2">
                 <div className="flex items-center justify-between text-secondary">
                   <span className="font-mono font-bold text-emerald-400">【LINE FlexCard 預覽】</span>
-                  <span>今日 15:30 即時</span>
+                  <span>今日即時推播</span>
                 </div>
                 <div className="p-3 rounded-lg bg-[#090d16] text-white space-y-1.5 font-mono">
                   <div className="flex justify-between items-center text-[10px] text-amber-400 font-bold">
@@ -331,59 +359,89 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
                 className="w-full"
                 onClick={() => setIsPushModalOpen(false)}
               >
-                關閉
+                我知道了，已成功發送！
               </Button>
             </div>
           )}
 
           {pushStatus === "error" && (
             <div className="space-y-3.5">
+              {/* 診斷報錯區 */}
               <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-start gap-3">
                 <AlertCircle size={24} className="flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-bold text-sm text-amber-300">LINE 金鑰尚未配置</h4>
-                  <p className="text-xs text-secondary mt-1 leading-relaxed">
-                    系統尚未讀取到 <code className="text-amber-400">LINE_CHANNEL_ACCESS_TOKEN</code>。
+                <div className="space-y-1 text-xs leading-relaxed">
+                  <h4 className="font-bold text-sm text-amber-300">LINE 推播未送達</h4>
+                  <p className="text-secondary font-mono bg-black/40 p-2 rounded text-[11px] text-rose-300 border border-rose-500/20">
+                    {pushErrorMsg || "尚未讀取到 LINE_CHANNEL_ACCESS_TOKEN"}
                   </p>
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] space-y-2.5 text-xs text-secondary">
+              {/* 為什麼明明填入卻沒讀到的原因說明 */}
+              <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] space-y-2 text-xs text-secondary">
                 <div className="font-bold text-primary flex items-center gap-1.5">
-                  <Radio size={14} className="text-accent" />
-                  <span>如何 1 分鐘啟用 LINE 全員推播：</span>
+                  <RefreshCw size={13} className="text-amber-400" />
+                  <span>為什麼我明明填入了，系統卻顯示未讀取到？</span>
                 </div>
-                <ol className="list-decimal list-inside space-y-1.5 text-[11px] leading-relaxed text-secondary pl-1">
-                  <li>
-                    前往 <a href="https://developers.line.biz/" target="_blank" rel="noreferrer" className="text-accent hover:underline">LINE Developers Console</a> 進入你的 Messaging API Channel。
-                  </li>
-                  <li>
-                    在 <strong>Messaging API</strong> 頁籤最底端，點擊 <strong>Issue</strong> 複製長期 Token。
-                  </li>
-                  <li>
-                    前往 <strong>Vercel 專案後台 ➜ Settings ➜ Environment Variables</strong> 新增：
-                    <div className="mt-1 p-2 rounded bg-black/40 font-mono text-[10px] text-emerald-400 select-all">
-                      LINE_CHANNEL_ACCESS_TOKEN=你的長期Token
-                    </div>
-                  </li>
-                </ol>
+                <div className="text-[11px] leading-relaxed space-y-1 text-secondary">
+                  <p>
+                    <strong className="text-amber-300">原因 1（最常見）：Vercel 尚未重新部署 (Redeploy)</strong>
+                    <br />
+                    在 Vercel 後台填寫環境變數後，<strong>已經上線的舊版本不會自動讀取新變數</strong>。您必須至 Vercel ➜ <strong>Deployments</strong> ➜ 點選最新一筆右邊的「...」➜ 點擊 <strong>Redeploy</strong>，新變數才會注入到伺服器！
+                  </p>
+                  <p className="pt-1">
+                    <strong className="text-amber-300">原因 2：Token 複製位置不是長期 Token</strong>
+                    <br />
+                    不是 LINE Official Manager 的 Basic ID，而是 <a href="https://developers.line.biz/" target="_blank" rel="noreferrer" className="text-accent hover:underline">LINE Developers Console</a> ➜ Messaging API 頁籤最底部的「Channel access token (long-lived)」。
+                  </p>
+                </div>
               </div>
 
-              {/* 模擬成功按鈕 */}
-              <div className="flex gap-2">
+              {/* 免等部署！直接在畫面上貼上 Token 立即測試 */}
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-500/10 to-blue-500/10 border border-emerald-500/30 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-emerald-400 flex items-center gap-1.5">
+                    <Key size={13} />
+                    <span>免等 Vercel 重新部署！直接在此貼上 Token 立即發送：</span>
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    placeholder="貼上你的 Channel access token (long-lived)..."
+                    value={customToken}
+                    onChange={(e) => setCustomToken(e.target.value)}
+                    className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border)] text-xs font-mono text-primary focus:outline-none focus:border-emerald-500"
+                  />
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    disabled={!customToken.trim() || isPushing}
+                    onClick={() => handleSendTestPush(customToken)}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs whitespace-nowrap"
+                  >
+                    立即帶入測試
+                  </Button>
+                </div>
+                <span className="text-[10px] text-muted block">
+                  貼上後點擊測試，系統將直接以該金鑰向 LINE 伺服器廣播，立即可在手機 LINE 收到訊息！
+                </span>
+              </div>
+
+              <div className="flex gap-2 pt-1">
                 <Button
                   variant="secondary"
                   className="flex-1 text-xs"
                   onClick={() => setPushStatus("success")}
                 >
-                  <Sparkles size={13} className="mr-1 text-amber-400" /> 檢視推播卡片效果
+                  <Sparkles size={13} className="mr-1 text-amber-400" /> 檢視預覽卡片效果
                 </Button>
                 <Button
                   variant="primary"
                   className="flex-1 text-xs"
                   onClick={() => setIsPushModalOpen(false)}
                 >
-                  我知道了
+                  關閉
                 </Button>
               </div>
             </div>
