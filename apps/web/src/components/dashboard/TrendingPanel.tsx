@@ -121,11 +121,33 @@ export default function TrendingPanel() {
       }
 
       if (twseList.length > 0 || tpexList.length > 0 || etfList.length > 0) {
-        setRankings((prev) => ({
-          twse: twseList.length > 0 ? twseList : prev.twse,
-          tpex: tpexList.length > 0 ? tpexList : prev.tpex,
-          etf: etfList.length > 0 ? etfList : prev.etf,
-        }));
+        setRankings((prev) => {
+          const mergeSafely = (incoming: RankedStock[], old: RankedStock[]) => {
+            if (!incoming || incoming.length === 0) return old;
+            const oldMap = new Map(old.map((s) => [s.symbol, s]));
+            return incoming.map((item) => {
+              const oldItem = oldMap.get(item.symbol);
+              // 如果新收到的資料意外退回 0.00 與 0%，但本地已有盤中真實撮合價與漲跌，絕不讓錯誤的 0 蓋台
+              if (
+                oldItem &&
+                oldItem.price > 0 &&
+                (oldItem.change !== 0 || oldItem.change_pct !== 0) &&
+                item.change === 0 &&
+                item.change_pct === 0 &&
+                item.price !== oldItem.price
+              ) {
+                return oldItem;
+              }
+              return item;
+            });
+          };
+
+          return {
+            twse: mergeSafely(twseList, prev.twse),
+            tpex: mergeSafely(tpexList, prev.tpex),
+            etf: mergeSafely(etfList, prev.etf),
+          };
+        });
       }
       setLastUpdated(
         new Date().toLocaleTimeString("zh-TW", {
@@ -145,8 +167,8 @@ export default function TrendingPanel() {
 
   useEffect(() => {
     fetchRankings();
-    // 盤中每 5 秒自動無縫輪詢最新成交量價與排行
-    const interval = setInterval(() => fetchRankings(false), 5000);
+    // 盤中每 2.5 秒極速無縫輪詢最新成交量價與排行
+    const interval = setInterval(() => fetchRankings(false), 2500);
     return () => clearInterval(interval);
   }, [fetchRankings]);
 
@@ -178,7 +200,7 @@ export default function TrendingPanel() {
           {lastUpdated && (
             <span className="text-[11px] font-mono text-accent/80 hidden sm:inline flex items-center gap-1">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>5秒自動同步 ({lastUpdated})</span>
+              <span>2.5秒即時跳動 ({lastUpdated})</span>
             </span>
           )}
           <button

@@ -261,8 +261,8 @@ export function useWatchlist() {
   useEffect(() => {
     fetchWatchlist(true);
 
-    // 盤中 5 秒自動無縫更新最新自選股撮合價
-    const timer = setInterval(() => fetchWatchlist(false), 5000);
+    // 盤中 2.5 秒極速無縫更新最新自選股撮合價
+    const timer = setInterval(() => fetchWatchlist(false), 2500);
 
     const handleUpdate = () => {
       fetchWatchlist(false);

@@ -26,6 +26,9 @@ let cachedData: {
   date: string;
 } | null = null;
 
+// 伺服器模組級持久即時行情快照（防止網路抖動或暫時性超時時回退至昨日盤後日報與 0.00%）
+const lastKnownLiveQuotes = new Map<string, RankedStockItem>();
+
 const CACHE_TTL_MS = 60_000;
 
 function parseNum(val: unknown): number {
@@ -220,15 +223,30 @@ async function fetchTpexAll(): Promise<RankedStockItem[]> {
   }
 }
 
-async function enrichWithRealtimeTwseQuotes(items: RankedStockItem[]): Promise<RankedStockItem[]> {
-  if (!items || items.length === 0) return items;
+async function enrichAllWithRealtimeTwse(
+  items: RankedStockItem[]
+): Promise<Map<string, RankedStockItem>> {
+  const resultMap = new Map<string, RankedStockItem>();
+  if (!items || items.length === 0) return resultMap;
+
+  // 預設填入既有快取或原始項目，保證絕對不會退回空物件
+  for (const it of items) {
+    const cached = lastKnownLiveQuotes.get(it.symbol);
+    resultMap.set(it.symbol, cached || it);
+  }
+
   try {
-    const exCh = items
+    const uniqueItems = Array.from(
+      new Map(items.map((s) => [s.symbol.toUpperCase(), s])).values()
+    );
+    const exCh = uniqueItems
       .map((s) => (s.market === "TPEx" ? "otc_" : "tse_") + s.symbol + ".tw")
       .join("|");
+
     const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${encodeURIComponent(
       exCh
     )}&json=1&delay=0&_=${Date.now()}`;
+
     const res = await fetch(url, {
       headers: {
         "User-Agent":
@@ -236,12 +254,13 @@ async function enrichWithRealtimeTwseQuotes(items: RankedStockItem[]): Promise<R
         Referer: "https://mis.twse.com.tw/stock/fibest.jsp",
       },
       cache: "no-store",
-      signal: AbortSignal.timeout(2500),
+      signal: AbortSignal.timeout(4500),
     });
-    if (!res.ok) return items;
+
+    if (!res.ok) return resultMap;
     const json = await res.json();
     const arr = Array.isArray(json?.msgArray) ? json.msgArray : [];
-    if (arr.length === 0) return items;
+    if (arr.length === 0) return resultMap;
 
     const byCode: Record<string, any> = {};
     for (const m of arr) {
@@ -254,32 +273,54 @@ async function enrichWithRealtimeTwseQuotes(items: RankedStockItem[]): Promise<R
       return Number.isFinite(n) ? n : 0;
     };
 
-    return items.map((it) => {
+    for (const it of uniqueItems) {
       const live = byCode[it.symbol.toUpperCase()];
-      if (!live) return it;
+      if (!live) continue;
+
       const z = parseP(live.z);
       const pz = parseP(live.pz);
+      const o = parseP(live.o);
       const y = parseP(live.y);
       const vLots = parseP(live.v);
-      const livePrice = z > 0 ? z : pz > 0 ? pz : it.price;
-      const prevClose = y > 0 ? y : it.price - it.change;
-      const chg = livePrice > 0 && prevClose > 0 ? Number((livePrice - prevClose).toFixed(2)) : it.change;
-      const pct = prevClose > 0 ? Number((((livePrice - prevClose) / prevClose) * 100).toFixed(2)) : it.change_pct;
-      const volLots = vLots > 0 ? Math.round(vLots) : it.volume_lots;
-      return {
+      const cached = lastKnownLiveQuotes.get(it.symbol);
+
+      // 成交價判定：即時成交價 (z) > 試算 (pz) > 開盤 (o) > 快取最新價 > 原價
+      let livePrice = z > 0 ? z : pz > 0 ? pz : o > 0 ? o : cached?.price || it.price;
+      // 昨收價判定：TWSE MIS (y) > 快取昨收 > 原昨收
+      const prevClose = y > 0 ? y : cached?.price ? (cached.price - cached.change) : (it.price - it.change);
+
+      // 如果有真實價格與昨收，精準計算漲跌金額與漲跌幅
+      let chg = it.change;
+      let pct = it.change_pct;
+      if (livePrice > 0 && prevClose > 0) {
+        chg = Number((livePrice - prevClose).toFixed(2));
+        pct = Number((((livePrice - prevClose) / prevClose) * 100).toFixed(2));
+      }
+
+      const volLots = vLots > 0 ? Math.round(vLots) : cached?.volume_lots || it.volume_lots;
+
+      const enriched: RankedStockItem = {
         ...it,
         price: livePrice,
         change: chg,
         change_pct: pct,
         volume_lots: volLots,
         volume: volLots * 1000,
-        limit_up: parseP(live.u),
-        limit_down: parseP(live.w),
+        limit_up: parseP(live.u) || it.limit_up,
+        limit_down: parseP(live.w) || it.limit_down,
       };
-    });
-  } catch {
-    return items;
+
+      // 只要確認不是 0.00 且有價格，更新伺服器持久快顯記憶體
+      if (enriched.price > 0) {
+        lastKnownLiveQuotes.set(it.symbol, enriched);
+      }
+      resultMap.set(it.symbol, enriched);
+    }
+  } catch (err) {
+    console.warn("TWSE MIS batch quote timeout or failed, using persistent live snapshot:", err);
   }
+
+  return resultMap;
 }
 
 function sortRankings(
@@ -477,11 +518,13 @@ export async function GET(req: NextRequest) {
   const allEtfs = allTw.filter((x) => x.is_etf);
   const rawEtf = sortRankings(allEtfs, sortBy, limit, true);
 
-  const [twse, tpex, etf] = await Promise.all([
-    enrichWithRealtimeTwseQuotes(rawTwse),
-    enrichWithRealtimeTwseQuotes(rawTpex),
-    enrichWithRealtimeTwseQuotes(rawEtf),
-  ]);
+  // 單一批次統一查詢 TWSE MIS，防止 3 個並發請求互相競爭與超時斷線
+  const allCandidates = [...rawTwse, ...rawTpex, ...rawEtf];
+  const enrichedMap = await enrichAllWithRealtimeTwse(allCandidates);
+
+  const twse = rawTwse.map((s) => enrichedMap.get(s.symbol) || s);
+  const tpex = rawTpex.map((s) => enrichedMap.get(s.symbol) || s);
+  const etf = rawEtf.map((s) => enrichedMap.get(s.symbol) || s);
 
   return NextResponse.json(
     {
