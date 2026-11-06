@@ -230,6 +230,8 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
     const borderColor = isLight ? 'rgba(148, 163, 184, 0.4)' : 'rgba(59, 130, 246, 0.2)';
     const textColor = isLight ? '#475569' : '#94a3b8';
 
+    const targetTz = market === 'US' ? 'America/New_York' : 'Asia/Taipei';
+
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth || 800,
       height: chartContainerRef.current.clientHeight || 398,
@@ -248,11 +250,68 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
         visible: true,
         borderColor,
       },
+      localization: {
+        locale: 'zh-TW',
+        dateFormat: 'yyyy/MM/dd',
+        timeFormatter: (time: any) => {
+          if (typeof time === 'number') {
+            const d = new Date(time * 1000);
+            return d.toLocaleString('zh-TW', {
+              timeZone: targetTz,
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            });
+          }
+          if (typeof time === 'string') return time;
+          if (time && typeof time === 'object' && 'year' in time) {
+            return `${time.year}/${String(time.month).padStart(2, '0')}/${String(time.day).padStart(2, '0')}`;
+          }
+          return String(time);
+        },
+      },
       timeScale: { 
         borderColor, 
         timeVisible: isIntradayPeriod,
         fixLeftEdge: true,
         fixRightEdge: true,
+        tickMarkFormatter: (time: any, tickMarkType: number) => {
+          if (typeof time === 'number') {
+            const d = new Date(time * 1000);
+            // TickMarkType: Year = 0, Month = 1, DayOfMonth = 2, Time = 3, TimeWithSeconds = 4
+            if (tickMarkType === 3 || tickMarkType === 4) {
+              return d.toLocaleTimeString('zh-TW', {
+                timeZone: targetTz,
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+            }
+            if (tickMarkType === 2) {
+              return d.toLocaleDateString('zh-TW', {
+                timeZone: targetTz,
+                month: 'numeric',
+                day: 'numeric',
+              });
+            }
+            if (tickMarkType === 1) {
+              return d.toLocaleDateString('zh-TW', {
+                timeZone: targetTz,
+                month: 'short',
+              });
+            }
+            if (tickMarkType === 0) {
+              return d.toLocaleDateString('zh-TW', {
+                timeZone: targetTz,
+                year: 'numeric',
+              });
+            }
+          }
+          return null;
+        },
       },
       handleScroll: {
         mouseWheel: true,
@@ -798,7 +857,7 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
           <div className="absolute top-10 left-4 z-20 bg-[var(--bg-tertiary)]/90 backdrop-blur border border-[var(--border)] p-2 rounded-md shadow-xl text-xs font-mono pointer-events-none transition-opacity">
             <div className="text-secondary mb-1">
               {typeof tooltipData.time === 'number' 
-                ? new Date(tooltipData.time * 1000).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+                ? new Date(tooltipData.time * 1000).toLocaleString('zh-TW', { timeZone: market === 'US' ? 'America/New_York' : 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
                 : tooltipData.time}
             </div>
             <div className="flex gap-3">
