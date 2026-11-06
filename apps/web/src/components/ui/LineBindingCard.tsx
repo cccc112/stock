@@ -214,6 +214,18 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
             <span>{isPushing ? "推播傳送中..." : "一鍵測試 LINE 廣播"}</span>
           </button>
 
+          <button
+            onClick={() => {
+              setPushStatus("error");
+              setIsPushModalOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] text-secondary hover:text-primary border border-[var(--border)] text-xs font-medium transition-colors cursor-pointer"
+            title="直接填寫或修改 Channel ID 與 Channel Secret"
+          >
+            <Key size={13} className="text-amber-400" />
+            <span>配置金鑰</span>
+          </button>
+
           <a
             href="https://line.me/R/ti/p/@stock_radar"
             target="_blank"
@@ -391,21 +403,18 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
                 </div>
               </div>
 
-              {/* 為什麼 Basic settings 根本沒有 Token 的真相關懷 */}
+              {/* 為什麼後台根本沒有 Token 的真相關懷 */}
               <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] space-y-2 text-xs text-secondary">
                 <div className="font-bold text-primary flex items-center gap-1.5">
                   <RefreshCw size={13} className="text-amber-400" />
-                  <span>為什麼 Basic settings 頁面「根本沒有」Channel access token？</span>
+                  <span>為什麼你在 LINE 官方後台（manager.line.biz）完全找不到 Token？</span>
                 </div>
                 <div className="text-[11px] leading-relaxed space-y-1.5 text-secondary">
                   <p>
-                    <strong>你的直覺完全正確！</strong>在 LINE Developers 的「Basic settings」頁籤中本來就<strong>只有 Channel ID 與 Channel secret</strong>，翻遍全頁都不會有 Token。
-                  </p>
-                  <p>
-                    LINE 官方把手動 Token 發行按鈕藏在另一個頁籤「<strong>Messaging API</strong>」最底端的「Issue」按鈕。
+                    <strong>你的直覺完全正確！</strong>在 LINE 官方帳號管理後台（manager.line.biz）的「Messaging API」頁面中，本來就<strong>只有 Channel ID 與 Channel secret</strong>，翻遍全頁都不會有 Token。
                   </p>
                   <p className="text-emerald-400 font-semibold">
-                    💡 好消息：你既然有 Channel ID 與 Channel Secret，系統現在已經支援以官方 OAuth 機制「全自動換發」，再也不需要去大海撈針找 Token！
+                    💡 好消息：你完全不需要 Token！只要把你在該頁面看到的 Channel ID 與 Channel secret 填在下方，系統會直接透過 LINE 官方 OAuth 機制「全自動換發」，再也不需要大海撈針！
                   </p>
                 </div>
               </div>
