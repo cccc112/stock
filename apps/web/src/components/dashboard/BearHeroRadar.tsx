@@ -59,12 +59,12 @@ export default function BearHeroRadar() {
           <div>
             <h2 className="text-xl sm:text-2xl font-extrabold text-primary flex items-center gap-2">
               <span>熊霸盤中即時情報站</span>
-              <span className="text-amber-400 text-sm font-sans font-semibold px-2 py-0.5 rounded-md bg-amber-400/10 border border-amber-400/20">
-                金黃 V 領 · 突破哨兵
+              <span className="text-cyan-400 text-sm font-sans font-semibold px-2 py-0.5 rounded-md bg-cyan-400/10 border border-cyan-400/20">
+                純白 V 領 · 守護哨兵
               </span>
             </h2>
             <p className="text-xs sm:text-sm text-secondary mt-1 leading-relaxed">
-              胸前的金黃 V 領象徵「VCP 波動收斂放量突破」與「V 型絕地反轉」！全天候監控全市場 1,900+ 檔標的主力籌碼、SMC 機構訂單塊與階梯掛單。
+              胸前的純白 V 領象徵正宗台灣黑熊與「Victory 絕地反轉」！全天候監控全市場 1,900+ 檔標的主力籌碼、SMC 機構訂單塊與階梯掛單。
             </p>
           </div>
 

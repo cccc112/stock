@@ -72,7 +72,7 @@ const FORTUNES: FortuneSlip[] = [
 ];
 
 const POKE_QUOTES = [
-  "哎呀！被抓到了！胸前的金黃 V 字就是反轉訊號！",
+  "哎呀！被抓到了！胸前的純白大 V 字就是勝利反轉訊號！",
   "呼嚕呼嚕... 主力正在甩轎洗盤，抓緊別被甩出場！",
   "量化雷達全天候在線，偵測到主力爆量第一時間提醒你！",
   "摸一摸熊霸，下單不衝動，嚴守紀律穩健獲利！",
@@ -644,7 +644,7 @@ export default function TaiwanBearMascot() {
             {/* 微笑小嘴 */}
             <path d="M 47 62 Q 50 65 53 62" stroke="#0f172a" strokeWidth="2" strokeLinecap="round" fill="none" />
 
-            {/* ★ 核心靈魂：胸前巨大白色/金黃「V」字胸標 (象徵 V-shaped Rebound 與勝利 Victory) ★ */}
+            {/* ★ 核心靈魂：胸前巨大純白「V」字胸標 (正宗台灣黑熊 & 象徵 Victory 絕地反轉) ★ */}
             <path
               d="M 32 75 L 50 92 L 68 75"
               stroke={

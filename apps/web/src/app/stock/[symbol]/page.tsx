@@ -141,13 +141,19 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   };
 
   const market = stock?.market ?? (symbol.match(/^\d/) ? 'TW' : 'US');
+  const cleanSym = symbol.toUpperCase().replace(/\.(TW|TWO)$/i, "");
+  const isIndex = symbol.startsWith("^") || ["TWII", "TWOII", "IXIC", "GSPC", "SOX", "DJI", "BTC", "GOLD", "TNX"].includes(cleanSym);
+  const isTwStock = market === 'TW' && !isIndex;
+
   const isLimitUp = Boolean(
-    (stock?.limit_up && stock.limit_up > 0 && stock.price >= stock.limit_up) ||
-      (stock?.change_pct ?? 0) >= 9.5
+    isTwStock &&
+      ((stock?.limit_up && stock.limit_up > 0 && stock.price >= stock.limit_up) ||
+        (stock?.change_pct ?? 0) >= 9.8)
   );
   const isLimitDown = Boolean(
-    (stock?.limit_down && stock.limit_down > 0 && stock.price <= stock.limit_down) ||
-      (stock?.change_pct ?? 0) <= -9.5
+    isTwStock &&
+      ((stock?.limit_down && stock.limit_down > 0 && stock.price <= stock.limit_down) ||
+        (stock?.change_pct ?? 0) <= -9.8)
   );
 
   if (loading) {

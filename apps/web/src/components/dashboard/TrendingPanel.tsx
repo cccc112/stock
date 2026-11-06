@@ -20,6 +20,7 @@ interface RankedStock {
   volume: number;
   turnover_b?: number;
   volume_lots?: number;
+  is_etf?: boolean;
 }
 
 const STOCK_NAMES: Record<string, string> = {
@@ -313,8 +314,9 @@ export default function TrendingPanel() {
             <tbody>
               {list.map((stock, idx) => {
                 const changePct = stock.change_pct ?? 0;
-                const isLimitUp = Boolean(((stock as any).limit_up && (stock as any).limit_up > 0 && stock.price >= (stock as any).limit_up) || changePct >= 9.5);
-                const isLimitDown = Boolean(((stock as any).limit_down && (stock as any).limit_down > 0 && stock.price <= (stock as any).limit_down) || changePct <= -9.5);
+                const isRegularStock = !stock.is_etf && !stock.symbol.startsWith("00");
+                const isLimitUp = Boolean(isRegularStock && (((stock as any).limit_up && (stock as any).limit_up > 0 && stock.price >= (stock as any).limit_up) || changePct >= 9.8));
+                const isLimitDown = Boolean(isRegularStock && (((stock as any).limit_down && (stock as any).limit_down > 0 && stock.price <= (stock as any).limit_down) || changePct <= -9.8));
                 const volRatio = Math.min(100, Math.round(((stock.volume || 0) / maxVol) * 100));
                 return (
                   <tr

@@ -14,7 +14,7 @@
       <stop offset="100%" stop-color="#020617" />
     </linearGradient>
 
-    <!-- 胸前厚實金黃 V 領漸層 (勝利 Victory & VCP 突破) -->
+    <!-- 胸前厚實純白 V 領 (正宗台灣黑熊標誌 & 勝利 Victory) -->
     <linearGradient id="goldV" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#FEF08A" />
       <stop offset="35%" stop-color="#F59E0B" />
@@ -110,15 +110,14 @@
     <!-- 微笑小嘴 -->
     <path d="M 482 600 Q 512 625 542 600" stroke="#0F172A" stroke-width="14" stroke-linecap="round" fill="none" />
 
-    <!-- ★ 核心靈魂標誌：胸前巨大厚實金色「V」字胸標 (勝利 Victory & VCP 突破) ★ -->
+    <!-- ★ 核心靈魂標誌：胸前巨大厚實純白「V」字胸標 (正宗台灣黑熊靈魂) ★ -->
     <path
       d="M 330 690 L 512 870 L 694 690"
-      stroke="url(#goldV)"
-      stroke-width="54"
+      stroke="#FFFFFF"
+      stroke-width="56"
       stroke-linecap="round"
       stroke-linejoin="round"
       fill="none"
-      filter="url(#goldGlow)"
     />
   </g>
 </svg>

@@ -12,11 +12,11 @@ interface Bear3DModelProps {
 }
 
 const BEAR_QUOTES = [
-  "胸前正宗台灣黑熊金黃 V 領，就是 VCP 突破與絕地反轉的最強訊號！",
-  "我是熊霸 V-Bear！右下角也是我，盤中 0 秒哨兵隨時守護你的交易！",
+  "胸前的純白 V 領，是正宗台灣黑熊的象徵與 Victory 絕地反轉最強訊號！",
+  "我是熊霸 V-Bear！右下角也是我，盤中 0 秒哨兵為你守護每一筆交易！",
   "主力洗盤震盪不用慌，看好 20MA 支撐與量價結構！",
-  "摸摸我！下單前嚴守交易紀律，停損第一，賺大賠小！",
-  "台股 1,900+ 檔即時成交雷達，爆量飆股絕逃不過我的雙眼！",
+  "摸摸我！下單前嚴守交易紀律，嚴設停損，賺大賠小！",
+  "全市場 1,900+ 檔即時成交雷達，爆量飆股絕逃不過我的雙眼！",
 ];
 
 export default function Bear3DModel({
@@ -39,7 +39,7 @@ export default function Bear3DModel({
     // 1. Scene & Camera
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    camera.position.set(0, 0, 6.8);
+    camera.position.set(0, 0, 6.6);
 
     // 2. WebGL Renderer
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
@@ -51,37 +51,37 @@ export default function Bear3DModel({
     container.appendChild(renderer.domElement);
 
     // 3. Lighting
-    // 環境柔光
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
+    // 環境柔光 (柔和通透)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.6);
     scene.add(ambientLight);
 
-    // 主方向光 (照亮五官立體感)
-    const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
+    // 主方向光 (照亮五官立體萌態)
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.8);
     dirLight.position.set(3.5, 4.5, 5);
     scene.add(dirLight);
 
-    // 金黃 V 領專屬反射光 (微暖金芒)
-    const goldLight = new THREE.PointLight(0xf59e0b, 2.8, 8);
-    goldLight.position.set(0, -0.6, 2.5);
-    scene.add(goldLight);
+    // 胸前純白 V 領柔和補光 (純白月光，絕非金色)
+    const whiteChestLight = new THREE.PointLight(0xffffff, 1.8, 6);
+    whiteChestLight.position.set(0, -0.5, 2.4);
+    scene.add(whiteChestLight);
 
     // 科技天藍輪廓光 (Rim Light，呼應全站夜空天藍調)
-    const cyanRim = new THREE.DirectionalLight(0x38bdf8, 1.8);
+    const cyanRim = new THREE.DirectionalLight(0x38bdf8, 1.5);
     cyanRim.position.set(-4, 3, -2);
     scene.add(cyanRim);
 
-    // 4. Materials (嚴格依照右下角台灣黑熊設定)
+    // 4. Materials (嚴格依照右下角台灣黑熊設定，超萌呆萌風格)
     // 墨夜黑毛皮材質 (深黑溫潤微絨感)
     const furMaterial = new THREE.MeshStandardMaterial({
       color: 0x0f172a,
       roughness: 0.65,
-      metalness: 0.1,
+      metalness: 0.08,
     });
 
-    // 內耳粉嫩材質 (與右下角 #fda4af 一模一樣)
+    // 內耳粉嫩材質 (與右下角 #fda4af 完全一致)
     const innerEarMaterial = new THREE.MeshStandardMaterial({
       color: 0xfda4af,
-      roughness: 0.5,
+      roughness: 0.45,
       metalness: 0.05,
     });
 
@@ -92,14 +92,14 @@ export default function Bear3DModel({
       metalness: 0.05,
     });
 
-    // 靈動大眼睛：黑色大眼珠材質 (深邃高光)
+    // 靈動大眼睛：黑色大眼珠材質 (深邃有神)
     const pupilMaterial = new THREE.MeshStandardMaterial({
       color: 0x090d16,
-      roughness: 0.15,
-      metalness: 0.15,
+      roughness: 0.12,
+      metalness: 0.1,
     });
 
-    // 眼睛白色晶亮高光點 (與右下角高光圓點一致)
+    // 眼睛純白晶瑩高光點 (超萌亮眼核心)
     const highlightMaterial = new THREE.MeshBasicMaterial({
       color: 0xffffff,
     });
@@ -109,21 +109,21 @@ export default function Bear3DModel({
       color: 0xf43f5e,
       roughness: 0.5,
       transparent: true,
-      opacity: 0.48,
+      opacity: 0.5,
     });
 
-    // 乳白色凸出吻部 (與右下角 #f1f5f9 一致)
+    // 乳白色凸出圓潤吻部 (與右下角 #f1f5f9 一致)
     const muzzleMaterial = new THREE.MeshStandardMaterial({
       color: 0xf1f5f9,
-      roughness: 0.55,
+      roughness: 0.5,
       metalness: 0.05,
     });
 
-    // 黑色倒三角鼻子與嘴角材質
+    // 黑色倒三角小鼻子與微笑嘴角材質
     const darkFeatureMaterial = new THREE.MeshStandardMaterial({
       color: 0x090d16,
       roughness: 0.25,
-      metalness: 0.15,
+      metalness: 0.1,
     });
 
     // 頭頂天線材質 (天藍發光)
@@ -143,55 +143,55 @@ export default function Bear3DModel({
       metalness: 0.9,
     });
 
-    // ★ 核心靈魂標誌：胸前巨大白色/金黃「V」字胸標 (勝利 Victory & VCP 突破) ★
+    // ★ 正宗台灣黑熊靈魂：純白雪亮大「V」字胸標 (不是金色的！純白更顯萌態與正宗精神！) ★
     const vNeckMaterial = new THREE.MeshStandardMaterial({
       color: 0xffffff,
-      emissive: 0xfef08a,
-      emissiveIntensity: 0.5,
-      roughness: 0.22,
-      metalness: 0.65,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.25,
+      roughness: 0.2,
+      metalness: 0.1,
     });
 
-    // 5. 構建台灣黑熊 3D 結構
+    // 5. 構建超萌台灣黑熊 3D 結構 (Q版 Chibi 萌寵比例)
     const bearGroup = new THREE.Group();
     scene.add(bearGroup);
 
-    // --- A. 頭部組件 (Head Group) ---
+    // --- A. 頭部組件 (Head Group - 圓滾滾大頭) ---
     const headGroup = new THREE.Group();
-    headGroup.position.set(0, 0.45, 0);
+    headGroup.position.set(0, 0.42, 0);
     bearGroup.add(headGroup);
 
-    // 頭部主體 (圓潤飽滿黑熊大頭)
-    const headGeo = new THREE.SphereGeometry(1.22, 36, 36);
-    headGeo.scale(1.05, 0.98, 0.95);
+    // 圓圓大頭 (大頭娃娃超萌比例)
+    const headGeo = new THREE.SphereGeometry(1.26, 36, 36);
+    headGeo.scale(1.08, 1.02, 0.96);
     const headMesh = new THREE.Mesh(headGeo, furMaterial);
     headGroup.add(headMesh);
 
-    // 雙耳 (圓圓大外耳 + 粉嫩內耳)
-    const earGeo = new THREE.SphereGeometry(0.44, 24, 24);
-    const innerEarGeo = new THREE.SphereGeometry(0.26, 20, 20);
+    // 圓圓大耳朵 (左耳與右耳)
+    const earGeo = new THREE.SphereGeometry(0.48, 24, 24);
+    const innerEarGeo = new THREE.SphereGeometry(0.28, 20, 20);
     innerEarGeo.scale(1, 1, 0.25);
 
     // 左耳
     const leftEar = new THREE.Mesh(earGeo, furMaterial);
-    leftEar.position.set(-0.96, 0.95, -0.05);
+    leftEar.position.set(-0.98, 0.98, -0.05);
     headGroup.add(leftEar);
 
     const leftInnerEar = new THREE.Mesh(innerEarGeo, innerEarMaterial);
-    leftInnerEar.position.set(-0.94, 0.95, 0.22);
+    leftInnerEar.position.set(-0.96, 0.98, 0.24);
     headGroup.add(leftInnerEar);
 
     // 右耳
     const rightEar = new THREE.Mesh(earGeo, furMaterial);
-    rightEar.position.set(0.96, 0.95, -0.05);
+    rightEar.position.set(0.98, 0.98, -0.05);
     headGroup.add(rightEar);
 
     const rightInnerEar = new THREE.Mesh(innerEarGeo, innerEarMaterial);
-    rightInnerEar.position.set(0.94, 0.95, 0.22);
+    rightInnerEar.position.set(0.96, 0.98, 0.24);
     headGroup.add(rightInnerEar);
 
-    // 科技耳機天線 (量化雷達感應器 - 橫跨頭頂的弧環與感應珠)
-    const antennaGeo = new THREE.TorusGeometry(1.04, 0.038, 16, 48, Math.PI * 0.72);
+    // 科技耳機天線 (天藍弧線 + 頂端感應珠)
+    const antennaGeo = new THREE.TorusGeometry(1.06, 0.038, 16, 48, Math.PI * 0.72);
     const antennaMesh = new THREE.Mesh(antennaGeo, antennaMaterial);
     antennaMesh.rotation.z = -Math.PI * 0.86;
     antennaMesh.rotation.x = -0.12;
@@ -200,107 +200,107 @@ export default function Bear3DModel({
 
     const tipGeo = new THREE.SphereGeometry(0.12, 16, 16);
     const tipMesh = new THREE.Mesh(tipGeo, antennaTipMaterial);
-    tipMesh.position.set(0, 1.38, 0);
+    tipMesh.position.set(0, 1.40, 0);
     headGroup.add(tipMesh);
 
-    // 靈動大眼睛 (右下角同款：大白眼球 + 黑色瞳孔 + 純白高光)
-    const eyeWhiteGeo = new THREE.SphereGeometry(0.22, 24, 24);
+    // 靈動大眼睛 (右下角同款：大白眼球 + 黑色瞳孔 + 純白晶瑩高光)
+    const eyeWhiteGeo = new THREE.SphereGeometry(0.24, 24, 24);
     eyeWhiteGeo.scale(1, 1, 0.35);
 
-    const pupilGeo = new THREE.SphereGeometry(0.13, 20, 20);
+    const pupilGeo = new THREE.SphereGeometry(0.14, 20, 20);
     pupilGeo.scale(1, 1, 0.4);
 
-    const highlightGeo = new THREE.SphereGeometry(0.055, 12, 12);
+    const highlightGeo = new THREE.SphereGeometry(0.06, 12, 12);
 
     // 左眼
     const leftEyeWhite = new THREE.Mesh(eyeWhiteGeo, eyeWhiteMaterial);
-    leftEyeWhite.position.set(-0.42, 0.14, 1.05);
+    leftEyeWhite.position.set(-0.44, 0.14, 1.08);
     headGroup.add(leftEyeWhite);
 
     const leftPupil = new THREE.Mesh(pupilGeo, pupilMaterial);
-    leftPupil.position.set(-0.40, 0.12, 1.13);
+    leftPupil.position.set(-0.42, 0.12, 1.18);
     headGroup.add(leftPupil);
 
     const leftHighlight = new THREE.Mesh(highlightGeo, highlightMaterial);
-    leftHighlight.position.set(-0.37, 0.16, 1.18);
+    leftHighlight.position.set(-0.39, 0.16, 1.24);
     headGroup.add(leftHighlight);
 
     // 右眼
     const rightEyeWhite = new THREE.Mesh(eyeWhiteGeo, eyeWhiteMaterial);
-    rightEyeWhite.position.set(0.42, 0.14, 1.05);
+    rightEyeWhite.position.set(0.44, 0.14, 1.08);
     headGroup.add(rightEyeWhite);
 
     const rightPupil = new THREE.Mesh(pupilGeo, pupilMaterial);
-    rightPupil.position.set(0.44, 0.12, 1.13);
+    rightPupil.position.set(0.46, 0.12, 1.18);
     headGroup.add(rightPupil);
 
     const rightHighlight = new THREE.Mesh(highlightGeo, highlightMaterial);
-    rightHighlight.position.set(0.47, 0.16, 1.18);
+    rightHighlight.position.set(0.49, 0.16, 1.24);
     headGroup.add(rightHighlight);
 
     // 圓滾滾粉紅腮紅 (兩頰可愛紅暈)
-    const blushGeo = new THREE.SphereGeometry(0.18, 16, 16);
-    blushGeo.scale(1, 0.8, 0.15);
+    const blushGeo = new THREE.SphereGeometry(0.20, 16, 16);
+    blushGeo.scale(1, 0.75, 0.15);
 
     const leftBlush = new THREE.Mesh(blushGeo, blushMaterial);
-    leftBlush.position.set(-0.70, -0.16, 0.95);
+    leftBlush.position.set(-0.74, -0.16, 0.98);
     headGroup.add(leftBlush);
 
     const rightBlush = new THREE.Mesh(blushGeo, blushMaterial);
-    rightBlush.position.set(0.70, -0.16, 0.95);
+    rightBlush.position.set(0.74, -0.16, 0.98);
     headGroup.add(rightBlush);
 
-    // 乳白色凸出吻部 (Muzzle)
-    const muzzleGeo = new THREE.SphereGeometry(0.54, 28, 28);
-    muzzleGeo.scale(1.18, 0.78, 0.7);
+    // 乳白色凸出圓潤吻部 (Muzzle)
+    const muzzleGeo = new THREE.SphereGeometry(0.56, 28, 28);
+    muzzleGeo.scale(1.20, 0.76, 0.72);
     const muzzleMesh = new THREE.Mesh(muzzleGeo, muzzleMaterial);
-    muzzleMesh.position.set(0, -0.14, 0.96);
+    muzzleMesh.position.set(0, -0.15, 0.98);
     headGroup.add(muzzleMesh);
 
-    // 倒三角形小黑鼻
+    // 黑色小巧倒三角形黑鼻
     const noseGeo = new THREE.CylinderGeometry(0.04, 0.14, 0.14, 16);
     noseGeo.scale(1.3, 0.8, 0.8);
     const noseMesh = new THREE.Mesh(noseGeo, darkFeatureMaterial);
     noseMesh.rotation.x = Math.PI / 2.2;
-    noseMesh.position.set(0, 0.02, 1.34);
+    noseMesh.position.set(0, 0.02, 1.38);
     headGroup.add(noseMesh);
 
     // 微笑嘴角
-    const mouthGeo = new THREE.TorusGeometry(0.11, 0.022, 12, 24, Math.PI);
+    const mouthGeo = new THREE.TorusGeometry(0.12, 0.022, 12, 24, Math.PI);
     const mouthMesh = new THREE.Mesh(mouthGeo, darkFeatureMaterial);
     mouthMesh.rotation.z = Math.PI;
-    mouthMesh.position.set(0, -0.18, 1.32);
+    mouthMesh.position.set(0, -0.18, 1.35);
     headGroup.add(mouthMesh);
 
-    // --- B. 圓滾滾身軀 (Body Group) ---
+    // --- B. 憨厚圓滾滾身軀 (Body Group) ---
     const bodyGroup = new THREE.Group();
     bodyGroup.position.set(0, -0.85, 0);
     bearGroup.add(bodyGroup);
 
-    // 憨厚圓滾滾身軀
-    const bodyGeo = new THREE.SphereGeometry(1.26, 32, 32);
-    bodyGeo.scale(1.02, 1.12, 0.95);
+    // 短胖圓潤身軀 (大頭短身萌感)
+    const bodyGeo = new THREE.SphereGeometry(1.18, 32, 32);
+    bodyGeo.scale(1.02, 1.08, 0.95);
     const bodyMesh = new THREE.Mesh(bodyGeo, furMaterial);
-    bodyMesh.position.set(0, -0.35, 0);
+    bodyMesh.position.set(0, -0.32, 0);
     bodyGroup.add(bodyMesh);
 
-    // 圓圓小熊手 (Paws)
-    const pawGeo = new THREE.SphereGeometry(0.36, 20, 20);
+    // 短短小熊手 (Paws)
+    const pawGeo = new THREE.SphereGeometry(0.34, 20, 20);
     pawGeo.scale(0.85, 1.1, 0.9);
 
     const leftPaw = new THREE.Mesh(pawGeo, furMaterial);
-    leftPaw.position.set(-1.08, -0.45, 0.35);
-    leftPaw.rotation.z = 0.4;
+    leftPaw.position.set(-1.02, -0.42, 0.35);
+    leftPaw.rotation.z = 0.35;
     bodyGroup.add(leftPaw);
 
     const rightPaw = new THREE.Mesh(pawGeo, furMaterial);
-    rightPaw.position.set(1.08, -0.45, 0.35);
-    rightPaw.rotation.z = -0.4;
+    rightPaw.position.set(1.02, -0.42, 0.35);
+    rightPaw.rotation.z = -0.35;
     bodyGroup.add(rightPaw);
 
-    // --- C. ★ 靈魂亮點：胸前立體大「V」字胸標 ★ ---
+    // --- C. ★ 純白正宗雪亮大「V」字胸標 ★ ---
     const vGroup = new THREE.Group();
-    const vArmGeo = new THREE.CylinderGeometry(0.09, 0.09, 1.12, 20);
+    const vArmGeo = new THREE.CylinderGeometry(0.10, 0.10, 1.12, 20);
 
     // 左 V 臂
     const leftVArm = new THREE.Mesh(vArmGeo, vNeckMaterial);
@@ -314,8 +314,8 @@ export default function Bear3DModel({
     rightVArm.rotation.z = 0.66;
     vGroup.add(rightVArm);
 
-    // V 尖端球體銜接
-    const vTipGeo = new THREE.SphereGeometry(0.12, 16, 16);
+    // V 尖端圓球銜接
+    const vTipGeo = new THREE.SphereGeometry(0.13, 16, 16);
     const vTipMesh = new THREE.Mesh(vTipGeo, vNeckMaterial);
     vTipMesh.position.set(0, -0.28, 0.02);
     vGroup.add(vTipMesh);
@@ -329,46 +329,10 @@ export default function Bear3DModel({
     vCapRight.position.set(0.73, 0.62, -0.02);
     vGroup.add(vCapRight);
 
-    // 貼合圓滾滾胸膛
-    vGroup.position.set(0, -0.38, 1.02);
+    // 順著圓滾滾胸腹貼合
+    vGroup.position.set(0, -0.35, 1.02);
     vGroup.rotation.x = 0.22;
     bodyGroup.add(vGroup);
-
-    // --- D. 科技守護量子光環 (Quantum Halo) ---
-    const haloGeo = new THREE.TorusGeometry(1.85, 0.03, 16, 80);
-    const haloMat = new THREE.MeshStandardMaterial({
-      color: 0x38bdf8,
-      emissive: 0x0284c7,
-      emissiveIntensity: 0.8,
-      roughness: 0.2,
-      metalness: 0.9,
-    });
-    const haloMesh = new THREE.Mesh(haloGeo, haloMat);
-    haloMesh.rotation.x = Math.PI / 2.3;
-    haloMesh.position.y = -0.3;
-    bearGroup.add(haloMesh);
-
-    // 粒子微塵 (Data Spark Particles)
-    const particleCount = 36;
-    const particleGeo = new THREE.BufferGeometry();
-    const particlePositions = new Float32Array(particleCount * 3);
-    for (let i = 0; i < particleCount * 3; i += 3) {
-      const radius = 2.1 + Math.random() * 1.2;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = (Math.random() - 0.5) * Math.PI;
-      particlePositions[i] = radius * Math.cos(phi) * Math.cos(theta);
-      particlePositions[i + 1] = radius * Math.sin(phi);
-      particlePositions[i + 2] = radius * Math.cos(phi) * Math.sin(theta);
-    }
-    particleGeo.setAttribute("position", new THREE.BufferAttribute(particlePositions, 3));
-    const particleMat = new THREE.PointsMaterial({
-      color: 0x38bdf8,
-      size: 0.07,
-      transparent: true,
-      opacity: 0.75,
-    });
-    const particles = new THREE.Points(particleGeo, particleMat);
-    scene.add(particles);
 
     // 6. 互動與動畫循環
     let reqId: number;
@@ -416,12 +380,8 @@ export default function Bear3DModel({
       // 3. 頭頂雷達感應珠呼吸微脈動
       tipMesh.scale.setScalar(1 + Math.sin(elapsed * 4.0) * 0.12);
 
-      // 4. 光環與星塵粒子微旋轉
-      haloMesh.rotation.z = elapsed * 0.6;
-      particles.rotation.y = elapsed * 0.12;
-
-      // 5. V 領專屬反射金光脈動
-      goldLight.intensity = 2.4 + Math.sin(elapsed * 3.2) * 0.8;
+      // 4. 純白 V 領柔和光輝微脈動
+      whiteChestLight.intensity = 1.8 + Math.sin(elapsed * 3.0) * 0.4;
 
       renderer.render(scene, camera);
     };
@@ -451,8 +411,6 @@ export default function Bear3DModel({
       pawGeo.dispose();
       vArmGeo.dispose();
       vTipGeo.dispose();
-      haloGeo.dispose();
-      particleGeo.dispose();
     };
   }, [size, interactive]);
 
@@ -475,8 +433,8 @@ export default function Bear3DModel({
 
       {/* 互動對話提示氣泡 */}
       {showQuote && (
-        <div className="mt-1 px-3 py-1.5 rounded-xl bg-[var(--bg-secondary)]/90 border border-amber-500/30 text-primary backdrop-blur-md max-w-[280px] shadow-lg text-center animate-fade-in">
-          <div className="flex items-center justify-center gap-1.5 text-[11px] font-bold text-amber-400 mb-0.5">
+        <div className="mt-1 px-3 py-1.5 rounded-xl bg-[var(--bg-secondary)]/90 border border-cyan-500/30 text-primary backdrop-blur-md max-w-[280px] shadow-lg text-center animate-fade-in">
+          <div className="flex items-center justify-center gap-1.5 text-[11px] font-bold text-cyan-400 mb-0.5">
             <Sparkles size={12} />
             <span>台灣黑熊 熊霸 3D 量化解密</span>
             {isSpinning && <RotateCcw size={11} className="animate-spin text-accent ml-1" />}
