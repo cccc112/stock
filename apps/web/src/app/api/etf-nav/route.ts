@@ -45,6 +45,10 @@ export interface EtfNavRecord {
   date: string;
   time: string;
   status: "溢價" | "折價" | "平價";
+  change?: number;
+  change_pct?: number;
+  volume?: number;
+  volume_lots?: number;
   profile?: EtfProfileMeta;
   holdings?: EtfHoldingLive[];
   sector_weights?: { sector: string; weight: number }[];
@@ -707,7 +711,7 @@ async function fetchAllEtfNav(): Promise<EtfNavRecord[]> {
     // fallback to market data merge below
   }
 
-  // Merge with TWSE/TPEx daily market data so all 362 ETFs are guaranteed present
+  // Merge with TWSE/TPEx daily market data so all 362 ETFs are guaranteed present and have exact real prices
   try {
     const marketData = await getCachedTwMarketData();
     if (marketData?.twseAll && marketData?.tpexAll) {
@@ -719,19 +723,42 @@ async function fetchAllEtfNav(): Promise<EtfNavRecord[]> {
         if (!existing) {
           recordsMap.set(sym, {
             symbol: sym,
-            name: item.name,
+            name: item.name || sym,
             price: item.price,
             nav: item.price,
             discount_pct: 0,
             prev_nav: Number((item.price - item.change).toFixed(2)) || item.price,
             shares_net: 0,
             aum_units: 0,
-            date: new Date().toISOString().slice(0, 10),
+            date: item.date || new Date().toISOString().slice(0, 10),
             time: "13:30:00",
             status: "平價",
+            change: item.change,
+            change_pct: item.change_pct,
+            volume: item.volume,
+            volume_lots: item.volume_lots,
           });
-        } else if (existing.price <= 0 && item.price > 0) {
-          existing.price = item.price;
+        } else {
+          // 若已有淨值紀錄，無縫同步證交所真實撮合現價與漲跌幅
+          if (item.price > 0) {
+            existing.price = item.price;
+          }
+          if (item.change !== undefined) {
+            existing.change = item.change;
+          }
+          if (item.change_pct !== undefined) {
+            existing.change_pct = item.change_pct;
+          }
+          if (item.volume_lots !== undefined) {
+            existing.volume_lots = item.volume_lots;
+          }
+          if (item.name && (!existing.name || existing.name === sym)) {
+            existing.name = item.name;
+          }
+          if (existing.nav > 0 && existing.price > 0) {
+            existing.discount_pct = Number((((existing.price - existing.nav) / existing.nav) * 100).toFixed(2));
+            existing.status = existing.discount_pct > 0.05 ? "溢價" : existing.discount_pct < -0.05 ? "折價" : "平價";
+          }
         }
       }
     }

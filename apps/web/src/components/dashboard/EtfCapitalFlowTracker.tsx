@@ -621,7 +621,7 @@ const ETF_FLOW_DATA: EtfFlowItem[] = [
     flow_20d: 680.0,
     flow_ytd: 2150.0,
     shares_net: 36000,
-    aum: 8900,
+    aum: 2980,
     aum_growth_pct: 24.8,
     nav_discount_pct: 0.01,
     dividend_yield: 0.6,
@@ -639,7 +639,7 @@ const ETF_FLOW_DATA: EtfFlowItem[] = [
     flow_20d: 790.0,
     flow_ytd: 2600.0,
     shares_net: 34000,
-    aum: 18200,
+    aum: 5950,
     aum_growth_pct: 19.5,
     nav_discount_pct: 0.02,
     dividend_yield: 1.3,
@@ -657,7 +657,7 @@ const ETF_FLOW_DATA: EtfFlowItem[] = [
     flow_20d: 410.0,
     flow_ytd: 1280.0,
     shares_net: 40500,
-    aum: 3100,
+    aum: 280,
     aum_growth_pct: 46.5,
     nav_discount_pct: 0.05,
     dividend_yield: 0.5,
@@ -675,7 +675,7 @@ const ETF_FLOW_DATA: EtfFlowItem[] = [
     flow_20d: 310.0,
     flow_ytd: 960.0,
     shares_net: 198000,
-    aum: 1450,
+    aum: 480,
     aum_growth_pct: 88.0,
     nav_discount_pct: 0.12,
     dividend_yield: 0,
@@ -693,7 +693,7 @@ const ETF_FLOW_DATA: EtfFlowItem[] = [
     flow_20d: 180.0,
     flow_ytd: 590.0,
     shares_net: 18600,
-    aum: 4800,
+    aum: 750,
     aum_growth_pct: 21.4,
     nav_discount_pct: -0.03,
     dividend_yield: 0,
@@ -725,7 +725,7 @@ export default function EtfCapitalFlowTracker({
   const setSubView = setInternalSubView;
   const [period, setPeriod] = useState<PeriodType>("1d");
   const [direction, setDirection] = useState<FlowFilter>("all");
-  const [market, setMarket] = useState<MarketFilter>("all");
+  const [market, setMarket] = useState<MarketFilter>("TW");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [liveQuotes, setLiveQuotes] = useState<Record<string, { price: number; change_pct: number }>>({});
@@ -759,9 +759,10 @@ export default function EtfCapitalFlowTracker({
       "00943", "00701", "00730", "00731", "00907", "00712", "00675L", "00676R", "00631L", "00632R"
     ];
 
-    const [navRes, quotesRes] = await Promise.allSettled([
+    const [navRes, rankingsRes, quotesRes] = await Promise.allSettled([
       apiMarket.getEtfNav(),
-      Promise.allSettled(topSymbols.map((sym) => apiStocks.getQuote(sym))),
+      apiMarket.getRankings(60),
+      Promise.allSettled(topSymbols.slice(0, 10).map((sym) => apiStocks.getQuote(sym))),
     ]);
 
     if (navRes.status === "fulfilled" && Array.isArray(navRes.value?.data)) {
@@ -772,8 +773,28 @@ export default function EtfCapitalFlowTracker({
       setEtfNavMap(map);
     }
 
+    const updated: Record<string, { price: number; change_pct: number }> = {};
+
+    // 1. 全市場撮合行情批量同步
+    if (rankingsRes.status === "fulfilled" && rankingsRes.value?.data) {
+      const rData = rankingsRes.value.data;
+      const allR = [
+        ...(Array.isArray(rData?.twse) ? rData.twse : []),
+        ...(Array.isArray(rData?.tpex) ? rData.tpex : []),
+        ...(Array.isArray(rData?.etf) ? rData.etf : []),
+      ];
+      allR.forEach((it: any) => {
+        if (it?.symbol && it?.price > 0) {
+          updated[it.symbol] = {
+            price: Number(it.price),
+            change_pct: Number(it.change_pct) || 0,
+          };
+        }
+      });
+    }
+
+    // 2. 核心權值 ETF 即時報價精準更新
     if (quotesRes.status === "fulfilled") {
-      const updated: Record<string, { price: number; change_pct: number }> = {};
       quotesRes.value.forEach((res, idx) => {
         if (res.status === "fulfilled" && res.value?.data?.price) {
           updated[topSymbols[idx]] = {
@@ -782,6 +803,9 @@ export default function EtfCapitalFlowTracker({
           };
         }
       });
+    }
+
+    if (Object.keys(updated).length > 0) {
       setLiveQuotes((prev) => ({ ...prev, ...updated }));
     }
     setIsRefreshing(false);
@@ -849,12 +873,25 @@ export default function EtfCapitalFlowTracker({
       const realPrice = navItem?.price && navItem.price > 0 ? navItem.price : (live?.price || item.price);
       const realDiscount = navItem?.discount_pct !== undefined ? navItem.discount_pct : item.nav_discount_pct;
       const realNav = navItem?.nav || realPrice;
+      const realChangePct =
+        navItem?.change_pct !== undefined
+          ? navItem.change_pct
+          : live?.change_pct !== undefined
+          ? live.change_pct
+          : item.change_pct;
+      const realSharesNet =
+        navItem?.shares_net !== undefined && navItem.shares_net !== 0
+          ? navItem.shares_net
+          : item.shares_net;
+
       return {
         ...item,
+        name: navItem?.name && navItem.name !== item.symbol ? navItem.name : item.name,
         price: realPrice,
         nav: realNav,
         nav_discount_pct: realDiscount,
-        change_pct: live?.change_pct !== undefined ? live.change_pct : item.change_pct,
+        change_pct: realChangePct,
+        shares_net: realSharesNet,
       };
     });
 
@@ -867,7 +904,12 @@ export default function EtfCapitalFlowTracker({
       const price = Number(navItem.price) || 0;
       const nav = Number(navItem.nav) || price;
       const prevNav = Number(navItem.prev_nav) || nav;
-      const changePct = prevNav > 0 ? Number((((price - prevNav) / prevNav) * 100).toFixed(2)) : 0;
+      const changePct =
+        navItem.change_pct !== undefined
+          ? Number(navItem.change_pct)
+          : prevNav > 0
+          ? Number((((price - prevNav) / prevNav) * 100).toFixed(2))
+          : 0;
       const disc = Number(navItem.discount_pct) || 0;
       const sharesNet = Number(navItem.shares_net) || 0;
       const aumUnits = Number(navItem.aum_units) || 0;
@@ -1042,11 +1084,15 @@ export default function EtfCapitalFlowTracker({
           const bExact = b.symbol.toLowerCase() === q || b.name.toLowerCase() === q ? 0 : b.symbol.toLowerCase().startsWith(q) ? 1 : 2;
           if (aExact !== bExact) return aExact - bExact;
         }
-        const flowA =
-          period === "1d" ? a.flow_1d : period === "5d" ? a.flow_5d : period === "20d" ? a.flow_20d : a.flow_ytd;
-        const flowB =
-          period === "1d" ? b.flow_1d : period === "5d" ? b.flow_5d : period === "20d" ? b.flow_20d : b.flow_ytd;
-        return flowB - flowA;
+        const getEffectiveFlow = (x: EtfFlowItem) => {
+          const raw =
+            period === "1d" ? x.flow_1d : period === "5d" ? x.flow_5d : period === "20d" ? x.flow_20d : x.flow_ytd;
+          if (market === "all" && x.market === "US") {
+            return raw * 32.2;
+          }
+          return raw;
+        };
+        return getEffectiveFlow(b) - getEffectiveFlow(a);
       });
 
     return q ? list : list.slice(0, 35);
@@ -1502,28 +1548,28 @@ export default function EtfCapitalFlowTracker({
 
                 <div className="flex rounded-lg bg-[var(--bg-primary)] p-0.5 border border-[var(--border)] text-xs">
                   <button
-                    onClick={() => setMarket("all")}
-                    className={`px-2.5 py-1 rounded-md cursor-pointer ${
-                      market === "all" ? "bg-[var(--bg-tertiary)] text-primary font-bold" : "text-muted hover:text-secondary"
-                    }`}
-                  >
-                    全部市場
-                  </button>
-                  <button
                     onClick={() => setMarket("TW")}
-                    className={`px-2.5 py-1 rounded-md cursor-pointer ${
-                      market === "TW" ? "bg-[var(--bg-tertiary)] text-accent font-bold" : "text-muted hover:text-secondary"
+                    className={`px-3 py-1 rounded-md cursor-pointer transition-all ${
+                      market === "TW" ? "bg-accent/20 text-accent border border-accent/40 font-bold shadow-sm" : "text-muted hover:text-secondary"
                     }`}
                   >
-                    台股 ETF
+                    🇹🇼 台股 ETF
                   </button>
                   <button
                     onClick={() => setMarket("US")}
-                    className={`px-2.5 py-1 rounded-md cursor-pointer ${
-                      market === "US" ? "bg-[var(--bg-tertiary)] text-indigo-400 font-bold" : "text-muted hover:text-secondary"
+                    className={`px-3 py-1 rounded-md cursor-pointer transition-all ${
+                      market === "US" ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/40 font-bold shadow-sm" : "text-muted hover:text-secondary"
                     }`}
                   >
-                    美股 ETF
+                    🇺🇸 美股 ETF
+                  </button>
+                  <button
+                    onClick={() => setMarket("all")}
+                    className={`px-3 py-1 rounded-md cursor-pointer transition-all ${
+                      market === "all" ? "bg-[var(--bg-tertiary)] text-primary font-bold shadow-sm" : "text-muted hover:text-secondary"
+                    }`}
+                  >
+                    全部市場
                   </button>
                 </div>
               </div>
@@ -1829,8 +1875,12 @@ export default function EtfCapitalFlowTracker({
                         ? "近 20 日資金淨流向"
                         : "今年以來資金淨流向"}
                     </th>
-                    <th className="text-right">估計申贖張數</th>
-                    <th className="text-right">規模 AUM</th>
+                    <th className="text-right">
+                      {market === "US" ? "估計申贖股數" : market === "TW" ? "估計申贖張數" : "估計申贖 (張/股)"}
+                    </th>
+                    <th className="text-right">
+                      {market === "US" ? "規模 AUM (USD)" : market === "TW" ? "規模 AUM (NT$)" : "規模 AUM"}
+                    </th>
                     <th className="text-right">折溢價率</th>
                     <th className="text-right">年化殖利率</th>
                     <th>籌碼與申購意向</th>
@@ -1904,7 +1954,7 @@ export default function EtfCapitalFlowTracker({
                                 }`}
                               >
                                 {isPositive ? "+" : ""}
-                                {flowVal.toFixed(2)} 億
+                                {flowVal.toFixed(2)} {item.market === "US" ? "億 USD" : "億"}
                               </span>
                             </div>
                           </td>
@@ -1914,7 +1964,7 @@ export default function EtfCapitalFlowTracker({
                             }`}
                           >
                             {item.shares_net > 0 ? "+" : ""}
-                            {Math.round(item.shares_net).toLocaleString()} 張
+                            {Math.round(item.shares_net).toLocaleString()} {item.market === "US" ? "股" : "張"}
                           </td>
                           <td className="text-right font-mono tabular-nums text-xs text-secondary">
                             {item.market === "US" ? "USD $" : "NT$"}{item.aum.toLocaleString()} 億

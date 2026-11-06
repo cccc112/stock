@@ -189,6 +189,13 @@ export function findChannelCredentials(): { channelId?: string; channelSecret?: 
     }
   }
 
+  if (!channelSecret) {
+    const rawToken = cleanToken(process.env.LINE_CHANNEL_ACCESS_TOKEN || process.env.LINE_ACCESS_TOKEN);
+    if (rawToken.length === 32) {
+      channelSecret = rawToken;
+    }
+  }
+
   return { channelId, channelSecret };
 }
 
