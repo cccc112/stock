@@ -48,8 +48,10 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
     message?: string;
   } | null>(null);
 
-  // 自訂/備用 Token（允許使用者在畫面直接貼上即時測試，免等 Vercel 重新部署）
+  // 自訂/備用 Token、Channel ID 與 Channel Secret（允許使用者在畫面直接填寫即時測試，免等 Vercel 重新部署）
   const [customToken, setCustomToken] = useState("");
+  const [customChannelId, setCustomChannelId] = useState("");
+  const [customChannelSecret, setCustomChannelSecret] = useState("");
 
   useEffect(() => {
     // 讀取持久化綁定碼
@@ -65,9 +67,13 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
     const boundStatus = localStorage.getItem(`line_bound_status_${ns}`) === "true";
     setIsBound(boundStatus);
 
-    // 讀取暫存的 customToken
+    // 讀取暫存的憑證
     const savedToken = localStorage.getItem("omnitick_temp_line_token") || "";
     if (savedToken) setCustomToken(savedToken);
+    const savedId = localStorage.getItem("omnitick_temp_channel_id") || "";
+    if (savedId) setCustomChannelId(savedId);
+    const savedSecret = localStorage.getItem("omnitick_temp_channel_secret") || "";
+    if (savedSecret) setCustomChannelSecret(savedSecret);
 
     // 初始檢測伺服器端環境變數狀態
     fetchServerStatus();
@@ -98,13 +104,19 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
     localStorage.setItem(`line_bound_status_${ns}`, nextStatus ? "true" : "false");
   };
 
-  const handleSendTestPush = async (overrideToken?: string) => {
-    const activeToken = overrideToken || customToken.trim() || undefined;
+  const handleSendTestPush = async (override?: {
+    token?: string;
+    channelId?: string;
+    channelSecret?: string;
+  }) => {
+    const activeToken = override?.token !== undefined ? override.token : (customToken.trim() || undefined);
+    const activeId = override?.channelId !== undefined ? override.channelId : (customChannelId.trim() || undefined);
+    const activeSecret = override?.channelSecret !== undefined ? override.channelSecret : (customChannelSecret.trim() || undefined);
 
-    // 儲存臨時 Token 方便後續重複測試
-    if (activeToken) {
-      localStorage.setItem("omnitick_temp_line_token", activeToken);
-    }
+    // 儲存臨時憑證方便後續重複測試
+    if (activeToken) localStorage.setItem("omnitick_temp_line_token", activeToken);
+    if (activeId) localStorage.setItem("omnitick_temp_channel_id", activeId);
+    if (activeSecret) localStorage.setItem("omnitick_temp_channel_secret", activeSecret);
 
     setIsPushing(true);
     setIsPushModalOpen(true);
@@ -119,6 +131,8 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
           mode: "broadcast",
           type: "radar",
           token: activeToken,
+          channelId: activeId,
+          channelSecret: activeSecret,
           data: {
             symbol: "2330",
             name: "台積電",
@@ -140,7 +154,7 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
         setPushStatus("error");
         setPushErrorMsg(
           data.error ||
-            "LINE 推播發送失敗，請確認 Channel Access Token 是否正確。"
+            "LINE 推播發送失敗，請確認 Channel ID 與 Channel Secret 是否正確。"
         );
       }
     } catch (e: any) {
@@ -377,55 +391,100 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
                 </div>
               </div>
 
-              {/* 為什麼明明填入卻沒讀到的原因說明 */}
+              {/* 為什麼 Basic settings 根本沒有 Token 的真相關懷 */}
               <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] space-y-2 text-xs text-secondary">
                 <div className="font-bold text-primary flex items-center gap-1.5">
                   <RefreshCw size={13} className="text-amber-400" />
-                  <span>為什麼我明明填入了，系統卻顯示未讀取到？</span>
+                  <span>為什麼 Basic settings 頁面「根本沒有」Channel access token？</span>
                 </div>
-                <div className="text-[11px] leading-relaxed space-y-1 text-secondary">
+                <div className="text-[11px] leading-relaxed space-y-1.5 text-secondary">
                   <p>
-                    <strong className="text-amber-300">原因 1（最常見）：Vercel 尚未重新部署 (Redeploy)</strong>
-                    <br />
-                    在 Vercel 後台填寫環境變數後，<strong>已經上線的舊版本不會自動讀取新變數</strong>。您必須至 Vercel ➜ <strong>Deployments</strong> ➜ 點選最新一筆右邊的「...」➜ 點擊 <strong>Redeploy</strong>，新變數才會注入到伺服器！
+                    <strong>你的直覺完全正確！</strong>在 LINE Developers 的「Basic settings」頁籤中本來就<strong>只有 Channel ID 與 Channel secret</strong>，翻遍全頁都不會有 Token。
                   </p>
-                  <p className="pt-1">
-                    <strong className="text-amber-300">原因 2：Token 複製位置不是長期 Token</strong>
-                    <br />
-                    不是 LINE Official Manager 的 Basic ID，而是 <a href="https://developers.line.biz/" target="_blank" rel="noreferrer" className="text-accent hover:underline">LINE Developers Console</a> ➜ Messaging API 頁籤最底部的「Channel access token (long-lived)」。
+                  <p>
+                    LINE 官方把手動 Token 發行按鈕藏在另一個頁籤「<strong>Messaging API</strong>」最底端的「Issue」按鈕。
+                  </p>
+                  <p className="text-emerald-400 font-semibold">
+                    💡 好消息：你既然有 Channel ID 與 Channel Secret，系統現在已經支援以官方 OAuth 機制「全自動換發」，再也不需要去大海撈針找 Token！
                   </p>
                 </div>
               </div>
 
-              {/* 免等部署！直接在畫面上貼上 Token 立即測試 */}
-              <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-500/10 to-blue-500/10 border border-emerald-500/30 space-y-2 text-xs">
+              {/* 方案 A（最強烈推薦）：直接在畫面填寫 Channel ID + Channel Secret 立即測試 */}
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-500/10 to-blue-500/10 border border-emerald-500/30 space-y-2.5 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-emerald-400 flex items-center gap-1.5">
                     <Key size={13} />
-                    <span>免等 Vercel 重新部署！直接在此貼上 Token 立即發送：</span>
+                    <span>免找 Token！直接填寫 Channel ID 與 Channel Secret：</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-300 bg-emerald-500/20 px-1.5 py-0.5 rounded font-mono">
+                    自動 OAuth 換發
                   </span>
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] text-secondary block mb-0.5">Channel ID（10 碼數字）</label>
+                    <input
+                      type="text"
+                      placeholder="例如: 200xxxxxxx"
+                      value={customChannelId}
+                      onChange={(e) => setCustomChannelId(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border)] text-xs font-mono text-primary focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-secondary block mb-0.5">Channel Secret（32 碼英數）</label>
+                    <input
+                      type="password"
+                      placeholder="貼上 32 碼 Secret"
+                      value={customChannelSecret}
+                      onChange={(e) => setCustomChannelSecret(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border)] text-xs font-mono text-primary focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  disabled={!customChannelId.trim() || !customChannelSecret.trim() || isPushing}
+                  onClick={() =>
+                    handleSendTestPush({
+                      channelId: customChannelId,
+                      channelSecret: customChannelSecret,
+                    })
+                  }
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all"
+                >
+                  {isPushing ? "LINE 官方 OAuth 授權連線中..." : "立即以 Channel ID + Secret 自動換發並廣播測試"}
+                </Button>
+                <span className="text-[10px] text-muted block">
+                  點擊後系統會透過 LINE 官方 OAuth 2.0 端點取得合法權杖並立即送出廣播，手機 LINE 馬上能收到推播！
+                </span>
+              </div>
+
+              {/* 方案 B：手動貼上 Channel Access Token（選用） */}
+              <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] space-y-2 text-xs">
+                <span className="font-bold text-secondary flex items-center gap-1.5 text-[11px]">
+                  <span>方案 B：手動貼上 Channel Access Token（若已在 Messaging API 頁籤取得）</span>
+                </span>
                 <div className="flex gap-2">
                   <input
                     type="password"
                     placeholder="貼上你的 Channel access token (long-lived)..."
                     value={customToken}
                     onChange={(e) => setCustomToken(e.target.value)}
-                    className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border)] text-xs font-mono text-primary focus:outline-none focus:border-emerald-500"
+                    className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] text-xs font-mono text-primary focus:outline-none focus:border-blue-500"
                   />
                   <Button
                     size="sm"
-                    variant="primary"
+                    variant="secondary"
                     disabled={!customToken.trim() || isPushing}
-                    onClick={() => handleSendTestPush(customToken)}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs whitespace-nowrap"
+                    onClick={() => handleSendTestPush({ token: customToken })}
+                    className="shrink-0 text-xs font-bold"
                   >
-                    立即帶入測試
+                    帶入測試
                   </Button>
                 </div>
-                <span className="text-[10px] text-muted block">
-                  貼上後點擊測試，系統將直接以該金鑰向 LINE 伺服器廣播，立即可在手機 LINE 收到訊息！
-                </span>
               </div>
 
               <div className="flex gap-2 pt-1">

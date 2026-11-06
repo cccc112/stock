@@ -6,13 +6,9 @@ import {
   createPostMarketFlexCard,
 } from "@/lib/line/flexCards";
 
-import { getChannelAccessToken } from "../push/route";
+import { resolveChannelAccessToken } from "../push/route";
 
 export const dynamic = "force-dynamic";
-
-function getActiveAccessToken(): string {
-  return getChannelAccessToken().token;
-}
 
 function getActiveSecret(): string {
   const secret = process.env.LINE_CHANNEL_SECRET || process.env.CHANNEL_SECRET || "";
@@ -57,7 +53,8 @@ function verifyLineSignature(body: string, signature: string): boolean {
  * 回覆 LINE 訊息 API
  */
 async function replyLineMessage(replyToken: string, messages: any[]) {
-  const token = getActiveAccessToken();
+  const tokenRes = await resolveChannelAccessToken();
+  const token = tokenRes.token;
   if (!token) return;
   try {
     await fetch("https://api.line.me/v2/bot/message/reply", {

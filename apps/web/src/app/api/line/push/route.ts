@@ -96,12 +96,147 @@ export function getChannelAccessToken(customToken?: string): LineTokenResult {
   return { token: "", source: "none", diagnostic };
 }
 
+// 記憶體快取自動換發的 Token (有效期限 30 天)
+let autoTokenCache: { token: string; expiresAt: number } | null = null;
+
+/**
+ * 使用 LINE 官方 OAuth client_credentials 端點，以 Channel ID + Channel Secret 自動換發 Access Token
+ */
+export async function fetchTokenFromOAuth(
+  channelId: string,
+  channelSecret: string
+): Promise<{ token?: string; error?: string }> {
+  const now = Date.now();
+  if (autoTokenCache && autoTokenCache.expiresAt > now + 60000) {
+    return { token: autoTokenCache.token };
+  }
+
+  try {
+    const params = new URLSearchParams();
+    params.append("grant_type", "client_credentials");
+    params.append("client_id", channelId.trim());
+    params.append("client_secret", channelSecret.trim());
+
+    const res = await fetch("https://api.line.me/v2/oauth/accessToken", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+
+    const data = await res.json();
+    if (res.ok && data.access_token) {
+      const expiresInSec = Number(data.expires_in) || 2592000;
+      autoTokenCache = {
+        token: data.access_token,
+        expiresAt: now + (expiresInSec - 300) * 1000,
+      };
+      return { token: data.access_token };
+    }
+
+    return {
+      error:
+        data.error_description ||
+        data.message ||
+        data.error ||
+        "LINE OAuth 驗證失敗，請檢查 Channel ID 與 Channel Secret 是否正確",
+    };
+  } catch (err: any) {
+    return { error: `連線至 LINE 換發伺服器失敗: ${err.message}` };
+  }
+}
+
+/**
+ * 尋找環境變數中的 Channel ID 與 Channel Secret
+ */
+export function findChannelCredentials(): { channelId?: string; channelSecret?: string } {
+  const idCandidates = [
+    process.env.LINE_CHANNEL_ID,
+    process.env.CHANNEL_ID,
+    process.env.LINE_ID,
+    process.env.NEXT_PUBLIC_LINE_CHANNEL_ID,
+  ];
+  let channelId = idCandidates.find((c) => c && c.trim().length >= 8)?.trim();
+
+  const secretCandidates = [
+    process.env.LINE_CHANNEL_SECRET,
+    process.env.CHANNEL_SECRET,
+    process.env.LINE_SECRET,
+    process.env.NEXT_PUBLIC_LINE_CHANNEL_SECRET,
+  ];
+  let channelSecret = secretCandidates.find((c) => c && c.trim().length >= 20)?.trim();
+
+  if (!channelId || !channelSecret) {
+    for (const [k, v] of Object.entries(process.env)) {
+      const upper = k.toUpperCase();
+      const val = cleanToken(v);
+      if (
+        !channelId &&
+        (upper.includes("CHANNEL") || upper.includes("LINE")) &&
+        upper.includes("ID") &&
+        val.length >= 8 &&
+        val.length <= 15
+      ) {
+        channelId = val;
+      }
+      if (
+        !channelSecret &&
+        (upper.includes("CHANNEL") || upper.includes("LINE")) &&
+        upper.includes("SECRET") &&
+        val.length >= 25
+      ) {
+        channelSecret = val;
+      }
+    }
+  }
+
+  return { channelId, channelSecret };
+}
+
+/**
+ * 完整解析 Token：
+ * 1. 優先檢查是否直接提供 Access Token
+ * 2. 若無，則使用傳入或環境變數的 Channel ID + Channel Secret 向 LINE 伺服器自動換發！
+ */
+export async function resolveChannelAccessToken(options?: {
+  customToken?: string;
+  channelId?: string;
+  channelSecret?: string;
+}): Promise<LineTokenResult> {
+  // 1. 直傳 Access Token
+  const direct = getChannelAccessToken(options?.customToken);
+  if (direct.token) return direct;
+
+  // 2. 嘗試使用傳入或環境變數的 Channel ID + Secret 換發
+  const envCreds = findChannelCredentials();
+  const activeId = options?.channelId?.trim() || envCreds.channelId;
+  const activeSecret = options?.channelSecret?.trim() || envCreds.channelSecret;
+
+  if (activeId && activeSecret) {
+    const oauthRes = await fetchTokenFromOAuth(activeId, activeSecret);
+    if (oauthRes.token) {
+      return {
+        token: oauthRes.token,
+        source: options?.channelId ? "custom_oauth" : `env_oauth(id:${activeId})`,
+      };
+    }
+    return {
+      token: "",
+      source: "oauth_failed",
+      diagnostic: `使用 Channel ID (${activeId}) 與 Channel Secret 嘗試向 LINE 自動換發 Token 失敗: ${oauthRes.error}`,
+    };
+  }
+
+  return direct;
+}
+
 /**
  * 查詢 LINE 推播配額與金鑰配置狀態 (GET)
  */
 export async function GET(req: NextRequest) {
   const customToken = req.nextUrl.searchParams.get("token") || undefined;
-  const tokenRes = getChannelAccessToken(customToken);
+  const channelId = req.nextUrl.searchParams.get("channelId") || undefined;
+  const channelSecret = req.nextUrl.searchParams.get("channelSecret") || undefined;
+  const tokenRes = await resolveChannelAccessToken({ customToken, channelId, channelSecret });
   const token = tokenRes.token;
 
   if (!token) {
@@ -114,12 +249,12 @@ export async function GET(req: NextRequest) {
       configured: false,
       message:
         tokenRes.diagnostic ||
-        "伺服器環境變數尚未讀取到 LINE 金鑰。若已在 Vercel 後台新增，請確認 Production 環境有勾選，並至 Deployments 點選 Redeploy！",
+        "伺服器環境變數尚未讀取到 LINE 金鑰。系統現已支援直接填入 Channel ID 與 Channel Secret 自動換發！若已在 Vercel 新增，請確認 Production 有勾選並 Redeploy。",
       foundKeys: relatedKeys,
       checkedKeys: [
+        "LINE_CHANNEL_ID + LINE_CHANNEL_SECRET (自動換發)",
         "LINE_CHANNEL_ACCESS_TOKEN",
         "LINE_ACCESS_TOKEN",
-        "CHANNEL_ACCESS_TOKEN",
       ],
     });
   }
@@ -179,7 +314,11 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const tokenRes = getChannelAccessToken(body.token);
+    const tokenRes = await resolveChannelAccessToken({
+      customToken: body.token,
+      channelId: body.channelId,
+      channelSecret: body.channelSecret,
+    });
     const token = tokenRes.token;
 
     if (!token) {
@@ -189,7 +328,7 @@ export async function POST(req: NextRequest) {
           code: "TOKEN_NOT_FOUND",
           error:
             tokenRes.diagnostic ||
-            "尚未讀取到 LINE_CHANNEL_ACCESS_TOKEN。若已在 Vercel 設定，請至 Vercel Deployments 點選 Redeploy 重新部署，或直接在畫面中填入 Token 立即發送！",
+            "尚未取得 LINE 存取權限。請確認已填入 Channel ID 與 Channel Secret，或直接在畫面中填入立即發送！",
         },
         { status: 400 }
       );
