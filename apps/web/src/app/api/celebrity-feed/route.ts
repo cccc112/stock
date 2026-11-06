@@ -130,36 +130,92 @@ function isMarketRelevantPost(text: string): boolean {
   return FINANCIAL_MARKET_RELEVANT_REGEX.test(text);
 }
 
+const S2T_MAP: Record<string, string> = {
+  '盘': '盤', '产': '產', '飙': '飆', '资': '資', '划': '劃',
+  '证': '證', '权': '權', '联': '聯', '经': '經', '济': '濟',
+  '点': '點', '创': '創', '历': '歷', '纪': '紀', '录': '錄',
+  '国': '國', '币': '幣', '价': '價', '总': '總', '裁': '裁',
+  '统': '統', '党': '黨', '关': '關', '税': '稅', '发': '發',
+  '布': '布', '报': '報', '告': '告', '击': '擊', '败': '敗',
+  '胜': '勝', '选': '選', '举': '舉', '涨': '漲', '跌': '跌',
+  '净': '淨', '买': '買', '卖': '賣', '个': '個', '股': '股',
+  '标': '標', '线': '線', '动': '動', '态': '態', '预': '預',
+  '算': '算', '测': '測', '评': '評', '规': '規', '则': '則'
+};
+
+function toTraditional(text: string): string {
+  return text.split('').map((c) => S2T_MAP[c] || c).join('');
+}
+
+function preprocessEnglishPost(text: string): string {
+  if (!text) return "";
+  let s = text;
+  s = s.replace(/\bDumocrats\b/gi, 'Democrats');
+  s = s.replace(/\bPresident DJT\b/gi, 'President Donald J. Trump');
+  s = s.replace(/\bRecord Setting All!?/gi, 'Setting all-time record highs!');
+  s = s.replace(/\bYour 401\(k\)s are through the roof\b/gi, 'Your 401(k) retirement assets are skyrocketing to record highs');
+  s = s.replace(/\bYour 401\(k\)s have(?:, therefore,)? dropped\b/gi, 'Your 401(k) retirement assets have plunged heavily');
+  return s;
+}
+
+function refineTaiwanFinancialChinese(text: string): string {
+  let s = toTraditional(text);
+  // 1. 政治人物地道譯名 (台灣正體)
+  s = s.replace(/唐納德[·・]J[·・]特朗[普普]/g, '唐納·J·川普');
+  s = s.replace(/唐納德[·・]特朗[普普]/g, '唐納·川普');
+  s = s.replace(/特朗[普普]/g, '川普');
+  s = s.replace(/總裁\s*DJT/gi, '川普總統');
+  s = s.replace(/總裁\s*川普/g, '川普總統');
+  s = s.replace(/杜莫克拉特/g, '民主黨人');
+  s = s.replace(/杜民主黨/g, '民主黨');
+  
+  // 2. 財經術語與俚語精準修正 (杜絕字面機翻荒謬錯誤)
+  s = s.replace(/401\(k\)\s*申請已經到了頂峰/g, '401(k) 退休資產飆上歷史新高');
+  s = s.replace(/401\(k\)\s*(?:計劃|計畫)已被取消/g, '401(k) 退休資產大幅縮水重挫');
+  s = s.replace(/401\(k\)\s*已取消/g, '401(k) 退休資產大幅縮水重挫');
+  s = s.replace(/401\(k\)\s*跌了/g, '401(k) 退休資產暴跌');
+  s = s.replace(/401\(k\)\s*穿過屋頂/g, '401(k) 退休資產衝破天際');
+  s = s.replace(/記錄設定全部[！!]/g, '全面刷新歷史新高紀錄！');
+  s = s.replace(/記錄設定全部/g, '全面刷新歷史新高紀錄');
+  s = s.replace(/紀錄設定全部/g, '全面刷新歷史新高紀錄');
+  s = s.replace(/超級智慧(?![A-Za-z])/g, '超級人工智慧 (SI)');
+  s = s.replace(/超級人工智慧 \(SI\)（SI）/g, '超級人工智慧 (SI)');
+  s = s.replace(/他們是黃金/g, '它們是無價之寶');
+
+  return s.trim();
+}
+
 /**
- * 批次將英文貼文翻譯為繁體中文
+ * 批次將英文貼文翻譯為地道台灣繁體中文 (杜絕截斷、杜絕標點符號錯位與字面機翻)
  */
 async function batchTranslateToZhTw(texts: string[]): Promise<string[]> {
   if (texts.length === 0) return [];
   const results = [...texts];
-  const chunkSize = 10;
-
-  const chunks: Array<{ startIndex: number; slice: string[] }> = [];
-  for (let i = 0; i < texts.length; i += chunkSize) {
-    chunks.push({ startIndex: i, slice: texts.slice(i, i + chunkSize) });
-  }
 
   await Promise.allSettled(
-    chunks.map(async ({ startIndex, slice }) => {
-      const cleaned = slice.map((t) => t.replace(/\|\|\|/g, " ").slice(0, 380));
-      const joined = cleaned.join("\n ||| \n");
-      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-TW&dt=t&q=${encodeURIComponent(
-        joined
-      )}`;
-      const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(3500) });
-      if (!res.ok) return;
-      const json = await res.json();
-      if (!Array.isArray(json?.[0])) return;
-      const fullZh = json[0].map((seg: any) => (seg && seg[0] ? String(seg[0]) : "")).join("");
-      const parts = fullZh.split("|||").map((p: string) => p.trim());
-      for (let j = 0; j < slice.length; j++) {
-        if (parts[j]) {
-          results[startIndex + j] = parts[j];
+    texts.map(async (rawText, idx) => {
+      if (!rawText || rawText.trim().length === 0) return;
+      const preprocessed = preprocessEnglishPost(rawText).slice(0, 1500);
+      try {
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-TW&dt=t&q=${encodeURIComponent(
+          preprocessed
+        )}`;
+        const res = await fetch(url, {
+          cache: "no-store",
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          },
+          signal: AbortSignal.timeout(4500),
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!Array.isArray(json?.[0])) return;
+        const rawZh = json[0].map((seg: any) => (seg && seg[0] ? String(seg[0]) : "")).join("");
+        if (rawZh && rawZh.trim()) {
+          results[idx] = refineTaiwanFinancialChinese(rawZh);
         }
+      } catch {
+        // 連線超時保留原文
       }
     })
   );
