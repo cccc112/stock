@@ -196,6 +196,11 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
                 <Sparkles size={11} /> 14 天免費 Pro 體驗
               </span>
+              {serverDiag?.configured && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 font-mono">
+                  <CheckCircle2 size={11} /> Vercel 金鑰已就緒
+                </span>
+              )}
             </div>
             <p className="text-xs text-secondary mt-1">
               熊霸（V-Bear）盤中即時雷達：VCP 突破、SMC 機構踩點秒速推播至 LINE，下盤後 15:30 彙整主力戰報！
@@ -398,7 +403,7 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
                 <div className="space-y-1 text-xs leading-relaxed">
                   <h4 className="font-bold text-sm text-amber-300">LINE 推播未送達</h4>
                   <p className="text-secondary font-mono bg-black/40 p-2 rounded text-[11px] text-rose-300 border border-rose-500/20">
-                    {pushErrorMsg || "尚未讀取到 LINE_CHANNEL_ACCESS_TOKEN"}
+                    {pushErrorMsg || serverDiag?.message || "尚未讀取到 LINE 金鑰 (請確認 Vercel 中的 Channel ID 與 Channel Secret)"}
                   </p>
                 </div>
               </div>

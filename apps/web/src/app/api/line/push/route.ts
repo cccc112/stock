@@ -148,51 +148,64 @@ export async function fetchTokenFromOAuth(
 /**
  * 尋找環境變數中的 Channel ID 與 Channel Secret
  */
+/**
+ * 尋找環境變數中的 Channel ID 與 Channel Secret
+ * 支援多種命名規格、大小寫容錯、以及使用者將兩者貼在同一個變數中的全域正則解析
+ */
 export function findChannelCredentials(): { channelId?: string; channelSecret?: string } {
+  // 1. 明確常見候選名單 (優先)
   const idCandidates = [
     process.env.LINE_CHANNEL_ID,
     process.env.CHANNEL_ID,
+    process.env.LINE_CLIENT_ID,
+    process.env.CLIENT_ID,
     process.env.LINE_ID,
     process.env.NEXT_PUBLIC_LINE_CHANNEL_ID,
   ];
-  let channelId = idCandidates.find((c) => c && c.trim().length >= 8)?.trim();
+  let channelId = idCandidates.find((c) => c && c.trim().length >= 8 && /^\d+$/.test(c.trim()))?.trim();
 
   const secretCandidates = [
     process.env.LINE_CHANNEL_SECRET,
     process.env.CHANNEL_SECRET,
+    process.env.LINE_CLIENT_SECRET,
+    process.env.CLIENT_SECRET,
     process.env.LINE_SECRET,
     process.env.NEXT_PUBLIC_LINE_CHANNEL_SECRET,
   ];
-  let channelSecret = secretCandidates.find((c) => c && c.trim().length >= 20)?.trim();
+  let channelSecret = secretCandidates.find((c) => c && c.trim().length >= 25)?.trim();
 
-  if (!channelId || !channelSecret) {
-    for (const [k, v] of Object.entries(process.env)) {
-      const upper = k.toUpperCase();
-      const val = cleanToken(v);
+  // 2. 深度遍歷所有 process.env (容錯 Linux/Vercel 大小寫差異、自訂鍵名、如 channel_id, line_secret 等)
+  for (const [k, v] of Object.entries(process.env)) {
+    if (!v || typeof v !== "string") continue;
+    const clean = cleanToken(v);
+    const upper = k.toUpperCase();
+
+    // 匹配 Channel ID (通常是 10 碼純數字，8~14 碼)
+    if (!channelId) {
       if (
-        !channelId &&
-        (upper.includes("CHANNEL") || upper.includes("LINE")) &&
-        upper.includes("ID") &&
-        val.length >= 8 &&
-        val.length <= 15
+        (upper.includes("ID") || upper.includes("CHANNEL") || upper.includes("LINE") || upper.includes("CLIENT")) &&
+        /^\d{8,14}$/.test(clean)
       ) {
-        channelId = val;
-      }
-      if (
-        !channelSecret &&
-        (upper.includes("CHANNEL") || upper.includes("LINE")) &&
-        upper.includes("SECRET") &&
-        val.length >= 25
-      ) {
-        channelSecret = val;
+        channelId = clean;
       }
     }
-  }
 
-  if (!channelSecret) {
-    const rawToken = cleanToken(process.env.LINE_CHANNEL_ACCESS_TOKEN || process.env.LINE_ACCESS_TOKEN);
-    if (rawToken.length === 32) {
-      channelSecret = rawToken;
+    // 匹配 Channel Secret (LINE 官方規範固定為 32 碼十六進位英數字串)
+    if (!channelSecret) {
+      if (
+        (upper.includes("SECRET") || upper.includes("CHANNEL") || upper.includes("LINE") || upper.includes("KEY")) &&
+        /^[a-fA-F0-9]{32}$/.test(clean)
+      ) {
+        channelSecret = clean;
+      }
+    }
+
+    // 3. 容錯使用者將整段資料貼在同一個變數中 (例如在 LINE_CHANNEL_ACCESS_TOKEN 中包含了 Channel ID 與 Secret)
+    if (!channelId || !channelSecret) {
+      const idMatch = clean.match(/(?:^|[^\d])(20\d{8}|\d{8,12})(?:[^\d]|$)/);
+      const secretMatch = clean.match(/(?:^|[^a-fA-F0-9])([a-fA-F0-9]{32})(?:[^a-fA-F0-9]|$)/);
+      if (!channelId && idMatch) channelId = idMatch[1];
+      if (!channelSecret && secretMatch) channelSecret = secretMatch[1];
     }
   }
 
