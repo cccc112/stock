@@ -644,23 +644,14 @@ export default function TaiwanBearMascot() {
             {/* 微笑小嘴 */}
             <path d="M 47 62 Q 50 65 53 62" stroke="#0f172a" strokeWidth="2" strokeLinecap="round" fill="none" />
 
-            {/* ★ 核心靈魂：胸前巨大純白「V」字胸標 (正宗台灣黑熊 & 象徵 Victory 絕地反轉) ★ */}
+            {/* ★ 核心靈魂：胸前巨大純白「V」字胸標 (正宗台灣黑熊標誌，永久純白 #ffffff，絕不隨市場變綠變金) ★ */}
             <path
               d="M 32 75 L 50 92 L 68 75"
-              stroke={
-                hasAlert
-                  ? "#fbbf24"
-                  : mood === "BULLISH"
-                  ? "#f59e0b"
-                  : mood === "FEAR"
-                  ? "#10b981"
-                  : "#ffffff"
-              }
+              stroke="#ffffff"
               strokeWidth="7"
               strokeLinecap="round"
               strokeLinejoin="round"
               fill="none"
-              className={mood === "BULLISH" || hasAlert ? "bear-chest-glow" : ""}
             />
           </svg>
 

@@ -298,40 +298,43 @@ export default function Bear3DModel({
     rightPaw.rotation.z = -0.35;
     bodyGroup.add(rightPaw);
 
-    // --- C. ★ 純白正宗雪亮大「V」字胸標 ★ ---
+    // --- C. ★ 純白正宗雪亮大「V」字胸標 (勝利 Victory & 正宗台灣黑熊，正 V 領絕非倒 V) ★ ---
     const vGroup = new THREE.Group();
-    const vArmGeo = new THREE.CylinderGeometry(0.10, 0.10, 1.12, 20);
+    // V 字兩臂圓柱：長度 0.86，半徑 0.10
+    const vArmGeo = new THREE.CylinderGeometry(0.10, 0.10, 0.86, 24);
 
-    // 左 V 臂
+    // 左 V 臂：由中央底端 (0, -0.22) 向左上方 (-0.56, 0.42) 展開
+    // 角度傾斜向左 (Z 軸正旋轉 +0.718 rad)
     const leftVArm = new THREE.Mesh(vArmGeo, vNeckMaterial);
-    leftVArm.position.set(-0.40, 0.18, 0);
-    leftVArm.rotation.z = -0.66;
+    leftVArm.position.set(-0.28, 0.10, 0);
+    leftVArm.rotation.z = 0.718;
     vGroup.add(leftVArm);
 
-    // 右 V 臂
+    // 右 V 臂：由中央底端 (0, -0.22) 向右上方 (0.56, 0.42) 展開
+    // 角度傾斜向右 (Z 軸負旋轉 -0.718 rad)
     const rightVArm = new THREE.Mesh(vArmGeo, vNeckMaterial);
-    rightVArm.position.set(0.40, 0.18, 0);
-    rightVArm.rotation.z = 0.66;
+    rightVArm.position.set(0.28, 0.10, 0);
+    rightVArm.rotation.z = -0.718;
     vGroup.add(rightVArm);
 
-    // V 尖端圓球銜接
-    const vTipGeo = new THREE.SphereGeometry(0.13, 16, 16);
+    // V 底端尖角銜接圓球 (兩臂在底部 0, -0.22 匯聚處圓潤交疊)
+    const vTipGeo = new THREE.SphereGeometry(0.11, 20, 20);
     const vTipMesh = new THREE.Mesh(vTipGeo, vNeckMaterial);
-    vTipMesh.position.set(0, -0.28, 0.02);
+    vTipMesh.position.set(0, -0.22, 0.04);
     vGroup.add(vTipMesh);
 
-    // V 頂端左右兩顆圓角封頭
+    // V 頂端左右兩顆圓潤封頭 (正好接在兩臂最高開口頂端)
     const vCapLeft = new THREE.Mesh(vTipGeo, vNeckMaterial);
-    vCapLeft.position.set(-0.73, 0.62, -0.02);
+    vCapLeft.position.set(-0.56, 0.42, -0.04);
     vGroup.add(vCapLeft);
 
     const vCapRight = new THREE.Mesh(vTipGeo, vNeckMaterial);
-    vCapRight.position.set(0.73, 0.62, -0.02);
+    vCapRight.position.set(0.56, 0.42, -0.04);
     vGroup.add(vCapRight);
 
     // 順著圓滾滾胸腹貼合
-    vGroup.position.set(0, -0.35, 1.02);
-    vGroup.rotation.x = 0.22;
+    vGroup.position.set(0, -0.38, 1.05);
+    vGroup.rotation.x = 0.18;
     bodyGroup.add(vGroup);
 
     // 6. 互動與動畫循環
