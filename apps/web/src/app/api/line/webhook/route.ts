@@ -6,16 +6,25 @@ import {
   createPostMarketFlexCard,
 } from "@/lib/line/flexCards";
 
+import { getChannelAccessToken } from "../push/route";
+
 export const dynamic = "force-dynamic";
 
-const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "";
-const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "";
+function getActiveAccessToken(): string {
+  return getChannelAccessToken().token;
+}
+
+function getActiveSecret(): string {
+  const secret = process.env.LINE_CHANNEL_SECRET || process.env.CHANNEL_SECRET || "";
+  return secret.trim().replace(/^["']|["']$/g, "");
+}
 
 /**
  * 校驗 LINE Webhook HMAC-SHA256 簽章 (含時序攻擊 Timing-Safe 防護與生產環境強制校驗)
  */
 function verifyLineSignature(body: string, signature: string): boolean {
-  if (!LINE_CHANNEL_SECRET) {
+  const secret = getActiveSecret();
+  if (!secret) {
     if (process.env.NODE_ENV === "production") {
       console.error("[LINE Webhook Security] 嚴重資安警告: 生產環境必須設置 LINE_CHANNEL_SECRET");
       return false;
@@ -26,7 +35,7 @@ function verifyLineSignature(body: string, signature: string): boolean {
 
   try {
     const hash = crypto
-      .createHmac("SHA256", LINE_CHANNEL_SECRET)
+      .createHmac("SHA256", secret)
       .update(body)
       .digest("base64");
 
@@ -48,13 +57,14 @@ function verifyLineSignature(body: string, signature: string): boolean {
  * 回覆 LINE 訊息 API
  */
 async function replyLineMessage(replyToken: string, messages: any[]) {
-  if (!LINE_CHANNEL_ACCESS_TOKEN) return;
+  const token = getActiveAccessToken();
+  if (!token) return;
   try {
     await fetch("https://api.line.me/v2/bot/message/reply", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         replyToken,

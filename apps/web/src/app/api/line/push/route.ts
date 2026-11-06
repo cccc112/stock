@@ -7,19 +7,93 @@ import {
 export const dynamic = "force-dynamic";
 
 /**
- * 取得 LINE Channel Access Token，支援多種常見命名與自訂傳入
+ * 清理 Token 去除前後引號與 Bearer 前綴
  */
-function getChannelAccessToken(customToken?: string): string {
-  if (customToken && typeof customToken === "string" && customToken.trim().length > 10) {
-    return customToken.trim();
+function cleanToken(t?: string | null): string {
+  if (!t || typeof t !== "string") return "";
+  let res = t.trim();
+  res = res.replace(/^["']|["']$/g, "").trim();
+  res = res.replace(/^Bearer\s+/i, "").trim();
+  return res;
+}
+
+export interface LineTokenResult {
+  token: string;
+  source: string;
+  diagnostic?: string;
+}
+
+/**
+ * 取得 LINE Channel Access Token，支援自訂傳入、多種命名、大小寫模糊容錯與精準診斷
+ */
+export function getChannelAccessToken(customToken?: string): LineTokenResult {
+  // 1. 優先取用前端手動傳入的 Token (繞過 Vercel 部署直接生效)
+  const cleanedCustom = cleanToken(customToken);
+  if (cleanedCustom && cleanedCustom.length > 10) {
+    return { token: cleanedCustom, source: "custom_request" };
   }
-  const token =
-    process.env.LINE_CHANNEL_ACCESS_TOKEN ||
-    process.env.LINE_ACCESS_TOKEN ||
-    process.env.CHANNEL_ACCESS_TOKEN ||
-    process.env.NEXT_PUBLIC_LINE_CHANNEL_ACCESS_TOKEN ||
-    "";
-  return token.trim();
+
+  // 2. 常見標準命名清單
+  const standardKeys = [
+    "LINE_CHANNEL_ACCESS_TOKEN",
+    "LINE_ACCESS_TOKEN",
+    "CHANNEL_ACCESS_TOKEN",
+    "LINE_BOT_CHANNEL_ACCESS_TOKEN",
+    "LINE_CHANNEL_TOKEN",
+    "LINE_TOKEN",
+    "NEXT_PUBLIC_LINE_CHANNEL_ACCESS_TOKEN",
+    "NEXT_PUBLIC_LINE_ACCESS_TOKEN",
+    "LINE_MESSAGING_TOKEN",
+    "MESSAGING_API_TOKEN",
+  ];
+
+  for (const k of standardKeys) {
+    const val = cleanToken(process.env[k]);
+    if (val && val.length > 10) {
+      return { token: val, source: `env:${k}` };
+    }
+  }
+
+  // 3. 動態遍歷 process.env 容錯大小寫 (如 line_channel_access_token)
+  for (const [key, rawVal] of Object.entries(process.env)) {
+    const val = cleanToken(rawVal);
+    const upperKey = key.toUpperCase();
+    if (val && val.length > 10) {
+      if (
+        (upperKey.includes("LINE") && upperKey.includes("TOKEN")) ||
+        (upperKey.includes("CHANNEL") && upperKey.includes("ACCESS"))
+      ) {
+        return { token: val, source: `env_fuzzy:${key}` };
+      }
+    }
+  }
+
+  // 4. 偵錯分析：抓出有被填寫但長度異常的相關變數
+  const relatedEntries = Object.entries(process.env).filter(([k]) => {
+    const u = k.toUpperCase();
+    return u.includes("LINE") || u.includes("CHANNEL");
+  });
+
+  let diagnostic = "";
+  if (relatedEntries.length > 0) {
+    const details = relatedEntries
+      .map(([k, v]) => `${k} (長度 ${cleanToken(v).length} 碼)`)
+      .join(", ");
+    
+    // 檢查是否有長度 32 碼 (通常是 Channel Secret) 或 10 碼 (Channel ID)
+    const hasSecretLike = relatedEntries.some(([, v]) => cleanToken(v).length === 32);
+    const hasIdLike = relatedEntries.some(([, v]) => cleanToken(v).length >= 8 && cleanToken(v).length <= 12);
+    
+    if (hasSecretLike) {
+      diagnostic = `在 Vercel 找到了 ${details}，但其長度為 32 碼，這疑似是「Channel Secret」，不是「Channel Access Token」！長期 Token 長度通常在 150 碼以上。`;
+    } else if (hasIdLike) {
+      diagnostic = `在 Vercel 找到了 ${details}，但長度只有約 10 碼，這疑似是 Channel ID 或 Basic ID，不是發送推播用的「Channel access token (long-lived)」！`;
+    } else {
+      diagnostic = `在 Vercel 找到了 ${details}，但長度不符合有效 Access Token 標準。`;
+    }
+  }
+
+  return { token: "", source: "none", diagnostic };
 }
 
 /**
@@ -27,13 +101,21 @@ function getChannelAccessToken(customToken?: string): string {
  */
 export async function GET(req: NextRequest) {
   const customToken = req.nextUrl.searchParams.get("token") || undefined;
-  const token = getChannelAccessToken(customToken);
+  const tokenRes = getChannelAccessToken(customToken);
+  const token = tokenRes.token;
 
   if (!token) {
+    const relatedKeys = Object.keys(process.env).filter((k) => {
+      const u = k.toUpperCase();
+      return u.includes("LINE") || u.includes("CHANNEL");
+    });
+
     return NextResponse.json({
       configured: false,
       message:
-        "伺服器環境變數尚未讀取到 LINE 金鑰。若您剛在 Vercel 後台新增，請注意：Vercel 必須在 Deployments 頁面點擊「Redeploy」重新部署後，新變數才會注入生效！",
+        tokenRes.diagnostic ||
+        "伺服器環境變數尚未讀取到 LINE 金鑰。若已在 Vercel 後台新增，請確認 Production 環境有勾選，並至 Deployments 點選 Redeploy！",
+      foundKeys: relatedKeys,
       checkedKeys: [
         "LINE_CHANNEL_ACCESS_TOKEN",
         "LINE_ACCESS_TOKEN",
@@ -97,7 +179,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const token = getChannelAccessToken(body.token);
+    const tokenRes = getChannelAccessToken(body.token);
+    const token = tokenRes.token;
 
     if (!token) {
       return NextResponse.json(
@@ -105,6 +188,7 @@ export async function POST(req: NextRequest) {
           success: false,
           code: "TOKEN_NOT_FOUND",
           error:
+            tokenRes.diagnostic ||
             "尚未讀取到 LINE_CHANNEL_ACCESS_TOKEN。若已在 Vercel 設定，請至 Vercel Deployments 點選 Redeploy 重新部署，或直接在畫面中填入 Token 立即發送！",
         },
         { status: 400 }
