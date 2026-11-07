@@ -25,15 +25,17 @@ export interface LineTokenResult {
 
 /**
  * 取得 LINE Channel Access Token，支援自訂傳入、多種命名、大小寫模糊容錯與精準診斷
+ * 注意：合法的 LINE Channel Access Token (包含短期與長期) 長度必定 >= 80 碼 (一般約 170~200 碼)。
+ * 若長度小於 80 碼 (如 32 碼的 Channel Secret 或 10 碼的 Channel ID)，絕不可誤判為 Token！
  */
 export function getChannelAccessToken(customToken?: string): LineTokenResult {
   // 1. 優先取用前端手動傳入的 Token (繞過 Vercel 部署直接生效)
   const cleanedCustom = cleanToken(customToken);
-  if (cleanedCustom && cleanedCustom.length > 10) {
+  if (cleanedCustom && cleanedCustom.length >= 80) {
     return { token: cleanedCustom, source: "custom_request" };
   }
 
-  // 2. 常見標準命名清單
+  // 2. 常見標準命名清單 (長度必須 >= 80 才是真 Token)
   const standardKeys = [
     "LINE_CHANNEL_ACCESS_TOKEN",
     "LINE_ACCESS_TOKEN",
@@ -49,7 +51,7 @@ export function getChannelAccessToken(customToken?: string): LineTokenResult {
 
   for (const k of standardKeys) {
     const val = cleanToken(process.env[k]);
-    if (val && val.length > 10) {
+    if (val && val.length >= 80) {
       return { token: val, source: `env:${k}` };
     }
   }
@@ -58,7 +60,7 @@ export function getChannelAccessToken(customToken?: string): LineTokenResult {
   for (const [key, rawVal] of Object.entries(process.env)) {
     const val = cleanToken(rawVal);
     const upperKey = key.toUpperCase();
-    if (val && val.length > 10) {
+    if (val && val.length >= 80) {
       if (
         (upperKey.includes("LINE") && upperKey.includes("TOKEN")) ||
         (upperKey.includes("CHANNEL") && upperKey.includes("ACCESS"))
@@ -68,32 +70,7 @@ export function getChannelAccessToken(customToken?: string): LineTokenResult {
     }
   }
 
-  // 4. 偵錯分析：抓出有被填寫但長度異常的相關變數
-  const relatedEntries = Object.entries(process.env).filter(([k]) => {
-    const u = k.toUpperCase();
-    return u.includes("LINE") || u.includes("CHANNEL");
-  });
-
-  let diagnostic = "";
-  if (relatedEntries.length > 0) {
-    const details = relatedEntries
-      .map(([k, v]) => `${k} (長度 ${cleanToken(v).length} 碼)`)
-      .join(", ");
-    
-    // 檢查是否有長度 32 碼 (通常是 Channel Secret) 或 10 碼 (Channel ID)
-    const hasSecretLike = relatedEntries.some(([, v]) => cleanToken(v).length === 32);
-    const hasIdLike = relatedEntries.some(([, v]) => cleanToken(v).length >= 8 && cleanToken(v).length <= 12);
-    
-    if (hasSecretLike) {
-      diagnostic = `在 Vercel 找到了 ${details}，但其長度為 32 碼，這疑似是「Channel Secret」，不是「Channel Access Token」！長期 Token 長度通常在 150 碼以上。`;
-    } else if (hasIdLike) {
-      diagnostic = `在 Vercel 找到了 ${details}，但長度只有約 10 碼，這疑似是 Channel ID 或 Basic ID，不是發送推播用的「Channel access token (long-lived)」！`;
-    } else {
-      diagnostic = `在 Vercel 找到了 ${details}，但長度不符合有效 Access Token 標準。`;
-    }
-  }
-
-  return { token: "", source: "none", diagnostic };
+  return { token: "", source: "none" };
 }
 
 // 記憶體快取自動換發的 Token (有效期限 30 天)
@@ -147,9 +124,6 @@ export async function fetchTokenFromOAuth(
 
 /**
  * 尋找環境變數中的 Channel ID 與 Channel Secret
- */
-/**
- * 尋找環境變數中的 Channel ID 與 Channel Secret
  * 支援多種命名規格、大小寫容錯、以及使用者將兩者貼在同一個變數中的全域正則解析
  */
 export function findChannelCredentials(): { channelId?: string; channelSecret?: string } {
@@ -200,7 +174,7 @@ export function findChannelCredentials(): { channelId?: string; channelSecret?: 
       }
     }
 
-    // 3. 容錯使用者將整段資料貼在同一個變數中 (例如在 LINE_CHANNEL_ACCESS_TOKEN 中包含了 Channel ID 與 Secret)
+    // 3. 容錯使用者將整段資料貼在同一個變數中 (例如包含 Channel ID 與 Secret)
     if (!channelId || !channelSecret) {
       const idMatch = clean.match(/(?:^|[^\d])(20\d{8}|\d{8,12})(?:[^\d]|$)/);
       const secretMatch = clean.match(/(?:^|[^a-fA-F0-9])([a-fA-F0-9]{32})(?:[^a-fA-F0-9]|$)/);
@@ -209,12 +183,39 @@ export function findChannelCredentials(): { channelId?: string; channelSecret?: 
     }
   }
 
+  // 4. 超強防呆：遍歷所有 process.env，只要有任何變數值是 32 碼十六進位，它必定是 Channel Secret！
+  // (例如使用者把變數名取為 LINE_TOKEN，但貼入的是 32 碼 Secret)
+  if (!channelSecret) {
+    for (const [, v] of Object.entries(process.env)) {
+      if (typeof v === "string") {
+        const clean = cleanToken(v);
+        if (/^[a-fA-F0-9]{32}$/.test(clean)) {
+          channelSecret = clean;
+          break;
+        }
+      }
+    }
+  }
+
+  // 5. 超強防呆：遍歷所有 process.env，只要有任何變數值是 10 碼純數字 (或 20 開頭的 10 碼 Channel ID)，它必定是 Channel ID！
+  if (!channelId) {
+    for (const [, v] of Object.entries(process.env)) {
+      if (typeof v === "string") {
+        const clean = cleanToken(v);
+        if (/^\d{10}$/.test(clean) || /^20\d{8}$/.test(clean)) {
+          channelId = clean;
+          break;
+        }
+      }
+    }
+  }
+
   return { channelId, channelSecret };
 }
 
 /**
  * 完整解析 Token：
- * 1. 優先檢查是否直接提供 Access Token
+ * 1. 優先檢查是否直接提供 Access Token (長度需 >= 80)
  * 2. 若無，則使用傳入或環境變數的 Channel ID + Channel Secret 向 LINE 伺服器自動換發！
  */
 export async function resolveChannelAccessToken(options?: {
@@ -222,7 +223,7 @@ export async function resolveChannelAccessToken(options?: {
   channelId?: string;
   channelSecret?: string;
 }): Promise<LineTokenResult> {
-  // 1. 直傳 Access Token
+  // 1. 直傳 Access Token (長度需 >= 80 才是真 Token)
   const direct = getChannelAccessToken(options?.customToken);
   if (direct.token) return direct;
 
@@ -242,7 +243,24 @@ export async function resolveChannelAccessToken(options?: {
     return {
       token: "",
       source: "oauth_failed",
-      diagnostic: `使用 Channel ID (${activeId}) 與 Channel Secret 嘗試向 LINE 自動換發 Token 失敗: ${oauthRes.error}`,
+      diagnostic: `使用 Channel ID (${activeId}) 與 Channel Secret (${activeSecret.slice(0, 4)}...${activeSecret.slice(-4)}) 向 LINE 換發 Token 失敗: ${oauthRes.error}`,
+    };
+  }
+
+  // 3. 明確告知缺少項目
+  if (!activeId && activeSecret) {
+    return {
+      token: "",
+      source: "missing_channel_id",
+      diagnostic: `已在環境變數讀取到 32 碼 Channel Secret (${activeSecret.slice(0, 4)}...${activeSecret.slice(-4)})，但缺少 Channel ID (10 碼數字，例如 200xxxxxxx)！請在 Vercel 新增 LINE_CHANNEL_ID 或在彈窗填寫。`,
+    };
+  }
+
+  if (activeId && !activeSecret) {
+    return {
+      token: "",
+      source: "missing_channel_secret",
+      diagnostic: `已在環境變數讀取到 Channel ID (${activeId})，但缺少 32 碼 Channel Secret！請在 Vercel 新增 LINE_CHANNEL_SECRET 或在彈窗填寫。`,
     };
   }
 
@@ -259,6 +277,8 @@ export async function GET(req: NextRequest) {
   const tokenRes = await resolveChannelAccessToken({ customToken, channelId, channelSecret });
   const token = tokenRes.token;
 
+  const envCreds = findChannelCredentials();
+
   if (!token) {
     const relatedKeys = Object.keys(process.env).filter((k) => {
       const u = k.toUpperCase();
@@ -270,6 +290,14 @@ export async function GET(req: NextRequest) {
       message:
         tokenRes.diagnostic ||
         "伺服器環境變數尚未讀取到 LINE 金鑰。系統現已支援直接填入 Channel ID 與 Channel Secret 自動換發！若已在 Vercel 新增，請確認 Production 有勾選並 Redeploy。",
+      detected: {
+        hasChannelId: !!envCreds.channelId,
+        channelIdMasked: envCreds.channelId ? `${envCreds.channelId.slice(0, 4)}****` : null,
+        hasChannelSecret: !!envCreds.channelSecret,
+        channelSecretMasked: envCreds.channelSecret
+          ? `${envCreds.channelSecret.slice(0, 4)}...${envCreds.channelSecret.slice(-4)}`
+          : null,
+      },
       foundKeys: relatedKeys,
       checkedKeys: [
         "LINE_CHANNEL_ID + LINE_CHANNEL_SECRET (自動換發)",

@@ -221,7 +221,8 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
 
           <button
             onClick={() => {
-              setPushStatus("error");
+              setPushStatus("idle");
+              setPushErrorMsg("");
               setIsPushModalOpen(true);
             }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] text-secondary hover:text-primary border border-[var(--border)] text-xs font-medium transition-colors cursor-pointer"
@@ -395,41 +396,51 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
             </div>
           )}
 
-          {pushStatus === "error" && (
+          {(pushStatus === "error" || pushStatus === "idle") && (
             <div className="space-y-3.5">
-              {/* 診斷報錯區 */}
-              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-start gap-3">
-                <AlertCircle size={24} className="flex-shrink-0 mt-0.5" />
-                <div className="space-y-1 text-xs leading-relaxed">
-                  <h4 className="font-bold text-sm text-amber-300">LINE 推播未送達</h4>
-                  <p className="text-secondary font-mono bg-black/40 p-2 rounded text-[11px] text-rose-300 border border-rose-500/20">
-                    {pushErrorMsg || serverDiag?.message || "尚未讀取到 LINE 金鑰 (請確認 Vercel 中的 Channel ID 與 Channel Secret)"}
-                  </p>
+              {/* 僅在發生錯誤時顯示紅框報錯 */}
+              {pushStatus === "error" && (
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-start gap-3 animate-fade-in">
+                  <AlertCircle size={24} className="flex-shrink-0 mt-0.5 text-rose-400" />
+                  <div className="space-y-1 text-xs leading-relaxed flex-1">
+                    <h4 className="font-bold text-sm text-rose-300">LINE 推播未送達</h4>
+                    <p className="text-secondary font-mono bg-black/40 p-2 rounded text-[11px] text-rose-200 border border-rose-500/20">
+                      {pushErrorMsg || serverDiag?.message || "伺服器尚未連通 LINE 金鑰"}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* 為什麼後台根本沒有 Token 的真相關懷 */}
-              <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] space-y-2 text-xs text-secondary">
-                <div className="font-bold text-primary flex items-center gap-1.5">
-                  <RefreshCw size={13} className="text-amber-400" />
-                  <span>為什麼你在 LINE 官方後台（manager.line.biz）完全找不到 Token？</span>
-                </div>
-                <div className="text-[11px] leading-relaxed space-y-1.5 text-secondary">
-                  <p>
-                    <strong>你的直覺完全正確！</strong>在 LINE 官方帳號管理後台（manager.line.biz）的「Messaging API」頁面中，本來就<strong>只有 Channel ID 與 Channel secret</strong>，翻遍全頁都不會有 Token。
+              {/* 正常檢視配置時的連線狀態條 */}
+              {pushStatus === "idle" && (
+                <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] text-xs space-y-1.5 animate-fade-in">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-primary flex items-center gap-1.5">
+                      <Key size={14} className="text-emerald-400" />
+                      <span>LINE 官方 Messaging API 金鑰連動狀態</span>
+                    </span>
+                    {serverDiag?.configured ? (
+                      <span className="text-[10px] text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                        🟢 已成功自動換發
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">
+                        待連通
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-secondary">
+                    {serverDiag?.message || "輸入 LINE 官方後台的 Channel ID 與 Channel secret，系統將自動 OAuth 換發長期權杖並即時發送推播。"}
                   </p>
-                  <p className="text-emerald-400 font-semibold">
-                    💡 好消息：你完全不需要 Token！只要把你在該頁面看到的 Channel ID 與 Channel secret 填在下方，系統會直接透過 LINE 官方 OAuth 機制「全自動換發」，再也不需要大海撈針！
-                  </p>
                 </div>
-              </div>
+              )}
 
-              {/* 方案 A（最強烈推薦）：直接在畫面填寫 Channel ID + Channel Secret 立即測試 */}
+              {/* 方案 A（全自動換發）：直接在畫面填寫 Channel ID + Channel Secret 立即測試 */}
               <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-500/10 to-blue-500/10 border border-emerald-500/30 space-y-2.5 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-emerald-400 flex items-center gap-1.5">
                     <Key size={13} />
-                    <span>免找 Token！直接填寫 Channel ID 與 Channel Secret：</span>
+                    <span>填寫 Channel ID 與 Channel Secret (免找 Token)：</span>
                   </span>
                   <span className="text-[10px] text-emerald-300 bg-emerald-500/20 px-1.5 py-0.5 rounded font-mono">
                     自動 OAuth 換發
@@ -460,16 +471,16 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
                 <Button
                   size="sm"
                   variant="primary"
-                  disabled={!customChannelId.trim() || !customChannelSecret.trim() || isPushing}
+                  disabled={isPushing}
                   onClick={() =>
                     handleSendTestPush({
-                      channelId: customChannelId,
-                      channelSecret: customChannelSecret,
+                      channelId: customChannelId || undefined,
+                      channelSecret: customChannelSecret || undefined,
                     })
                   }
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all"
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
                 >
-                  {isPushing ? "LINE 官方 OAuth 授權連線中..." : "立即以 Channel ID + Secret 自動換發並廣播測試"}
+                  {isPushing ? "LINE 官方 OAuth 授權連線中..." : "立即換發並測試發送 LINE 廣播"}
                 </Button>
                 <span className="text-[10px] text-muted block">
                   點擊後系統會透過 LINE 官方 OAuth 2.0 端點取得合法權杖並立即送出廣播，手機 LINE 馬上能收到推播！
