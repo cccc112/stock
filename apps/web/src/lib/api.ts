@@ -232,12 +232,20 @@ export const apiMarket = {
   getMultiAssets: () => api.get('/market/multi-assets'),
   getEtfNav: async (symbol?: string) => {
     try {
-      const res = await axios.get('/api/etf-nav', { params: symbol ? { symbol } : {}, timeout: 8000 });
+      const res = await axios.get('/api/etf-nav', { params: symbol ? { symbol } : {}, timeout: 15000 });
       if (res?.data) return res;
     } catch {
-      // fallback
+      try {
+        const fetchRes = await fetch(`/api/etf-nav${symbol ? `?symbol=${encodeURIComponent(symbol)}` : ''}`);
+        if (fetchRes.ok) {
+          const json = await fetchRes.json();
+          return { data: json, status: 200, statusText: "OK", headers: {}, config: {} as any };
+        }
+      } catch {
+        // fallback
+      }
     }
-    return api.get('/market/etf-nav', { params: symbol ? { symbol } : {} });
+    return { data: [] };
   },
 };
 

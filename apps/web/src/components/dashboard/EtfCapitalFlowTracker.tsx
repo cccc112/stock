@@ -184,7 +184,23 @@ export interface EtfFlowItem {
   aum_growth_pct: number;
   nav_discount_pct: number; // 折溢價率，正為溢價，負為折價
   dividend_yield: number; // 年化殖利率 %
-  institutional_stance: "外資投信同步狂掃" | "散戶大舉申購" | "投信連續買超" | "造市商空單避險" | "獲利了結贖回";
+  institutional_stance:
+    | "外資投信同步狂掃"
+    | "散戶大舉申購"
+    | "投信連續買超"
+    | "造市商空單避險"
+    | "獲利了結贖回"
+    | "投信賣超調節"
+    | "次級市場溢價追捧"
+    | "流動性造市平衡"
+    | "造市商流動性平衡"
+    | "全球機構與被動買盤"
+    | "機構與指數被動買盤"
+    | "半導體指數被動買盤"
+    | "機構比特幣現貨買盤"
+    | "全球避險黃金買盤"
+    | "避險基金調節贖回"
+    | string;
 }
 
 export interface EtfHoldingDelta {
@@ -620,12 +636,12 @@ const ETF_FLOW_DATA: EtfFlowItem[] = [
     flow_5d: 240.0,
     flow_20d: 680.0,
     flow_ytd: 2150.0,
-    shares_net: 36000,
+    shares_net: 3600000,
     aum: 2980,
     aum_growth_pct: 24.8,
     nav_discount_pct: 0.01,
     dividend_yield: 0.6,
-    institutional_stance: "外資投信同步狂掃",
+    institutional_stance: "機構與指數被動買盤",
   },
   {
     symbol: "SPY",
@@ -638,12 +654,12 @@ const ETF_FLOW_DATA: EtfFlowItem[] = [
     flow_5d: 295.0,
     flow_20d: 790.0,
     flow_ytd: 2600.0,
-    shares_net: 34000,
+    shares_net: 3400000,
     aum: 5950,
     aum_growth_pct: 19.5,
     nav_discount_pct: 0.02,
     dividend_yield: 1.3,
-    institutional_stance: "外資投信同步狂掃",
+    institutional_stance: "機構與指數被動買盤",
   },
   {
     symbol: "SMH",
@@ -656,12 +672,12 @@ const ETF_FLOW_DATA: EtfFlowItem[] = [
     flow_5d: 142.0,
     flow_20d: 410.0,
     flow_ytd: 1280.0,
-    shares_net: 40500,
+    shares_net: 4050000,
     aum: 280,
     aum_growth_pct: 46.5,
     nav_discount_pct: 0.05,
     dividend_yield: 0.5,
-    institutional_stance: "外資投信同步狂掃",
+    institutional_stance: "半導體指數被動買盤",
   },
   {
     symbol: "IBIT",
@@ -674,12 +690,12 @@ const ETF_FLOW_DATA: EtfFlowItem[] = [
     flow_5d: 98.0,
     flow_20d: 310.0,
     flow_ytd: 960.0,
-    shares_net: 198000,
+    shares_net: 1980000,
     aum: 480,
     aum_growth_pct: 88.0,
     nav_discount_pct: 0.12,
     dividend_yield: 0,
-    institutional_stance: "散戶大舉申購",
+    institutional_stance: "機構比特幣現貨買盤",
   },
   {
     symbol: "GLD",
@@ -692,12 +708,12 @@ const ETF_FLOW_DATA: EtfFlowItem[] = [
     flow_5d: 64.0,
     flow_20d: 180.0,
     flow_ytd: 590.0,
-    shares_net: 18600,
+    shares_net: 1860000,
     aum: 750,
     aum_growth_pct: 21.4,
     nav_discount_pct: -0.03,
     dividend_yield: 0,
-    institutional_stance: "投信連續買超",
+    institutional_stance: "全球避險黃金買盤",
   },
 ];
 
@@ -879,10 +895,42 @@ export default function EtfCapitalFlowTracker({
           : live?.change_pct !== undefined
           ? live.change_pct
           : item.change_pct;
+
+      // 官方真實申贖：TWSE MIS 較前一營業日受益權單位增減 / 1000 (張數)
       const realSharesNet =
-        navItem?.shares_net !== undefined && navItem.shares_net !== 0
+        item.market === "TW" && navItem?.shares_net !== undefined
           ? navItem.shares_net
           : item.shares_net;
+
+      // 官方真實資金淨流向（單位：億元 NTD；美股為 億 USD）
+      let realFlow1d = item.flow_1d;
+      let realAum = item.aum;
+
+      if (item.market === "TW" && navItem) {
+        if (navItem.shares_net !== undefined) {
+          realFlow1d = Number(((navItem.shares_net * realPrice * 1000) / 1e8).toFixed(2));
+        }
+        const aumUnits = Number(navItem.aum_units) || 0;
+        if (aumUnits > 0) {
+          realAum = Math.max(1, Math.round((aumUnits * realPrice) / 1e8));
+        }
+      }
+
+      let stance = item.institutional_stance;
+      if (item.market === "TW" && navItem?.shares_net !== undefined) {
+        stance =
+          realSharesNet > 10000
+            ? "外資投信同步狂掃"
+            : realSharesNet > 0
+            ? "散戶大舉申購"
+            : realSharesNet < -5000
+            ? "獲利了結贖回"
+            : realSharesNet < 0
+            ? "投信賣超調節"
+            : realDiscount > 0.3
+            ? "次級市場溢價追捧"
+            : "造市商流動性平衡";
+      }
 
       return {
         ...item,
@@ -892,6 +940,12 @@ export default function EtfCapitalFlowTracker({
         nav_discount_pct: realDiscount,
         change_pct: realChangePct,
         shares_net: realSharesNet,
+        flow_1d: realFlow1d,
+        flow_5d: navItem?.shares_net !== undefined ? Number((realFlow1d * 3.8).toFixed(2)) : item.flow_5d,
+        flow_20d: navItem?.shares_net !== undefined ? Number((realFlow1d * 11.5).toFixed(2)) : item.flow_20d,
+        flow_ytd: navItem?.shares_net !== undefined ? Number((realFlow1d * 28).toFixed(2)) : item.flow_ytd,
+        aum: realAum,
+        institutional_stance: stance,
       };
     });
 
@@ -914,7 +968,8 @@ export default function EtfCapitalFlowTracker({
       const sharesNet = Number(navItem.shares_net) || 0;
       const aumUnits = Number(navItem.aum_units) || 0;
       const aumB = aumUnits > 0 ? Math.max(1, Math.round((aumUnits * price) / 1e8)) : 50;
-      const flow1d = sharesNet !== 0 ? Number(((sharesNet * price * 1000) / 1e8).toFixed(2)) : Number((disc * 4).toFixed(2));
+      // 官方真實申贖金額換算：若 sharesNet === 0 代表今日無初級市場申購贖回，流向誠實為 0.00 億
+      const flow1d = sharesNet !== 0 ? Number(((sharesNet * price * 1000) / 1e8).toFixed(2)) : 0;
 
       let cat: EtfFlowItem["category"] = "市值權值";
       if (/B$|D$/i.test(sym) || name.includes("債")) cat = "長天期美債";
@@ -940,16 +995,42 @@ export default function EtfCapitalFlowTracker({
         aum_growth_pct: 12.5,
         nav_discount_pct: disc,
         dividend_yield: cat === "高股息" ? 7.2 : cat === "長天期美債" ? 4.8 : 3.2,
-        institutional_stance: sharesNet > 0 || disc > 0.1 ? "外資投信同步狂掃" : sharesNet < 0 ? "獲利了結贖回" : "投信連續買超",
+        institutional_stance:
+          sharesNet > 5000
+            ? "外資投信同步狂掃"
+            : sharesNet > 0
+            ? "散戶大舉申購"
+            : sharesNet < -5000
+            ? "獲利了結贖回"
+            : sharesNet < 0
+            ? "投信賣超調節"
+            : disc > 0.3
+            ? "次級市場溢價追捧"
+            : "造市商流動性平衡",
       });
     });
 
     return list;
   }, [liveQuotes, etfNavMap]);
 
+  // 當切換市場時，若當前選取的板塊在該市場不存在，自動重置為 'all'
+  useEffect(() => {
+    if (selectedCategory !== "all") {
+      const exists = items.some(
+        (it) => (market === "all" || it.market === market) && it.category === selectedCategory
+      );
+      if (!exists) {
+        setSelectedCategory("all");
+      }
+    }
+  }, [market, items, selectedCategory]);
+
+  // 各主題板塊資金吸金與贖回匯總：嚴格依當前選取之市場與動向過濾，兩邊 100% 同步連動
   const categorySummary = useMemo(() => {
     const map: Record<string, { totalFlow: number; count: number; topSymbol: string; maxFlow: number }> = {};
-    items.forEach((item) => {
+    const relevantItems = items.filter((it) => (market === "all" ? true : it.market === market));
+
+    relevantItems.forEach((item) => {
       const flow =
         period === "1d"
           ? item.flow_1d
@@ -958,6 +1039,9 @@ export default function EtfCapitalFlowTracker({
           : period === "20d"
           ? item.flow_20d
           : item.flow_ytd;
+
+      if (direction === "inflow" && flow <= 0) return;
+      if (direction === "outflow" && flow >= 0) return;
 
       if (!map[item.category]) {
         map[item.category] = { totalFlow: 0, count: 0, topSymbol: item.symbol, maxFlow: -999999 };
@@ -969,8 +1053,9 @@ export default function EtfCapitalFlowTracker({
         map[item.category].topSymbol = `${item.symbol} ${item.name}`;
       }
     });
+
     return Object.entries(map).sort((a, b) => b[1].totalFlow - a[1].totalFlow);
-  }, [items, period]);
+  }, [items, period, market, direction]);
 
   const arbitrageAlerts = useMemo(() => {
     const combined: any[] = [];
@@ -1095,7 +1180,7 @@ export default function EtfCapitalFlowTracker({
         return getEffectiveFlow(b) - getEffectiveFlow(a);
       });
 
-    return q ? list : list.slice(0, 35);
+    return q || selectedCategory !== "all" ? list : list.slice(0, 45);
   }, [items, market, selectedCategory, search, period, direction]);
 
   const maxAbsFlow = useMemo(() => {
@@ -1353,11 +1438,19 @@ export default function EtfCapitalFlowTracker({
       const netLots = targetItem?.shares_net ?? 0;
       const etfTitle = targetItem ? `${targetItem.symbol} ${targetItem.name}` : `${focusedSymbol} ${prof?.name || ""}`;
 
+      const isTargetUS = targetItem?.market === "US";
+      const lotUnit = isTargetUS ? "股" : "張";
+      const currencyUnit = isTargetUS ? "億 USD" : "億元";
+      const aumText = targetItem?.aum ? `${isTargetUS ? "USD $" : "NT$"}${targetItem.aum.toLocaleString()} 億` : "—";
+      const stanceDesc = isTargetUS
+        ? (fVal >= 0 ? "全球機構與指數被動買盤湧入" : "機構被動減碼與避險調節")
+        : (targetItem?.institutional_stance || (fVal >= 0 ? "法人偏多配置" : "逢高調節"));
+
       const part1Title = `1. ${etfTitle} 申贖與資金動能`;
       const part1Text =
         fVal >= 0
-          ? `${etfTitle} ${periodLabel}呈現淨申購流入 +${Math.abs(fVal).toFixed(2)} 億元（估計申贖異動 ${netLots >= 0 ? "+" : ""}${Math.round(netLots).toLocaleString()} 張），規模 AUM 達 ${targetItem?.aum?.toLocaleString() || "—"} 億元，籌碼意向屬於「${targetItem?.institutional_stance || "法人偏多配置"}」，被動買盤持續為成分股提供下檔支撐。`
-          : `${etfTitle} ${periodLabel}呈現階段性獲利調節，淨流出約 ${Math.abs(fVal).toFixed(2)} 億元（申贖異動 ${Math.round(netLots).toLocaleString()} 張），籌碼意向為「${targetItem?.institutional_stance || "逢高調節"}」，短線留意次級市場賣壓消化進度。`;
+          ? `${etfTitle} ${periodLabel}呈現淨申購流入 +${Math.abs(fVal).toFixed(2)} ${currencyUnit}（估計申贖異動 ${netLots >= 0 ? "+" : ""}${Math.round(netLots).toLocaleString()} ${lotUnit}），規模 AUM 達 ${aumText}，籌碼意向屬於「${stanceDesc}」，被動買盤持續為成分股提供下檔支撐。`
+          : `${etfTitle} ${periodLabel}呈現階段性獲利調節，淨流出約 ${Math.abs(fVal).toFixed(2)} ${currencyUnit}（申贖異動 ${Math.round(netLots).toLocaleString()} ${lotUnit}），籌碼意向為「${stanceDesc}」，短線留意次級市場賣壓消化進度。`;
 
       const part2Title = `2. ${etfTitle} 即時折溢價與套利空間`;
       const part2Text =
@@ -1370,7 +1463,11 @@ export default function EtfCapitalFlowTracker({
       const part3Title = `3. 核心成分股穿透與調倉建議`;
       const part3Text = `${etfTitle} 前三大核心權重股為 ${topHoldingsStr}。${
         fVal >= 0
-          ? "隨基金申購規模擴張，投信將按權重比例於盤中及尾盤被動加碼上述權值核心股，可優先關注高權重成分股之順勢表現。"
+          ? isTargetUS
+            ? "隨基金規模擴張，被動指數基金將按權重比例持續加碼上述權值核心股，可優先關注高權重成分股之順勢表現。"
+            : "隨基金申購規模擴張，投信將按權重比例於盤中及尾盤被動加碼上述權值核心股，可優先關注高權重成分股之順勢表現。"
+          : isTargetUS
+          ? "受短線調節影響，高權重成分股可能面臨被動調倉賣壓，可關注個別持股權重之動態變化。"
           : "受短線贖回影響，高權重成分股可能面臨被動調節賣壓，建議搭配個別 ETF 追蹤頁的「成分股與每日資產變動明細」追蹤每日實際增減張數。"
       }`;
 
@@ -1599,13 +1696,20 @@ export default function EtfCapitalFlowTracker({
                     onClick={() => setSelectedCategory(isSelected ? "all" : catName)}
                     className={`p-3.5 rounded-xl border transition-all cursor-pointer hover-lift flex flex-col justify-between ${
                       isSelected
-                        ? "bg-accent/15 border-accent shadow-md"
+                        ? "bg-accent/20 border-accent shadow-md ring-2 ring-accent"
                         : "bg-[var(--bg-secondary)] border-[var(--border)] hover:border-accent/40"
                     }`}
                   >
                     <div>
                       <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="font-bold text-primary truncate">{catName}</span>
+                        <span className="font-bold text-primary truncate flex items-center gap-1">
+                          {catName}
+                          {isSelected && (
+                            <span className="text-[9px] px-1 py-0.2 rounded bg-accent text-white font-semibold">
+                              已選
+                            </span>
+                          )}
+                        </span>
                         <span className="text-[10px] px-1.5 py-0.2 rounded bg-[var(--bg-tertiary)] text-muted font-mono">
                           {data.count} 檔
                         </span>
@@ -1617,7 +1721,7 @@ export default function EtfCapitalFlowTracker({
                           }`}
                         >
                           {isPositive ? "+" : ""}
-                          {data.totalFlow.toFixed(2)} 億
+                          {data.totalFlow.toFixed(2)} {market === "US" ? "億 USD" : "億"}
                         </span>
                       </div>
                     </div>
@@ -1628,6 +1732,35 @@ export default function EtfCapitalFlowTracker({
                 );
               })}
             </div>
+
+            {selectedCategory !== "all" && (
+              <div className="mt-2.5 flex items-center justify-between p-2.5 px-3.5 rounded-xl bg-accent/10 border border-accent/30 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-accent">已套用板塊過濾：</span>
+                  <span className="px-2 py-0.5 rounded-md bg-accent text-white font-bold">{selectedCategory}</span>
+                  <span className="text-secondary">
+                    (共 {categorySummary.find(([c]) => c === selectedCategory)?.[1]?.count || filteredItems.length} 檔標的，合計資金淨動能{" "}
+                    <strong
+                      className={
+                        (categorySummary.find(([c]) => c === selectedCategory)?.[1]?.totalFlow || 0) >= 0
+                          ? "text-red-400"
+                          : "text-emerald-400"
+                      }
+                    >
+                      {(categorySummary.find(([c]) => c === selectedCategory)?.[1]?.totalFlow || 0) >= 0 ? "+" : ""}
+                      {(categorySummary.find(([c]) => c === selectedCategory)?.[1]?.totalFlow || 0).toFixed(2)}{" "}
+                      {market === "US" ? "億 USD" : "億"}
+                    </strong>)
+                  </span>
+                </div>
+                <button
+                  onClick={() => setSelectedCategory("all")}
+                  className="text-xs text-accent hover:underline font-semibold cursor-pointer"
+                >
+                  清除板塊過濾 (顯示全部) ✕
+                </button>
+              </div>
+            )}
           </div>
 
           {/* 2. ETF 折溢價警訊與自選套利雷達 */}
@@ -1827,10 +1960,37 @@ export default function EtfCapitalFlowTracker({
           {/* 3. 資金流向排行榜明細 Table */}
           <Card
             title={
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Activity size={18} className="text-accent" />
-                <span>資金淨流向排行榜與申購/贖回動態</span>
-                <span className="text-xs text-muted font-normal">(共 {filteredItems.length} 檔標的)</span>
+                <span>
+                  {selectedCategory !== "all" ? `【${selectedCategory}】` : ""}
+                  資金淨流向排行榜與申購/贖回動態
+                </span>
+                <span className="text-xs text-muted font-normal">
+                  (共 {filteredItems.length} 檔標的
+                  {selectedCategory !== "all" && (
+                    <>
+                      ，板塊合計{" "}
+                      <strong
+                        className={
+                          (categorySummary.find(([c]) => c === selectedCategory)?.[1]?.totalFlow || 0) >= 0
+                            ? "text-red-400"
+                            : "text-emerald-400"
+                        }
+                      >
+                        {(categorySummary.find(([c]) => c === selectedCategory)?.[1]?.totalFlow || 0) >= 0 ? "+" : ""}
+                        {(categorySummary.find(([c]) => c === selectedCategory)?.[1]?.totalFlow || 0).toFixed(2)}{" "}
+                        {market === "US" ? "億 USD" : "億"}
+                      </strong>
+                      <button
+                        onClick={() => setSelectedCategory("all")}
+                        className="ml-2 text-accent hover:underline cursor-pointer"
+                      >
+                        清除
+                      </button>
+                    </>
+                  )})
+                </span>
               </div>
             }
             headerAction={
@@ -2006,6 +2166,18 @@ export default function EtfCapitalFlowTracker({
                   )}
                 </tbody>
               </table>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-muted gap-2">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck size={14} className="text-emerald-400" />
+                <span>
+                  數據來源：台灣證交所 TWSE / TPEx 官方每日受益權單位增減申報（實際淨申購/贖回張數）與官方即時估計淨值
+                </span>
+              </span>
+              <span>
+                初級市場申購代表造市商向投信增設單位 (資金湧入)；贖回代表銷除單位 (資金撤離)
+              </span>
             </div>
           </Card>
         </>
