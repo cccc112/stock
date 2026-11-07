@@ -313,29 +313,31 @@ export async function GET(req: NextRequest) {
       : `${token.slice(0, 4)}...`;
 
   try {
-    // 檢測配額
-    const quotaRes = await fetch("https://api.line.me/v2/bot/message/quota", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const quotaData = quotaRes.ok ? await quotaRes.json() : null;
-
-    // 檢測本月已用推播數
-    const consumptionRes = await fetch(
-      "https://api.line.me/v2/bot/message/quota/consumption",
-      {
+    // 平行檢測配額、已用推播數、以及官方帳號真實資訊 (Bot Info)
+    const [quotaRes, consumptionRes, botInfoRes] = await Promise.allSettled([
+      fetch("https://api.line.me/v2/bot/message/quota", {
         headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    const consumptionData = consumptionRes.ok ? await consumptionRes.json() : null;
+      }).then((r) => (r.ok ? r.json() : null)),
+      fetch("https://api.line.me/v2/bot/message/quota/consumption", {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((r) => (r.ok ? r.json() : null)),
+      fetch("https://api.line.me/v2/bot/info", {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((r) => (r.ok ? r.json() : null)),
+    ]);
 
-    if (!quotaRes.ok && quotaRes.status === 401) {
-      return NextResponse.json({
-        configured: true,
-        valid: false,
-        tokenInfo: maskedToken,
-        error:
-          "金鑰認證失敗 (401 Unauthorized)。請確認您複製的是 LINE Developers 裡面 Messaging API 頁籤最下方的「Channel access token (long-lived)」，而非 Channel Secret 或 Basic ID。",
-      });
+    const quotaData = quotaRes.status === "fulfilled" ? quotaRes.value : null;
+    const consumptionData = consumptionRes.status === "fulfilled" ? consumptionRes.value : null;
+    const botInfoData = botInfoRes.status === "fulfilled" ? botInfoRes.value : null;
+
+    let addFriendUrl = "";
+    if (botInfoData?.basicId) {
+      const cleanBasic = botInfoData.basicId.startsWith("@")
+        ? botInfoData.basicId
+        : `@${botInfoData.basicId}`;
+      addFriendUrl = `https://line.me/R/ti/p/${encodeURIComponent(cleanBasic)}`;
+    } else if (botInfoData?.premiumId) {
+      addFriendUrl = `https://line.me/R/ti/p/@${botInfoData.premiumId}`;
     }
 
     return NextResponse.json({
@@ -343,6 +345,14 @@ export async function GET(req: NextRequest) {
       valid: true,
       tokenInfo: maskedToken,
       service: "OmniTick LINE Push & Broadcast Dispatcher",
+      bot: botInfoData
+        ? {
+            displayName: botInfoData.displayName,
+            basicId: botInfoData.basicId,
+            pictureUrl: botInfoData.pictureUrl,
+            addFriendUrl,
+          }
+        : null,
       quota: quotaData,
       consumption: consumptionData,
     });
