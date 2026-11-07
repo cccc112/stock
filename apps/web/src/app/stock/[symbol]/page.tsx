@@ -285,7 +285,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
                       label: 'K線圖',
                       content: (
                         <div className="pt-2">
-                          <CandlestickChart symbol={canonical} market={market} priceLines={priceLines} />
+                          <CandlestickChart symbol={canonical} market={market} priceLines={priceLines} prevClose={stock?.prev_close} />
                         </div>
                       )
                     },

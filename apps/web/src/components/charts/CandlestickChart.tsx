@@ -1,18 +1,32 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ColorType, createChart, CandlestickSeries, HistogramSeries, LineSeries, PriceLineSource, type IChartApi, type ISeriesApi, type SeriesType, type Time } from "lightweight-charts";
+import {
+  ColorType,
+  createChart,
+  CandlestickSeries,
+  AreaSeries,
+  HistogramSeries,
+  LineSeries,
+  PriceLineSource,
+  LineStyle,
+  type IChartApi,
+  type ISeriesApi,
+  type SeriesType,
+  type Time,
+} from "lightweight-charts";
 import { DrawingLayer, DrawingToolbar, useDrawings, type BarInfo } from "@/components/charts/ChartDrawings";
 import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 import { apiStocks } from "@/lib/api";
 import { InfoTip } from "@/components/ui/TermTooltip";
-import { SlidersHorizontal, Check, X, RotateCcw } from "lucide-react";
+import { Activity, CandlestickChart as CandlestickIcon } from "lucide-react";
 
 interface CandlestickChartProps {
   symbol: string;
   market?: 'TW' | 'US';
   period?: string;
   priceLines?: { price: number; color: string; title: string }[];
+  prevClose?: number;
 }
 
 const calculateSMA = (data: any[], count: number) => {
@@ -170,7 +184,54 @@ export default function CandlestickChart(props: CandlestickChartProps) {
   return <CandlestickChartInner key={props.symbol} {...props} />;
 }
 
-function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLines = [] }: CandlestickChartProps) {
+const YAHOO_PERIODS = [
+  { label: '當日', value: '1d' },
+  { label: '5天', value: '5d' },
+  { label: '1個月', value: '1mo' },
+  { label: '6個月', value: '6mo' },
+  { label: '今年', value: 'ytd' },
+  { label: '1年', value: '1y' },
+  { label: '5年', value: '5y' },
+  { label: '全部', value: 'max' },
+];
+
+const PRO_PERIOD_GROUPS = [
+  {
+    group: '分K',
+    options: [
+      { label: '1分', value: '1m' },
+      { label: '5分', value: '5m' },
+      { label: '15分', value: '15m' },
+      { label: '30分', value: '30m' },
+      { label: '60分', value: '60m' },
+    ],
+  },
+  {
+    group: '日K',
+    options: [
+      { label: '1月', value: '1mo' },
+      { label: '3月', value: '3mo' },
+      { label: '6月', value: '6mo' },
+      { label: '今年', value: 'ytd' },
+      { label: '1年', value: '1y' },
+    ],
+  },
+  {
+    group: '長線',
+    options: [
+      { label: '5年週K', value: '5y' },
+      { label: '全部', value: 'max' },
+    ],
+  },
+];
+
+function CandlestickChartInner({
+  symbol,
+  market = 'TW',
+  period = '6mo',
+  priceLines = [],
+  prevClose,
+}: CandlestickChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const upperTrendRef = useRef<ISeriesApi<"Line"> | null>(null);
@@ -181,34 +242,44 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
   const ma20Ref = useRef<ISeriesApi<"Line"> | null>(null);
   const ma60Ref = useRef<ISeriesApi<"Line"> | null>(null);
 
+  // 圖表模式：'SIMPLE' (Yahoo風格走勢圖) 或 'PRO_KLINE' (專業技術K線)
+  const [chartMode, setChartMode] = useState<"SIMPLE" | "PRO_KLINE">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("preferred_chart_mode");
+      if (saved === "SIMPLE" || saved === "PRO_KLINE") return saved;
+    }
+    return "SIMPLE"; // 預設顯示直觀的 Yahoo 簡易走勢
+  });
+  const isSimple = chartMode === "SIMPLE";
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activePeriod, setActivePeriod] = useState(period);
+  const [activePeriod, setActivePeriod] = useState(() => (chartMode === "SIMPLE" ? "1d" : period));
   const [showAutoTrends, setShowAutoTrends] = useState(false);
   const [showMA, setShowMA] = useState(true);
   const [upperTrendColor, setUpperTrendColor] = useState('#ef4444');
   const [tooltipData, setTooltipData] = useState<any>(null);
   const [overlay, setOverlay] = useState<{ chart: IChartApi; series: ISeriesApi<SeriesType>; bars: BarInfo[] } | null>(null);
-
-  const DEFAULT_VISIBLE_PERIODS = ['1m', '5m', '15m', '60m', '1d', '5d', '6mo', '1y'];
-  const [visiblePeriods, setVisiblePeriods] = useState<string[]>(DEFAULT_VISIBLE_PERIODS);
-  const [showPeriodCustomizer, setShowPeriodCustomizer] = useState(false);
+  const [effectivePrevClose, setEffectivePrevClose] = useState<number>(prevClose || 0);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('user_kline_periods');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setVisiblePeriods(parsed);
-          }
-        }
-      } catch {
-        // ignore
+    if (prevClose && prevClose > 0) {
+      setEffectivePrevClose(prevClose);
+    }
+  }, [prevClose]);
+
+  const handleModeChange = (mode: "SIMPLE" | "PRO_KLINE") => {
+    if (mode === chartMode) return;
+    setChartMode(mode);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("preferred_chart_mode", mode);
+    }
+    if (mode === "SIMPLE") {
+      if (!YAHOO_PERIODS.some((p) => p.value === activePeriod)) {
+        setActivePeriod("1d");
       }
     }
-  }, []);
+  };
 
   const isIntradayPeriod = ['1m', '5m', '15m', '30m', '60m', '1h', '1d', '5d'].includes(activePeriod);
   const drawingsApi = useDrawings(symbol, isIntradayPeriod);
@@ -247,7 +318,7 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
       crosshair: { mode: 1 },
       rightPriceScale: { borderColor },
       leftPriceScale: {
-        visible: true,
+        visible: !isSimple,
         borderColor,
       },
       localization: {
@@ -281,7 +352,6 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
         tickMarkFormatter: (time: any, tickMarkType: number) => {
           if (typeof time === 'number') {
             const d = new Date(time * 1000);
-            // TickMarkType: Year = 0, Month = 1, DayOfMonth = 2, Time = 3, TimeWithSeconds = 4
             if (tickMarkType === 3 || tickMarkType === 4) {
               return d.toLocaleTimeString('zh-TW', {
                 timeZone: targetTz,
@@ -323,58 +393,74 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
 
     chartRef.current = chart;
 
-    const mainSeries = chart.addSeries(CandlestickSeries, {
-      upColor,
-      downColor,
-      borderVisible: false,
-      wickUpColor: upColor,
-      wickDownColor: downColor,
-      // 最新價標籤固定取「最後一根 K 棒」，而不是畫面上最後一根可見的 K 棒
-      priceLineSource: PriceLineSource.LastBar,
-    });
+    let mainSeries: any;
+    if (isSimple) {
+      // 📈 Yahoo 風格：AreaSeries 漸層走勢圖
+      mainSeries = chart.addSeries(AreaSeries, {
+        lineColor: '#2563eb', // 電光寶藍
+        topColor: isLight ? 'rgba(37, 99, 235, 0.28)' : 'rgba(37, 99, 235, 0.38)',
+        bottomColor: isLight ? 'rgba(37, 99, 235, 0.02)' : 'rgba(37, 99, 235, 0.01)',
+        lineWidth: 2,
+        priceLineSource: PriceLineSource.LastBar,
+        lastValueVisible: true,
+        priceLineVisible: true,
+      });
+    } else {
+      // 🕯️ 專業技術K線：CandlestickSeries
+      mainSeries = chart.addSeries(CandlestickSeries, {
+        upColor,
+        downColor,
+        borderVisible: false,
+        wickUpColor: upColor,
+        wickDownColor: downColor,
+        priceLineSource: PriceLineSource.LastBar,
+      });
+    }
     mainSeriesRef.current = mainSeries;
     
+    // 成交量 Histogram
     const volumeSeries = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' },
-      priceScaleId: 'left',
+      priceScaleId: isSimple ? '' : 'left',
     });
     volumeSeriesRef.current = volumeSeries;
 
     volumeSeries.priceScale().applyOptions({
-      scaleMargins: { top: 0.68, bottom: 0 },
+      scaleMargins: { top: isSimple ? 0.8 : 0.68, bottom: 0 },
     });
 
-    const maOptions = { lineWidth: 1 as const, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false };
-    const ma5Series = chart.addSeries(LineSeries, { color: '#6366f1', visible: showMA, ...maOptions });
-    const ma20Series = chart.addSeries(LineSeries, { color: '#f59e0b', visible: showMA, ...maOptions });
-    const ma60Series = chart.addSeries(LineSeries, { color: '#10b981', visible: showMA, ...maOptions });
-    ma5Ref.current = ma5Series;
-    ma20Ref.current = ma20Series;
-    ma60Ref.current = ma60Series;
+    if (!isSimple) {
+      const maOptions = { lineWidth: 1 as const, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false };
+      const ma5Series = chart.addSeries(LineSeries, { color: '#6366f1', visible: showMA, ...maOptions });
+      const ma20Series = chart.addSeries(LineSeries, { color: '#f59e0b', visible: showMA, ...maOptions });
+      const ma60Series = chart.addSeries(LineSeries, { color: '#10b981', visible: showMA, ...maOptions });
+      ma5Ref.current = ma5Series;
+      ma20Ref.current = ma20Series;
+      ma60Ref.current = ma60Series;
 
-    // 原生上下趨勢通道線 (Upper Resistance & Lower Support Trendlines)
-    const upperTrendSeries = chart.addSeries(LineSeries, {
-      color: '#ef4444',
-      lineWidth: 2,
-      lineStyle: 2, // Dashed
-      crosshairMarkerVisible: false,
-      lastValueVisible: true,
-      priceLineVisible: false,
-      title: '上壓',
-      visible: showAutoTrends,
-    });
-    const lowerTrendSeries = chart.addSeries(LineSeries, {
-      color: '#22c55e',
-      lineWidth: 2,
-      lineStyle: 2, // Dashed
-      crosshairMarkerVisible: false,
-      lastValueVisible: true,
-      priceLineVisible: false,
-      title: '下撐',
-      visible: showAutoTrends,
-    });
-    upperTrendRef.current = upperTrendSeries;
-    lowerTrendRef.current = lowerTrendSeries;
+      const upperTrendSeries = chart.addSeries(LineSeries, {
+        color: '#ef4444',
+        lineWidth: 2,
+        lineStyle: 2, // Dashed
+        crosshairMarkerVisible: false,
+        lastValueVisible: true,
+        priceLineVisible: false,
+        title: '上壓',
+        visible: showAutoTrends,
+      });
+      const lowerTrendSeries = chart.addSeries(LineSeries, {
+        color: '#22c55e',
+        lineWidth: 2,
+        lineStyle: 2, // Dashed
+        crosshairMarkerVisible: false,
+        lastValueVisible: true,
+        priceLineVisible: false,
+        title: '下撐',
+        visible: showAutoTrends,
+      });
+      upperTrendRef.current = upperTrendSeries;
+      lowerTrendRef.current = lowerTrendSeries;
+    }
 
     chart.subscribeCrosshairMove((param) => {
       if (
@@ -389,18 +475,29 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
         return;
       }
       
-      const candleData: any = param.seriesData.get(mainSeries);
+      const sData: any = param.seriesData.get(mainSeries);
       const volData: any = param.seriesData.get(volumeSeries);
       
-      if (candleData) {
-        setTooltipData({
-          time: param.time,
-          open: candleData.open,
-          high: candleData.high,
-          low: candleData.low,
-          close: candleData.close,
-          volume: volData?.value || 0,
-        });
+      if (sData) {
+        if (isSimple) {
+          const val = typeof sData.value === 'number' ? sData.value : (sData.close ?? 0);
+          setTooltipData({
+            time: param.time,
+            price: val,
+            volume: volData?.value || 0,
+            isSimple: true,
+          });
+        } else {
+          setTooltipData({
+            time: param.time,
+            open: sData.open,
+            high: sData.high,
+            low: sData.low,
+            close: sData.close,
+            volume: volData?.value || 0,
+            isSimple: false,
+          });
+        }
       }
     });
 
@@ -519,32 +616,62 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
           }));
         }
 
-        mainSeries.setData(candleData);
-        volumeSeries.setData(volumeData);
-        
-        if (candleData.length >= 5) ma5Series.setData(calculateSMA(candleData, 5));
-        if (candleData.length >= 20) ma20Series.setData(calculateSMA(candleData, 20));
-        if (candleData.length >= 60) ma60Series.setData(calculateSMA(candleData, 60));
+        if (isSimple) {
+          // 簡易模式：設定 AreaSeries 走勢線
+          mainSeries.setData(candleData.map((c) => ({ time: c.time, value: c.close })));
 
-        const { upperData, lowerData } = calculateAutoTrendChannel(candleData);
-        if (upperData.length > 0) upperTrendSeries.setData(upperData);
-        if (lowerData.length > 0) lowerTrendSeries.setData(lowerData);
+          // 昨收價水平虛線 (Dashed Reference Line，如同 Yahoo 股市)
+          let refClose = prevClose && prevClose > 0 ? prevClose : 0;
+          if (!refClose && candleData.length > 0) {
+            refClose = candleData[0].open;
+          }
+          if (refClose > 0) {
+            setEffectivePrevClose(refClose);
+            try {
+              mainSeries.createPriceLine({
+                price: refClose,
+                color: isLight ? '#94a3b8' : '#64748b',
+                lineWidth: 1,
+                lineStyle: LineStyle.Dashed,
+                axisLabelVisible: true,
+                title: '昨收',
+              });
+            } catch (lineErr) {
+              console.warn("createPriceLine failed", lineErr);
+            }
+          }
+        } else {
+          // 專業模式：設定 CandlestickSeries 與技術指標
+          mainSeries.setData(candleData);
+
+          if (candleData.length >= 5) ma5Ref.current?.setData(calculateSMA(candleData, 5));
+          if (candleData.length >= 20) ma20Ref.current?.setData(calculateSMA(candleData, 20));
+          if (candleData.length >= 60) ma60Ref.current?.setData(calculateSMA(candleData, 60));
+
+          const { upperData, lowerData } = calculateAutoTrendChannel(candleData);
+          if (upperData.length > 0) upperTrendRef.current?.setData(upperData);
+          if (lowerData.length > 0) lowerTrendRef.current?.setData(lowerData);
+        }
+
+        volumeSeries.setData(volumeData);
 
         if (!isBackground) {
           chart.timeScale().fitContent();
-          // 第一次 fitContent 時右側價格刻度寬度尚未確定；刻度變寬後繪圖區變窄，
-          // 最後幾根 K 棒會被擠出畫面（例如只顯示到前兩天）。版面穩定後再縮放一次。
           requestAnimationFrame(() => {
             try { chart.timeScale().fitContent(); } catch { /* chart 已被銷毀 */ }
           });
         }
 
-        // 提供畫線圖層需要的資料：每根 K 棒的時間戳(秒)與 OHLC
-        const barInfos: BarInfo[] = candleData.map((c: any) => ({
-          ts: typeof c.time === 'number' ? c.time : Date.parse(`${c.time}T00:00:00Z`) / 1000,
-          open: c.open, high: c.high, low: c.low, close: c.close,
-        }));
-        setOverlay({ chart, series: mainSeries as ISeriesApi<SeriesType>, bars: barInfos });
+        if (!isSimple) {
+          // 提供畫線圖層需要的資料
+          const barInfos: BarInfo[] = candleData.map((c: any) => ({
+            ts: typeof c.time === 'number' ? c.time : Date.parse(`${c.time}T00:00:00Z`) / 1000,
+            open: c.open, high: c.high, low: c.low, close: c.close,
+          }));
+          setOverlay({ chart, series: mainSeries as ISeriesApi<SeriesType>, bars: barInfos });
+        } else {
+          setOverlay(null);
+        }
       } catch (e) {
         console.error("Failed to fetch history", e);
         if (!isBackground) setError("無法載入圖表資料");
@@ -566,7 +693,6 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
     const handleResize = (width: number, height: number) => {
       if (chartRef.current && width > 0 && height > 0) {
         chartRef.current.applyOptions({ width, height });
-        // 尺寸改變後確保最新一根 K 棒仍在畫面內（保留使用者的縮放比例）
         chartRef.current.timeScale().scrollToRealTime();
       }
     };
@@ -595,10 +721,11 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
         chartRef.current = null;
       }
     };
-  }, [symbol, market, activePeriod, upColor, downColor]);
+  }, [symbol, market, activePeriod, upColor, downColor, chartMode, prevClose]);
 
   // 切換 MA 均線 (5MA / 20MA / 60MA) 顯示狀態
   useEffect(() => {
+    if (isSimple) return;
     try {
       ma5Ref.current?.applyOptions({ visible: showMA });
       ma20Ref.current?.applyOptions({ visible: showMA });
@@ -606,19 +733,20 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
     } catch {
       /* ignore if disposed */
     }
-  }, [showMA]);
+  }, [showMA, isSimple]);
 
   // 切換原生自動上下趨勢線顯示狀態與主題顏色
   useEffect(() => {
+    if (isSimple) return;
     try {
       upperTrendRef.current?.applyOptions({ visible: showAutoTrends, color: upperTrendColor });
       lowerTrendRef.current?.applyOptions({ visible: showAutoTrends });
     } catch {
       /* ignore if disposed */
     }
-  }, [showAutoTrends, upperTrendColor]);
+  }, [showAutoTrends, upperTrendColor, isSimple]);
 
-  // 監聽深淺色與漲跌顏色模式切換，即時更新 K 線圖座標軸、網格與 K 棒配色
+  // 監聽深淺色與漲跌顏色模式切換
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const applyThemeToChart = () => {
@@ -640,7 +768,7 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
           timeScale: { borderColor },
         });
 
-        if (mainSeriesRef.current) {
+        if (mainSeriesRef.current && !isSimple) {
           mainSeriesRef.current.applyOptions({
             upColor: currentUp,
             downColor: currentDown,
@@ -653,239 +781,266 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
     const observer = new MutationObserver(applyThemeToChart);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-color-scheme'] });
     return () => observer.disconnect();
-  }, []);
+  }, [isSimple]);
 
-  // 若 AI 有算出水平支撐/壓力線則一併標記在圖上
+  // 若 AI 有算出水平支撐/壓力線則一併標記在圖上（僅在專業模式）
   const aiKey = JSON.stringify(priceLines);
   const { setAiLines } = drawingsApi;
   useEffect(() => {
-    if (!overlay || overlay.bars.length === 0) return;
+    if (isSimple || !overlay || overlay.bars.length === 0) return;
     setAiLines(priceLines, overlay.bars[overlay.bars.length - 1].ts);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiKey, overlay, setAiLines]);
-
-  const ALL_PERIOD_OPTIONS = [
-    { label: '1分K', value: '1m', group: '分K' },
-    { label: '5分K', value: '5m', group: '分K' },
-    { label: '15分K', value: '15m', group: '分K' },
-    { label: '30分K', value: '30m', group: '分K' },
-    { label: '60分K', value: '60m', group: '分K' },
-    { label: '當日分時', value: '1d', group: '分時' },
-    { label: '5天分時', value: '5d', group: '分時' },
-    { label: '1月日K', value: '1mo', group: '日K' },
-    { label: '3月日K', value: '3mo', group: '日K' },
-    { label: '6月日K', value: '6mo', group: '日K' },
-    { label: '今年日K', value: 'ytd', group: '日K' },
-    { label: '1年日K', value: '1y', group: '日K' },
-    { label: '5年週K', value: '5y', group: '週K' },
-  ];
-
-  const togglePeriodVisibility = (val: string) => {
-    setVisiblePeriods((prev) => {
-      const next = prev.includes(val) ? prev.filter((p) => p !== val) : [...prev, val];
-      if (next.length === 0) return prev;
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('user_kline_periods', JSON.stringify(next));
-      }
-      return next;
-    });
-  };
-
-  const resetDefaultPeriods = () => {
-    setVisiblePeriods(DEFAULT_VISIBLE_PERIODS);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('user_kline_periods', JSON.stringify(DEFAULT_VISIBLE_PERIODS));
-    }
-  };
-
-  const displayPeriods = ALL_PERIOD_OPTIONS.filter(
-    (p) => visiblePeriods.includes(p.value) || p.value === activePeriod
-  );
+  }, [aiKey, overlay, setAiLines, isSimple]);
 
   return (
     <div className="relative w-full">
-      <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide flex-wrap sm:flex-nowrap">
-        {displayPeriods.map(p => (
-          <button
-            key={p.value}
-            onClick={() => setActivePeriod(p.value)}
-            className={`px-3 py-1 text-xs font-medium rounded-full transition-all whitespace-nowrap cursor-pointer ${
-              activePeriod === p.value
-                ? 'bg-accent text-white shadow-[0_0_12px_rgba(59,130,246,0.5)]'
-                : 'bg-[var(--bg-tertiary)] hover:bg-[var(--border)] text-secondary'
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
-
-        <div className="relative inline-flex items-center">
+      {/* 頂部雙模式切換列 (📈 簡易走勢 vs 🕯️ 專業技術K線) */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 mb-3 pb-2.5 border-b border-[var(--border)]">
+        <div className="flex items-center gap-1 p-1 bg-[var(--bg-tertiary)]/80 border border-[var(--border)] rounded-xl shadow-sm">
           <button
             type="button"
-            onClick={() => setShowPeriodCustomizer((v) => !v)}
-            className={`px-2.5 py-1 text-xs font-medium rounded-full transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
-              showPeriodCustomizer
-                ? 'bg-accent/20 text-accent border border-accent/40'
-                : 'bg-[var(--bg-tertiary)] hover:bg-[var(--border)] text-secondary hover:text-primary'
+            onClick={() => handleModeChange("SIMPLE")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              isSimple
+                ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                : "text-secondary hover:text-primary"
             }`}
-            title="自訂 K 線刻度快捷按鈕"
           >
-            <SlidersHorizontal size={13} />
-            <span>自訂刻度</span>
+            <Activity size={13} />
+            <span>📈 簡易走勢 (Yahoo風格)</span>
           </button>
+          <button
+            type="button"
+            onClick={() => handleModeChange("PRO_KLINE")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              !isSimple
+                ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                : "text-secondary hover:text-primary"
+            }`}
+          >
+            <CandlestickIcon size={13} />
+            <span>🕯️ 專業技術K線</span>
+          </button>
+        </div>
 
-          {showPeriodCustomizer && (
-            <div className="absolute top-9 left-0 sm:right-0 sm:left-auto z-50 w-72 p-3 bg-[var(--bg-secondary)]/95 backdrop-blur border border-[var(--border)] rounded-xl shadow-2xl text-xs space-y-2.5 animate-fade-in">
-              <div className="flex items-center justify-between pb-1.5 border-b border-[var(--border)]">
-                <span className="font-bold text-primary flex items-center gap-1.5">
-                  <SlidersHorizontal size={13} className="text-accent" />
-                  <span>自訂快捷按鈕</span>
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={resetDefaultPeriods}
-                    className="text-[11px] text-accent hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <RotateCcw size={10} /> 預設
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowPeriodCustomizer(false)}
-                    className="p-1 text-secondary hover:text-primary cursor-pointer"
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
-              </div>
-
-              <p className="text-[11px] text-secondary">勾選您想顯示在上方工具列的 K 線刻度：</p>
-
-              <div className="grid grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
-                {ALL_PERIOD_OPTIONS.map((opt) => {
-                  const isChecked = visiblePeriods.includes(opt.value);
-                  return (
-                    <label
-                      key={opt.value}
-                      className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-colors ${
-                        isChecked
-                          ? 'bg-accent/15 text-primary font-semibold'
-                          : 'hover:bg-[var(--bg-tertiary)] text-secondary'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => togglePeriodVisibility(opt.value)}
-                        className="rounded text-accent focus:ring-accent accent-blue-500 cursor-pointer"
-                      />
-                      <span className="text-xs">{opt.label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
+        {/* 狀態簡述提示 */}
+        <div className="text-[11px] text-secondary font-mono flex items-center gap-2">
+          {isSimple ? (
+            <span className="flex items-center gap-1 text-blue-500">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+              <span>即時折線 + 昨收參考基準</span>
+            </span>
+          ) : (
+            <span className="text-secondary">完整技術指標與畫線分析</span>
           )}
         </div>
       </div>
-      
-      <DrawingToolbar
-        api={drawingsApi}
-        bars={overlay?.bars}
-        showAutoTrends={showAutoTrends}
-        onToggleAutoTrends={() => setShowAutoTrends(prev => !prev)}
-        showMA={showMA}
-        onToggleMA={() => setShowMA(prev => !prev)}
-        onClearAllAuxiliary={() => {
-          drawingsApi.clear();
-          setShowAutoTrends(false);
-          setShowMA(false);
-        }}
-        onApplyThemeColor={(c) => {
-          setUpperTrendColor(c);
-          setShowAutoTrends(true);
-        }}
-      />
 
-      <div className="relative h-[320px] sm:h-[400px] border border-[var(--border)] rounded-xl bg-[var(--bg-secondary)]/60 overflow-hidden">
-        {/* Legends */}
+      {/* 週期按鈕列 */}
+      <div className="mb-3">
+        {isSimple ? (
+          /* Yahoo 風格 8 個週期平鋪按鈕 (完全複製 Yahoo 股市) */
+          <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {YAHOO_PERIODS.map((p) => {
+              const isSelected = activePeriod === p.value;
+              return (
+                <button
+                  key={p.value}
+                  type="button"
+                  onClick={() => setActivePeriod(p.value)}
+                  className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs rounded-lg transition-all whitespace-nowrap cursor-pointer text-center ${
+                    isSelected
+                      ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-500/25 scale-[1.02]"
+                      : "bg-[var(--bg-tertiary)] hover:bg-[var(--border)] text-secondary hover:text-primary font-medium"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          /* 專業技術 K 線清晰分群列：分K / 日K / 長線 */
+          <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-hide flex-wrap">
+            {PRO_PERIOD_GROUPS.map((grp) => (
+              <div
+                key={grp.group}
+                className="flex items-center gap-1 bg-[var(--bg-tertiary)]/70 p-1 rounded-xl border border-[var(--border)]"
+              >
+                <span className="px-2 text-[10px] font-bold text-secondary tracking-wider uppercase">
+                  {grp.group}
+                </span>
+                <div className="flex items-center gap-1">
+                  {grp.options.map((opt) => {
+                    const isSelected = activePeriod === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setActivePeriod(opt.value)}
+                        className={`px-2.5 py-1 text-xs rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                          isSelected
+                            ? "bg-accent text-white font-bold shadow-sm"
+                            : "text-secondary hover:text-primary hover:bg-[var(--bg-secondary)]"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 畫線工具列 (僅在專業 K 線模式下顯示) */}
+      {!isSimple && (
+        <DrawingToolbar
+          api={drawingsApi}
+          bars={overlay?.bars}
+          showAutoTrends={showAutoTrends}
+          onToggleAutoTrends={() => setShowAutoTrends((prev) => !prev)}
+          showMA={showMA}
+          onToggleMA={() => setShowMA((prev) => !prev)}
+          onClearAllAuxiliary={() => {
+            drawingsApi.clear();
+            setShowAutoTrends(false);
+            setShowMA(false);
+          }}
+          onApplyThemeColor={(c) => {
+            setUpperTrendColor(c);
+            setShowAutoTrends(true);
+          }}
+        />
+      )}
+
+      {/* 圖表渲染主容器 */}
+      <div className="relative h-[320px] sm:h-[400px] border border-[var(--border)] rounded-xl bg-[var(--bg-secondary)]/60 overflow-hidden shadow-inner">
+        {/* Legends (專業模式顯示均線/趨勢線；簡易模式顯示昨收參考) */}
         <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-4 z-10 flex flex-wrap items-center gap-1.5 sm:gap-3 text-[10px] sm:text-xs font-mono select-none max-w-[85%]">
-          {showMA ? (
-            <div className="flex items-center gap-2.5 bg-black/25 dark:bg-black/40 px-2 py-0.5 rounded-md backdrop-blur-sm">
-              <div className="flex gap-1.5 items-center">
-                <span className="w-2 h-2 rounded-full bg-[#6366f1]"></span> 5MA <InfoTip term="ma5" />
-              </div>
-              <div className="flex gap-1.5 items-center">
-                <span className="w-2 h-2 rounded-full bg-[#f59e0b]"></span> 20MA <InfoTip term="ma20" />
-              </div>
-              <div className="flex gap-1.5 items-center">
-                <span className="w-2 h-2 rounded-full bg-[#10b981]"></span> 60MA <InfoTip term="ma60" />
-              </div>
+          {isSimple ? (
+            <div className="flex items-center gap-2 bg-black/30 dark:bg-black/50 px-2.5 py-1 rounded-md backdrop-blur-md border border-white/5">
+              <span className="w-2.5 h-0.5 bg-blue-500 rounded-full" />
+              <span className="text-blue-400 font-semibold">即時走勢</span>
+              {effectivePrevClose > 0 && (
+                <>
+                  <span className="text-secondary/60">|</span>
+                  <span className="w-3 border-t border-dashed border-slate-400" />
+                  <span className="text-secondary">
+                    昨收基準: {market === 'US' ? `$${effectivePrevClose.toFixed(2)}` : `NT$ ${effectivePrevClose.toFixed(2)}`}
+                  </span>
+                </>
+              )}
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => setShowMA(true)}
-              className="px-2 py-0.5 rounded bg-black/30 hover:bg-black/50 text-secondary hover:text-primary transition-colors text-[11px] cursor-pointer"
-              title="點擊恢復顯示 5MA / 20MA / 60MA 均線"
-            >
-              均線已隱藏 (點擊開啟)
-            </button>
-          )}
+            <>
+              {showMA ? (
+                <div className="flex items-center gap-2.5 bg-black/25 dark:bg-black/40 px-2 py-0.5 rounded-md backdrop-blur-sm">
+                  <div className="flex gap-1.5 items-center">
+                    <span className="w-2 h-2 rounded-full bg-[#6366f1]"></span> 5MA <InfoTip term="ma5" />
+                  </div>
+                  <div className="flex gap-1.5 items-center">
+                    <span className="w-2 h-2 rounded-full bg-[#f59e0b]"></span> 20MA <InfoTip term="ma20" />
+                  </div>
+                  <div className="flex gap-1.5 items-center">
+                    <span className="w-2 h-2 rounded-full bg-[#10b981]"></span> 60MA <InfoTip term="ma60" />
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowMA(true)}
+                  className="px-2 py-0.5 rounded bg-black/30 hover:bg-black/50 text-secondary hover:text-primary transition-colors text-[11px] cursor-pointer"
+                  title="點擊恢復顯示 5MA / 20MA / 60MA 均線"
+                >
+                  均線已隱藏 (點擊開啟)
+                </button>
+              )}
 
-          {showAutoTrends && (
-            <div className="flex items-center gap-2.5 bg-black/25 dark:bg-black/40 px-2 py-0.5 rounded-md backdrop-blur-sm">
-              <div className="flex gap-1.5 items-center" style={{ color: upperTrendColor }}>
-                <span className="w-3 border-t-2 border-dashed" style={{ borderColor: upperTrendColor }}></span> 上趨勢壓力
-              </div>
-              <div className="flex gap-1.5 items-center text-[#22c55e]">
-                <span className="w-3 border-t-2 border-dashed border-[#22c55e]"></span> 下趨勢支撐
-              </div>
-            </div>
-          )}
-
-          {!showMA && !showAutoTrends && drawingsApi.drawings.length === 0 && (
-            <div className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-sans font-medium flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span>純淨 K 線模式</span>
-            </div>
+              {showAutoTrends && (
+                <div className="flex items-center gap-2.5 bg-black/25 dark:bg-black/40 px-2 py-0.5 rounded-md backdrop-blur-sm">
+                  <div className="flex gap-1.5 items-center" style={{ color: upperTrendColor }}>
+                    <span className="w-3 border-t-2 border-dashed" style={{ borderColor: upperTrendColor }}></span> 上趨勢壓力
+                  </div>
+                  <div className="flex gap-1.5 items-center text-[#22c55e]">
+                    <span className="w-3 border-t-2 border-dashed border-[#22c55e]"></span> 下趨勢支撐
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
-        {/* Tooltip */}
+        {/* 懸浮數值浮窗 (Tooltip) */}
         {tooltipData && (
-          <div className="absolute top-10 left-4 z-20 bg-[var(--bg-tertiary)]/90 backdrop-blur border border-[var(--border)] p-2 rounded-md shadow-xl text-xs font-mono pointer-events-none transition-opacity">
-            <div className="text-secondary mb-1">
+          <div className="absolute top-11 left-3 sm:left-4 z-20 bg-[var(--bg-tertiary)]/95 backdrop-blur-md border border-[var(--border)] px-3 py-2 rounded-lg shadow-2xl text-xs font-mono pointer-events-none transition-opacity">
+            <div className="text-secondary text-[11px] mb-1">
               {typeof tooltipData.time === 'number' 
                 ? new Date(tooltipData.time * 1000).toLocaleString('zh-TW', { timeZone: market === 'US' ? 'America/New_York' : 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
                 : tooltipData.time}
             </div>
-            <div className="flex gap-3">
-              <div className="flex flex-col">
-                <span className="text-secondary">O</span>
-                <span className={tooltipData.open > tooltipData.close ? 'text-down-tw' : 'text-up-tw'}>{tooltipData.open.toFixed(2)}</span>
+            {tooltipData.isSimple ? (
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col">
+                  <span className="text-secondary text-[10px]">價格</span>
+                  <span className="text-primary font-bold text-sm">
+                    {market === 'US' ? `$${tooltipData.price.toFixed(2)}` : `NT$ ${tooltipData.price.toFixed(2)}`}
+                  </span>
+                </div>
+                {effectivePrevClose > 0 && (
+                  <div className="flex flex-col">
+                    <span className="text-secondary text-[10px]">對比昨收</span>
+                    {(() => {
+                      const diff = tooltipData.price - effectivePrevClose;
+                      const pct = (diff / effectivePrevClose) * 100;
+                      const isUp = diff >= 0;
+                      return (
+                        <span className={`font-semibold ${isUp ? 'text-up-tw' : 'text-down-tw'}`}>
+                          {isUp ? '+' : ''}{diff.toFixed(2)} ({isUp ? '+' : ''}{pct.toFixed(2)}%)
+                        </span>
+                      );
+                    })()}
+                  </div>
+                )}
+                <div className="flex flex-col border-l border-[var(--border)] pl-2.5">
+                  <span className="text-secondary text-[10px]">成交量</span>
+                  <span className="text-primary font-mono font-medium">
+                    {market === 'TW'
+                      ? `${Math.round(tooltipData.volume / 1000).toLocaleString()} 張`
+                      : tooltipData.volume.toLocaleString()}
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-secondary">H</span>
-                <span className={tooltipData.high > tooltipData.open ? 'text-up-tw' : ''}>{tooltipData.high.toFixed(2)}</span>
+            ) : (
+              <div className="flex gap-3">
+                <div className="flex flex-col">
+                  <span className="text-secondary">O</span>
+                  <span className={tooltipData.open > tooltipData.close ? 'text-down-tw' : 'text-up-tw'}>{tooltipData.open.toFixed(2)}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-secondary">H</span>
+                  <span className={tooltipData.high > tooltipData.open ? 'text-up-tw' : ''}>{tooltipData.high.toFixed(2)}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-secondary">L</span>
+                  <span className={tooltipData.low < tooltipData.open ? 'text-down-tw' : ''}>{tooltipData.low.toFixed(2)}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-secondary">C</span>
+                  <span className={tooltipData.close > tooltipData.open ? 'text-up-tw' : 'text-down-tw'}>{tooltipData.close.toFixed(2)}</span>
+                </div>
+                <div className="flex flex-col border-l border-[var(--border)] pl-2.5 ml-1">
+                  <span className="text-secondary">成交量 (Vol)</span>
+                  <span className="text-primary font-bold font-mono">
+                    {market === 'TW'
+                      ? `${Math.round(tooltipData.volume / 1000).toLocaleString()} 張`
+                      : tooltipData.volume.toLocaleString()}
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-secondary">L</span>
-                <span className={tooltipData.low < tooltipData.open ? 'text-down-tw' : ''}>{tooltipData.low.toFixed(2)}</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-secondary">C</span>
-                <span className={tooltipData.close > tooltipData.open ? 'text-up-tw' : 'text-down-tw'}>{tooltipData.close.toFixed(2)}</span>
-              </div>
-              <div className="flex flex-col border-l border-[var(--border)] pl-2.5 ml-1">
-                <span className="text-secondary">成交量 (Vol)</span>
-                <span className="text-primary font-bold font-mono">
-                  {market === 'TW'
-                    ? `${Math.round(tooltipData.volume / 1000).toLocaleString()} 張`
-                    : tooltipData.volume.toLocaleString()}
-                </span>
-              </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -896,7 +1051,7 @@ function CandlestickChartInner({ symbol, market = 'TW', period = '6mo', priceLin
           </div>
         )}
         <div ref={chartContainerRef} className="w-full h-full" />
-        {overlay && !loading && !error && (
+        {overlay && !loading && !error && !isSimple && (
           <DrawingLayer chart={overlay.chart} series={overlay.series} bars={overlay.bars} api={drawingsApi} />
         )}
       </div>

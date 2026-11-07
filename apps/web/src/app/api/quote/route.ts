@@ -107,6 +107,9 @@ function mapPeriodToYf(period: string): { range: string; interval: string } {
       return { range: "2y", interval: "1d" };
     case "5y":
       return { range: "5y", interval: "1wk" };
+    case "max":
+    case "all":
+      return { range: "max", interval: "1mo" };
     default:
       return { range: "6mo", interval: "1d" };
   }
