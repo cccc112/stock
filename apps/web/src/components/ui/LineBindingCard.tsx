@@ -68,12 +68,39 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
     }
   };
 
-  const handleECPaySubscribe = () => {
+  const handleSubscribe = async () => {
     setIsSubscribing(true);
-    setTimeout(() => {
-      alert("【綠界 ECPay 定期定額信用卡】\n方案：Pro 盤中主力雷達全自動推播\n月費：NT$ 399 / 月\n\n已成功導向安全付款授權頁面。");
+    try {
+      const res = await fetch("/api/payment/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (data.success && data.actionUrl && data.params) {
+        // 動態建立 form 自動提交 POST 至信用卡安全收銀授權頁面
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = data.actionUrl;
+        form.style.display = "none";
+        for (const [key, val] of Object.entries(data.params)) {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = key;
+          input.value = String(val);
+          form.appendChild(input);
+        }
+        document.body.appendChild(form);
+        form.submit();
+        return;
+      } else {
+        alert("前往付款授權失敗，請稍後重試。");
+      }
+    } catch (err) {
+      console.error("Subscription redirect failed:", err);
+      alert("連線付款伺服器逾時，請稍後重試。");
+    } finally {
       setIsSubscribing(false);
-    }, 600);
+    }
   };
 
   // 真實加好友連結（依據 LINE 官方回傳的 basicId，絕不 404）
@@ -204,12 +231,12 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
             <Button
               size="sm"
               variant="primary"
-              onClick={handleECPaySubscribe}
+              onClick={handleSubscribe}
               disabled={isSubscribing}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm whitespace-nowrap cursor-pointer"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm whitespace-nowrap cursor-pointer active:scale-95"
             >
               <CreditCard size={13} />
-              <span>{isSubscribing ? "導向綠界中..." : "綠界 ECPay 定期定額訂閱"}</span>
+              <span>{isSubscribing ? "前往付款中心..." : "信用卡安全訂閱"}</span>
             </Button>
           </div>
         </div>
