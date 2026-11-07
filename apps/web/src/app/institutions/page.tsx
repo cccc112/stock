@@ -38,7 +38,6 @@ import {
   Flame,
   ArrowLeft,
   X,
-  RefreshCw,
 } from "lucide-react";
 
 interface TwInstData {
@@ -214,21 +213,18 @@ export default function InstitutionsPage() {
   const [usData, setUsData] = useState<any[]>(() => REAL_US_13F_DATA);
   const [ranks, setRanks] = useState<any>(() => REAL_TW_RANKS);
   const [liveQuotesMap, setLiveQuotesMap] = useState<Record<string, { price: number; change_pct: number }>>({});
-  const [isSyncing, setIsSyncing] = useState(false);
 
-  // 個股籌碼狀態
-  const [selectedStock, setSelectedStock] = useState("2330");
+  // 個股籌碼狀態（不設預設值，由使用者自行選擇或搜尋）
+  const [selectedStock, setSelectedStock] = useState("");
   const [stockInput, setStockInput] = useState("");
-  const [stockData, setStockData] = useState<StockInstData>(
-    () => REAL_STOCK_INSTITUTIONAL_MAP["2330"]
-  );
-  const [stockSyncing, setStockSyncing] = useState(false);
+  const [stockData, setStockData] = useState<StockInstData | null>(null);
+  const [stockLoading, setStockLoading] = useState(false);
+  const [stockError, setStockError] = useState<string | null>(null);
 
   // 13F 深度報告彈窗
   const [selectedFund, setSelectedFund] = useState<any | null>(null);
 
   const fetchInitialData = async () => {
-    setIsSyncing(true);
     try {
       const [resTw, resRanks, resUs] = await Promise.allSettled([
         fetch("/api/institutions").then((r) => (r.ok ? r.json() : null)),
@@ -265,8 +261,6 @@ export default function InstitutionsPage() {
       }
     } catch {
       // keep pre-seeded real snapshot
-    } finally {
-      setIsSyncing(false);
     }
   };
 
@@ -306,13 +300,14 @@ export default function InstitutionsPage() {
   }, [ranks]);
 
   const fetchStockInstitutions = async (sym: string) => {
+    if (!sym) return;
     const clean = sym.replace(/\.TW[O]?$/i, "").toUpperCase();
-    // 若在真實預熱池中，0ms 立即切換圖表，不遮擋畫面
-    if (REAL_STOCK_INSTITUTIONAL_MAP[clean]) {
-      setStockData(REAL_STOCK_INSTITUTIONAL_MAP[clean]);
-    }
 
-    setStockSyncing(true);
+    // 使用者選擇新標的後立即清空舊資料，不留上一檔股票，做動畫等新資料
+    setStockData(null);
+    setStockError(null);
+    setStockLoading(true);
+
     try {
       const [resLocalInst, resQuote] = await Promise.allSettled([
         fetch(`/api/institutions?symbol=${encodeURIComponent(clean)}`).then((r) =>
@@ -356,16 +351,18 @@ export default function InstitutionsPage() {
 
       if (nextData) {
         setStockData(nextData);
+      } else {
+        setStockError(`查無「${clean}」之三大法人進出歷史資料，請確認台股代號是否正確。`);
       }
     } catch {
-      // keep existing
+      setStockError(`連線至證交所同步「${clean}」籌碼資料失敗，請稍後重試。`);
     } finally {
-      setStockSyncing(false);
+      setStockLoading(false);
     }
   };
 
   useEffect(() => {
-    if (twView === "STOCK") {
+    if (twView === "STOCK" && selectedStock && !stockData && !stockLoading) {
       fetchStockInstitutions(selectedStock);
     }
   }, [twView, selectedStock]);
@@ -377,12 +374,14 @@ export default function InstitutionsPage() {
       setSelectedStock(code);
       setTwView("STOCK");
       setStockInput("");
+      fetchStockInstitutions(code);
     }
   };
 
   const selectStockAndSwitch = (sym: string) => {
     setSelectedStock(sym);
     setTwView("STOCK");
+    fetchStockInstitutions(sym);
   };
 
   const latestItem = twData.length > 0 ? twData[twData.length - 1] : null;
@@ -442,29 +441,14 @@ export default function InstitutionsPage() {
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
-            {twView === "STOCK" && (
-              <button
-                onClick={() => setTwView("TOTAL")}
-                className="text-xs text-accent hover:underline flex items-center gap-1 cursor-pointer font-medium"
-              >
-                <ArrowLeft size={13} /> 返回大盤總覽
-              </button>
-            )}
+          {twView === "STOCK" && (
             <button
-              onClick={() =>
-                twView === "TOTAL" ? fetchInitialData() : fetchStockInstitutions(selectedStock)
-              }
-              disabled={isSyncing || stockSyncing}
-              className="px-2.5 py-1 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)] text-xs text-secondary hover:text-primary flex items-center gap-1.5 cursor-pointer"
+              onClick={() => setTwView("TOTAL")}
+              className="text-xs text-accent hover:underline flex items-center gap-1 cursor-pointer font-medium"
             >
-              <RefreshCw
-                size={12}
-                className={isSyncing || stockSyncing ? "animate-spin text-accent" : ""}
-              />
-              <span>同步最新籌碼</span>
+              <ArrowLeft size={13} /> 返回大盤總覽
             </button>
-          </div>
+          )}
         </div>
 
         {/* ---------------- 視圖 A: 全市場大盤法人 ---------------- */}
@@ -844,10 +828,13 @@ export default function InstitutionsPage() {
                   {PRESET_STOCKS.map((s) => (
                     <button
                       key={s.symbol}
-                      onClick={() => setSelectedStock(s.symbol)}
+                      onClick={() => {
+                        setSelectedStock(s.symbol);
+                        fetchStockInstitutions(s.symbol);
+                      }}
                       className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                         selectedStock === s.symbol
-                          ? "bg-[var(--accent)] text-white shadow-md shadow-accent/25"
+                          ? "bg-[var(--accent)] text-white shadow-md shadow-accent/25 font-bold"
                           : "bg-[var(--bg-tertiary)] text-secondary hover:text-primary hover:border-accent border border-transparent"
                       }`}
                     >
@@ -877,7 +864,85 @@ export default function InstitutionsPage() {
               </div>
             </div>
 
-            {stockData && (
+            {/* 1. 尚未選擇任何個股時的引導畫面 */}
+            {!selectedStock && !stockLoading && (
+              <div className="p-8 sm:p-12 text-center rounded-2xl bg-[var(--bg-secondary)]/50 border border-dashed border-[var(--border)] space-y-4 animate-fade-in">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-accent/15 border border-accent/30 flex items-center justify-center text-accent shadow-inner">
+                  <Layers size={28} />
+                </div>
+                <div className="max-w-md mx-auto space-y-1.5">
+                  <h3 className="text-base font-bold text-primary">請選擇或搜尋欲診斷之台股標的</h3>
+                  <p className="text-xs text-secondary leading-relaxed">
+                    點擊上方熱門個股標籤或於搜尋框輸入股票代碼，系統將即時向臺灣證券交易所 (TWSE) 同步三大法人（外資、投信、自營商）最新買賣超、連續進出天數與 K 線多空疊圖。
+                  </p>
+                </div>
+                <div className="pt-2 flex flex-wrap justify-center gap-2 max-w-lg mx-auto">
+                  {PRESET_STOCKS.map((s) => (
+                    <button
+                      key={s.symbol}
+                      onClick={() => {
+                        setSelectedStock(s.symbol);
+                        fetchStockInstitutions(s.symbol);
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--bg-tertiary)] hover:bg-accent hover:text-white border border-[var(--border)] transition-all cursor-pointer shadow-sm"
+                    >
+                      {s.symbol} {s.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 2. 選擇新標的後的即時載入動畫 (骨架屏 + 同步狀態提示) */}
+            {stockLoading && (
+              <div className="space-y-6 animate-fade-in">
+                <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+                    <span className="text-xs font-medium text-accent">
+                      正在向證交所 (TWSE) 同步【{selectedStock}】最新三大法人買賣超與 K 線數據...
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-secondary font-mono animate-pulse">即時穿透中</span>
+                </div>
+
+                {/* 指標卡片骨架 */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className="h-28 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] p-4 space-y-3 animate-pulse"
+                    >
+                      <div className="h-3 w-2/3 bg-[var(--bg-tertiary)] rounded" />
+                      <div className="h-7 w-1/2 bg-[var(--bg-tertiary)] rounded" />
+                      <div className="h-3 w-4/5 bg-[var(--bg-tertiary)] rounded" />
+                    </div>
+                  ))}
+                </div>
+
+                {/* 圖表骨架 */}
+                <div className="h-[360px] rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] flex flex-col items-center justify-center gap-3 text-secondary animate-pulse">
+                  <div className="w-8 h-8 rounded-full border-2 border-accent/40 border-t-accent animate-spin" />
+                  <span className="text-xs font-mono">同步歷史買賣超與 K 線疊圖中...</span>
+                </div>
+              </div>
+            )}
+
+            {/* 3. 錯誤訊息 */}
+            {stockError && !stockLoading && (
+              <div className="p-6 rounded-xl bg-rose-500/10 border border-rose-500/20 text-center space-y-3 animate-fade-in">
+                <p className="text-sm font-semibold text-rose-400">{stockError}</p>
+                <button
+                  onClick={() => fetchStockInstitutions(selectedStock)}
+                  className="px-4 py-1.5 text-xs font-medium rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 transition-colors cursor-pointer"
+                >
+                  重新嘗試
+                </button>
+              </div>
+            )}
+
+            {/* 4. 數據載入完成後的完整個股儀表板 */}
+            {stockData && !stockLoading && (
               <div className="space-y-6">
                 {/* 個股指標卡片 */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
