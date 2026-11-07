@@ -10,8 +10,8 @@ const FINMIND_URL = "https://api.finmindtrade.com/api/v4/data";
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
-let cachedTwTotal: { ts: number; data: any[] } = { ts: Date.now(), data: REAL_TW_TOTAL_TIMELINE };
-let cachedTwRanks: { ts: number; data: any } = { ts: Date.now(), data: REAL_TW_RANKS };
+let cachedTwTotal: { ts: number; data: any[] } = { ts: 0, data: REAL_TW_TOTAL_TIMELINE };
+let cachedTwRanks: { ts: number; data: any } = { ts: 0, data: REAL_TW_RANKS };
 const cachedStockMap: Record<string, { ts: number; data: any }> = {};
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -213,7 +213,7 @@ export async function GET(req: NextRequest) {
 
             const foreign_buys = [...parsed]
               .sort((a, b) => b.foreignLots - a.foreignLots)
-              .slice(0, 6)
+              .slice(0, 10)
               .map((x) => ({
                 symbol: x.symbol,
                 name: x.name,
@@ -226,7 +226,7 @@ export async function GET(req: NextRequest) {
 
             const trust_buys = [...parsed]
               .sort((a, b) => b.trustLots - a.trustLots)
-              .slice(0, 6)
+              .slice(0, 10)
               .map((x, idx) => ({
                 symbol: x.symbol,
                 name: x.name,

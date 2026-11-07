@@ -25,7 +25,7 @@ import {
   ArrowRight,
   CheckCircle2,
 } from "lucide-react";
-import { apiStocks, apiMarket } from "@/lib/api";
+import { apiStocks, apiMarket, apiInstitutions } from "@/lib/api";
 import { ETF_CATALOG, resolveETFProfile } from "@/lib/etfCatalog";
 import { REAL_STOCK_INSTITUTIONAL_MAP } from "@/lib/realInstitutionalSnapshot";
 
@@ -758,6 +758,10 @@ export default function EtfCapitalFlowTracker({
   const [customEtfInput, setCustomEtfInput] = useState<string>("");
   const [holdingActionFilter, setHoldingActionFilter] = useState<"ALL" | "NEW" | "BUY" | "SELL">("ALL");
   const [sortByWeightAsc, setSortByWeightAsc] = useState<boolean>(false);
+  const [holdingsSortMode, setHoldingsSortMode] = useState<
+    "ACTIVE_FIRST" | "WEIGHT_DESC" | "BUY_FIRST" | "SELL_FIRST" | "WEIGHT_ASC"
+  >("ACTIVE_FIRST");
+  const [realTrustRanks, setRealTrustRanks] = useState<any[]>([]);
   const [holdingSearch, setHoldingSearch] = useState("");
 
   // 同步外部傳入的 subView
@@ -775,10 +779,11 @@ export default function EtfCapitalFlowTracker({
       "00943", "00701", "00730", "00731", "00907", "00712", "00675L", "00676R", "00631L", "00632R"
     ];
 
-    const [navRes, rankingsRes, quotesRes] = await Promise.allSettled([
+    const [navRes, rankingsRes, quotesRes, instRanksRes] = await Promise.allSettled([
       apiMarket.getEtfNav(),
       apiMarket.getRankings(60),
       Promise.allSettled(topSymbols.slice(0, 10).map((sym) => apiStocks.getQuote(sym))),
+      apiInstitutions.getRanksTw(),
     ]);
 
     if (navRes.status === "fulfilled" && Array.isArray(navRes.value?.data)) {
@@ -819,6 +824,39 @@ export default function EtfCapitalFlowTracker({
           };
         }
       });
+    }
+
+    // 3. 投信法人官方最新買超 TOP 榜單 (TWSE 官方 T86 實際申報)
+    if (instRanksRes.status === "fulfilled" && instRanksRes.value?.data?.trust_buys) {
+      const tbList = instRanksRes.value.data.trust_buys;
+      setRealTrustRanks(tbList);
+      tbList.forEach((it: any) => {
+        if (it?.symbol && Number(it.price) > 0) {
+          updated[it.symbol] = {
+            price: Number(it.price),
+            change_pct: Number(it.change_pct) || 0,
+          };
+        }
+      });
+    }
+
+    // 4. 針對投信買超榜個股補充抓取撮合行情，徹底防止出現 0.00%
+    const extraStkSymbols = (instRanksRes.status === "fulfilled" && instRanksRes.value?.data?.trust_buys
+      ? instRanksRes.value.data.trust_buys.map((t: any) => t.symbol)
+      : ["2887", "2891", "2890", "2330", "2886", "2454", "2303", "2884"]
+    ).filter((s: string) => !updated[s]);
+    if (extraStkSymbols.length > 0) {
+      try {
+        const extraRes = await Promise.allSettled(extraStkSymbols.map((s: string) => apiStocks.getQuote(s)));
+        extraRes.forEach((res, idx) => {
+          if (res.status === "fulfilled" && res.value?.data?.price) {
+            updated[extraStkSymbols[idx]] = {
+              price: Number(res.value.data.price),
+              change_pct: Number(res.value.data.change_pct) || 0,
+            };
+          }
+        });
+      } catch {}
     }
 
     if (Object.keys(updated).length > 0) {
@@ -1192,8 +1230,38 @@ export default function EtfCapitalFlowTracker({
     return Math.max(...flows, 1);
   }, [items, period]);
 
-  // 全市場 ETF 聯手大買 TOP 8 (由 REAL_STOCK_INSTITUTIONAL_MAP 投信法人買賣超與 ETF_CATALOG 動態產生)
+  // 全市場 ETF 聯手大買 TOP 8 (優先使用 TWSE 官方 T86 投信買超榜單，次採 REAL_STOCK_INSTITUTIONAL_MAP)
   const aggregatedEtfTopBuys = useMemo(() => {
+    if (realTrustRanks.length > 0) {
+      return realTrustRanks.slice(0, 8).map((s: any) => {
+        const sym = s.symbol;
+        const live = liveQuotes[sym] || liveQuotes[`${sym}.TW`];
+        const price = live?.price || Number(s.price) || 100;
+        const change_pct = live?.change_pct !== undefined ? live.change_pct : Number(s.change_pct) || 0;
+        const total_shares = Number(s.shares || s.trustLots || s.trust_buy || 0);
+        const total_amount_m = Math.round((total_shares * 1000 * price) / 1e6);
+
+        // 搜尋全市場主要持股 ETF
+        const buyers: string[] = [];
+        Object.entries(ETF_CATALOG).forEach(([etfCode, prof]) => {
+          if (prof.holdings?.some((h) => h.symbol === sym)) {
+            buyers.push(etfCode);
+          }
+        });
+
+        return {
+          symbol: sym,
+          name: s.name,
+          total_shares,
+          total_amount_m,
+          buyers: buyers.slice(0, 4),
+          price,
+          change_pct,
+          date: "本日最新",
+        };
+      });
+    }
+
     const list = Object.values(REAL_STOCK_INSTITUTIONAL_MAP || {})
       .filter((s: any) => s.latest && s.latest.trust > 0)
       .map((s: any) => {
@@ -1227,7 +1295,7 @@ export default function EtfCapitalFlowTracker({
       .slice(0, 8);
 
     return list;
-  }, [liveQuotes]);
+  }, [realTrustRanks, liveQuotes]);
 
   // 動態獲取當前選取 ETF 的即時成分股與真實行情 (涵蓋全台股 360+ 檔與美股 ETF)
   const currentPortfolio = useMemo(() => {
@@ -1281,7 +1349,6 @@ export default function EtfCapitalFlowTracker({
       if (!h.status) {
         if (Number(h.shares_change) > 0) status = "ADD";
         else if (Number(h.shares_change) < 0) status = "REDUCE";
-        else if (weight > 2.5) status = "ADD";
         else status = "HOLD";
       }
 
@@ -1308,9 +1375,9 @@ export default function EtfCapitalFlowTracker({
       // 與前日變動 (張數) 字串：新增時為空
       let sharesChangeText = "";
       if (status === "ADD") {
-        sharesChangeText = sharesChange > 0 ? `+${sharesChange.toLocaleString()}張` : "+—張";
+        sharesChangeText = sharesChange > 0 ? `+${sharesChange.toLocaleString()}張` : "+0張";
       } else if (status === "REDUCE") {
-        sharesChangeText = sharesChange < 0 ? `${sharesChange.toLocaleString()}張` : "-—張";
+        sharesChangeText = sharesChange < 0 ? `${sharesChange.toLocaleString()}張` : "-0張";
       } else if (status === "HOLD") {
         sharesChangeText = "0張";
       } else if (status === "NEW") {
@@ -1374,15 +1441,45 @@ export default function EtfCapitalFlowTracker({
     });
 
     return list.sort((a, b) => {
-      if (sortByWeightAsc) {
-        return a.weight - b.weight;
+      switch (holdingsSortMode) {
+        case "ACTIVE_FIRST": {
+          // 加減碼異動優先：有異動 (NEW, ADD, REDUCE) 置頂，無異動 (HOLD) 排在後面
+          const aActive = a.status !== "HOLD";
+          const bActive = b.status !== "HOLD";
+          if (aActive && !bActive) return -1;
+          if (!aActive && bActive) return 1;
+          if (aActive && bActive) {
+            // 兩者皆有異動：NEW 第一優先，接著依變動張數絕對值由大到小排序
+            if (a.status === "NEW" && b.status !== "NEW") return -1;
+            if (b.status === "NEW" && a.status !== "NEW") return 1;
+            return Math.abs(b.shares_change) - Math.abs(a.shares_change) || b.weight - a.weight;
+          }
+          // 無異動 (HOLD)：依持股權重由大到小排序
+          return b.weight - a.weight;
+        }
+        case "WEIGHT_DESC":
+          return b.weight - a.weight;
+        case "WEIGHT_ASC":
+          return a.weight - b.weight;
+        case "BUY_FIRST": {
+          // 加碼最多置頂 (若同為加碼則依加買張數由多到少)
+          if (a.shares_change !== b.shares_change) {
+            return b.shares_change - a.shares_change;
+          }
+          return b.weight - a.weight;
+        }
+        case "SELL_FIRST": {
+          // 減碼最多置頂 (調節賣超最多排在最前)
+          if (a.shares_change !== b.shares_change) {
+            return a.shares_change - b.shares_change;
+          }
+          return b.weight - a.weight;
+        }
+        default:
+          return b.weight - a.weight;
       }
-      // 預設排序：新增 (NEW) 置頂，其餘依權重由大到小排序（符合券商 App 規格）
-      if (a.status === "NEW" && b.status !== "NEW") return -1;
-      if (b.status === "NEW" && a.status !== "NEW") return 1;
-      return b.weight - a.weight;
     });
-  }, [currentPortfolio, holdingActionFilter, holdingSearch, sortByWeightAsc]);
+  }, [currentPortfolio, holdingActionFilter, holdingSearch, holdingsSortMode]);
 
   const dynamicResearch = useMemo(() => {
     const periodLabel = period === "1d" ? "今日" : period === "5d" ? "近5日" : period === "20d" ? "近月" : "今年以來";
@@ -2230,7 +2327,9 @@ export default function EtfCapitalFlowTracker({
 
                   <div className="flex items-center justify-between text-xs text-muted border-t border-[var(--border)] pt-1.5">
                     <span>估計買超金額:</span>
-                    <span className="font-mono font-semibold text-primary">~{stk.total_amount_m} 百萬</span>
+                    <span className="font-mono font-semibold text-rose-400">
+                      約 +{stk.total_amount_m >= 100 ? `${(stk.total_amount_m / 100).toFixed(2)} 億元` : `${stk.total_amount_m} 百萬`}
+                    </span>
                   </div>
 
                   <div className="text-[10px] text-muted truncate mt-1">
@@ -2325,49 +2424,75 @@ export default function EtfCapitalFlowTracker({
               </div>
             }
           >
-            {/* 買賣方向切換 */}
-            <div className="flex items-center gap-1.5 mb-4 pb-3 border-b border-[var(--border)] flex-wrap">
-              <span className="text-xs text-muted mr-1">成分股異動篩選:</span>
-              <button
-                onClick={() => setHoldingActionFilter("ALL")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-                  holdingActionFilter === "ALL"
-                    ? "bg-accent text-white shadow-sm"
-                    : "bg-[var(--bg-tertiary)] text-secondary hover:text-primary"
-                }`}
-              >
-                全部 ({currentPortfolio.holdings.length})
-              </button>
-              <button
-                onClick={() => setHoldingActionFilter("NEW")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-                  holdingActionFilter === "NEW"
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "bg-[var(--bg-tertiary)] text-blue-500 hover:bg-blue-500/10"
-                }`}
-              >
-                新增 ({currentPortfolio.holdings.filter((h) => h.status === "NEW").length})
-              </button>
-              <button
-                onClick={() => setHoldingActionFilter("BUY")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-                  holdingActionFilter === "BUY"
-                    ? "bg-red-500 text-white shadow-sm"
-                    : "bg-[var(--bg-tertiary)] text-red-400 hover:bg-red-500/10"
-                }`}
-              >
-                加碼 ({currentPortfolio.holdings.filter((h) => h.status === "ADD").length})
-              </button>
-              <button
-                onClick={() => setHoldingActionFilter("SELL")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-                  holdingActionFilter === "SELL"
-                    ? "bg-emerald-500 text-white shadow-sm"
-                    : "bg-[var(--bg-tertiary)] text-emerald-400 hover:bg-emerald-500/10"
-                }`}
-              >
-                減碼 ({currentPortfolio.holdings.filter((h) => h.status === "REDUCE").length})
-              </button>
+            {/* 買賣方向切換與排序模式 */}
+            <div className="space-y-3 mb-4 pb-3 border-b border-[var(--border)]">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs text-muted mr-1">成分股異動篩選:</span>
+                <button
+                  onClick={() => setHoldingActionFilter("ALL")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                    holdingActionFilter === "ALL"
+                      ? "bg-accent text-white shadow-sm"
+                      : "bg-[var(--bg-tertiary)] text-secondary hover:text-primary"
+                  }`}
+                >
+                  全部 ({currentPortfolio.holdings.length})
+                </button>
+                <button
+                  onClick={() => setHoldingActionFilter("NEW")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                    holdingActionFilter === "NEW"
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "bg-[var(--bg-tertiary)] text-blue-500 hover:bg-blue-500/10"
+                  }`}
+                >
+                  新增 ({currentPortfolio.holdings.filter((h) => h.status === "NEW").length})
+                </button>
+                <button
+                  onClick={() => setHoldingActionFilter("BUY")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                    holdingActionFilter === "BUY"
+                      ? "bg-red-500 text-white shadow-sm"
+                      : "bg-[var(--bg-tertiary)] text-red-400 hover:bg-red-500/10"
+                  }`}
+                >
+                  加碼 ({currentPortfolio.holdings.filter((h) => h.status === "ADD").length})
+                </button>
+                <button
+                  onClick={() => setHoldingActionFilter("SELL")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                    holdingActionFilter === "SELL"
+                      ? "bg-emerald-500 text-white shadow-sm"
+                      : "bg-[var(--bg-tertiary)] text-emerald-400 hover:bg-emerald-500/10"
+                  }`}
+                >
+                  減碼 ({currentPortfolio.holdings.filter((h) => h.status === "REDUCE").length})
+                </button>
+              </div>
+
+              {/* 排序自由切換器 (預設加減碼異動置頂，亦可照比例或增減排序) */}
+              <div className="flex items-center gap-1.5 flex-wrap text-xs pt-1">
+                <span className="text-muted mr-1 text-[11px]">排序方式:</span>
+                {[
+                  { key: "ACTIVE_FIRST", label: "⚡ 異動優先 (加減碼置頂)" },
+                  { key: "WEIGHT_DESC", label: "持股比例 (大→小)" },
+                  { key: "BUY_FIRST", label: "加碼最多置頂" },
+                  { key: "SELL_FIRST", label: "減碼最多置頂" },
+                  { key: "WEIGHT_ASC", label: "持股比例 (小→大)" },
+                ].map((s) => (
+                  <button
+                    key={s.key}
+                    onClick={() => setHoldingsSortMode(s.key as any)}
+                    className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                      holdingsSortMode === s.key
+                        ? "bg-accent text-white border-accent font-bold shadow-sm"
+                        : "bg-[var(--bg-tertiary)] border-[var(--border)] text-secondary hover:text-primary hover:border-accent/40"
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* 券商 App 經典成分股變動三欄式排版 (標的 | 持股規模(市值) | 權重) */}
@@ -2377,20 +2502,34 @@ export default function EtfCapitalFlowTracker({
                   <span>標的</span>
                 </div>
                 <div className="col-span-4 sm:col-span-4 text-right pr-2">
-                  <div className="flex items-center justify-end gap-1">
-                    <span>持股規模(市值)</span>
-                    <span className="text-[10px] text-muted cursor-help" title="依 ETF 最新基金規模與權重計算之約當市值；下方為與前一日相較之實際持股張數變動">ⓘ</span>
-                  </div>
-                  <div className="text-[10px] text-muted font-normal">與前日變動(張數)</div>
+                  <button
+                    onClick={() => {
+                      if (holdingsSortMode === "BUY_FIRST") setHoldingsSortMode("SELL_FIRST");
+                      else setHoldingsSortMode("BUY_FIRST");
+                    }}
+                    className="inline-flex flex-col items-end cursor-pointer group text-right ml-auto"
+                    title="點擊切換加碼最多或減碼最多"
+                  >
+                    <div className="flex items-center justify-end gap-1 group-hover:text-primary transition-colors">
+                      <span>持股規模(市值)</span>
+                      <span className="text-[10px] text-muted cursor-help" title="依 ETF 最新基金規模與權重計算之約當市值；下方為與前一日相較之實際持股張數變動">ⓘ</span>
+                    </div>
+                    <div className="text-[10px] text-muted font-normal group-hover:text-accent">
+                      與前日變動(張數) {holdingsSortMode === "BUY_FIRST" ? "↑加碼" : holdingsSortMode === "SELL_FIRST" ? "↓減碼" : "⇅"}
+                    </div>
+                  </button>
                 </div>
                 <div className="col-span-3 sm:col-span-3 text-right">
                   <button
-                    onClick={() => setSortByWeightAsc((prev) => !prev)}
-                    className="inline-flex flex-col items-end cursor-pointer group text-right"
-                    title="點擊依權重高低排序"
+                    onClick={() => {
+                      if (holdingsSortMode === "WEIGHT_DESC") setHoldingsSortMode("WEIGHT_ASC");
+                      else setHoldingsSortMode("WEIGHT_DESC");
+                    }}
+                    className="inline-flex flex-col items-end cursor-pointer group text-right ml-auto"
+                    title="點擊依權重比例高低排序"
                   >
                     <span className="group-hover:text-primary transition-colors flex items-center gap-0.5 justify-end">
-                      權重 {sortByWeightAsc ? "↑" : "↓"}
+                      權重 {holdingsSortMode === "WEIGHT_ASC" ? "↑" : "↓"}
                     </span>
                     <span className="text-[10px] text-muted font-normal">與前日變動</span>
                   </button>

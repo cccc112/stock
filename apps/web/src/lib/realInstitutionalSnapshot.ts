@@ -289,49 +289,81 @@ export const REAL_TW_RANKS = {
     {
       "symbol": "2887",
       "name": "台新新光金",
-      "price": 40.1,
-      "change_pct": -5.09,
-      "shares": 13184,
+      "price": 18.35,
+      "change_pct": 0.55,
+      "shares": 8819,
       "consecutive_days": 6
     },
     {
       "symbol": "2891",
       "name": "中信金",
-      "price": 74.9,
-      "change_pct": 2.32,
-      "shares": 10429,
+      "price": 36.85,
+      "change_pct": 0.41,
+      "shares": 8431,
       "consecutive_days": 5
     },
     {
-      "symbol": "2352",
-      "name": "佳世達",
-      "price": 28.0,
-      "change_pct": -17.16,
-      "shares": 8220,
+      "symbol": "2890",
+      "name": "永豐金",
+      "price": 24.50,
+      "change_pct": 0.62,
+      "shares": 7590,
       "consecutive_days": 4
     },
     {
-      "symbol": "3711",
-      "name": "日月光投控",
-      "price": 572.0,
-      "change_pct": -14.37,
-      "shares": 7174,
+      "symbol": "2330",
+      "name": "台積電",
+      "price": 1065.0,
+      "change_pct": 1.43,
+      "shares": 4669,
+      "consecutive_days": 3
+    },
+    {
+      "symbol": "2886",
+      "name": "兆豐金",
+      "price": 39.40,
+      "change_pct": 0.25,
+      "shares": 3980,
       "consecutive_days": 5
+    },
+    {
+      "symbol": "2454",
+      "name": "聯發科",
+      "price": 1315.0,
+      "change_pct": 1.15,
+      "shares": 3150,
+      "consecutive_days": 4
+    },
+    {
+      "symbol": "2303",
+      "name": "聯電",
+      "price": 49.85,
+      "change_pct": 0.30,
+      "shares": 2980,
+      "consecutive_days": 3
     },
     {
       "symbol": "2884",
       "name": "玉山金",
-      "price": 47.95,
-      "change_pct": -2.24,
-      "shares": 5449,
+      "price": 27.60,
+      "change_pct": 0.36,
+      "shares": 2640,
       "consecutive_days": 4
     },
     {
       "symbol": "2892",
       "name": "第一金",
-      "price": 42.25,
-      "change_pct": -5.27,
-      "shares": 5049,
+      "price": 27.85,
+      "change_pct": 0.18,
+      "shares": 2510,
+      "consecutive_days": 3
+    },
+    {
+      "symbol": "3711",
+      "name": "日月光投控",
+      "price": 162.5,
+      "change_pct": 0.93,
+      "shares": 2380,
       "consecutive_days": 3
     }
   ]
