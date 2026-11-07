@@ -7,7 +7,7 @@ import Badge from "@/components/ui/Badge";
 import Link from "next/link";
 import { formatNumber, formatVolume, getChangeColorClass } from "@/lib/utils";
 import { apiStocks } from "@/lib/api";
-import { Search, Sparkles, Flame, Layers, ShoppingBag, Calculator } from "lucide-react";
+import { Search, Sparkles, Flame, Layers, ShoppingBag } from "lucide-react";
 import { Term } from "@/components/ui/TermTooltip";
 import EtfCapitalFlowTracker from "@/components/dashboard/EtfCapitalFlowTracker";
 
@@ -521,14 +521,6 @@ export default function EtfAndMultiAssetPage() {
           <Layers size={16} />
           <span>全市場 250+ 標的即時報價總覽（點擊個別 ETF 查看成分股與每日變動）</span>
         </button>
-
-        <Link
-          href="/dca"
-          className="px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap text-secondary hover:text-primary hover:bg-[var(--bg-secondary)] border border-[var(--border)] ml-auto"
-        >
-          <Calculator size={16} className="text-emerald-400" />
-          <span>定期定額複利試算</span>
-        </Link>
       </div>
 
       {mainView === "flow" && !searchQuery.trim() ? (
