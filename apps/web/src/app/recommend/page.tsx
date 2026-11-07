@@ -381,9 +381,13 @@ function RecommendInner() {
                     {p.industry && <span style={{ fontSize: 10 }} className="px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)]">{p.industry}</span>}
                   </div>
                   <div className="text-sm mt-1">
-                    <span className="font-medium">{p.price}</span>
-                    <span className={`ml-2 ${getChangeColorClass(p.change_pct, p.market)}`}>{p.change_pct > 0 ? '+' : ''}{p.change_pct}%</span>
-                    <span className="ml-3 text-secondary">20日 {p.ret_20d > 0 ? '+' : ''}{p.ret_20d}%</span>
+                    <span className="font-medium">{Number(p.price || 0).toFixed(2)}</span>
+                    <span className={`ml-2 ${getChangeColorClass(p.change_pct, p.market)}`}>
+                      {Number(p.change_pct || 0) > 0 ? '+' : ''}{Number(p.change_pct || 0).toFixed(2)}%
+                    </span>
+                    <span className="ml-3 text-secondary">
+                      20日 {Number(p.ret_20d || 0) > 0 ? '+' : ''}{Number(p.ret_20d || 0).toFixed(2)}%
+                    </span>
                   </div>
                 </div>
                 <div className="text-right">

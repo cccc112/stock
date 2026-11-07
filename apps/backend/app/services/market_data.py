@@ -209,7 +209,7 @@ def _parse_mis(info: dict, symbol: str) -> Optional[StockQuote]:
         name=info.get("n") or symbol,
         price=price,
         change=change,
-        change_pct=(change / prev_close * 100) if prev_close else 0.0,
+        change_pct=round((change / prev_close * 100), 2) if prev_close else 0.0,
         volume=_safe_float(info.get("v")) * 1000,  # MIS 單位為「張」，統一轉為股
         high=_safe_float(info.get("h"), price) or price,
         low=_safe_float(info.get("l"), price) or price,
@@ -309,7 +309,7 @@ async def _yahoo_quote(ysym: str, symbol: str, market: MarketType) -> Optional[S
         name=meta.get("shortName") or meta.get("longName") or symbol,
         price=price,
         change=change,
-        change_pct=(change / prev_close * 100) if prev_close else 0.0,
+        change_pct=round((change / prev_close * 100), 2) if prev_close else 0.0,
         volume=_safe_float(meta.get("regularMarketVolume")) or (today.volume if today else 0.0),
         high=_safe_float(meta.get("regularMarketDayHigh")) or (today.high if today else price),
         low=_safe_float(meta.get("regularMarketDayLow")) or (today.low if today else price),
@@ -327,7 +327,7 @@ async def _yfinance_quote(symbol: str, market: MarketType) -> Optional[StockQuot
         price, prev = float(fi.last_price), float(fi.previous_close)
         return StockQuote(
             symbol=symbol, name=symbol, price=price, change=price - prev,
-            change_pct=(price - prev) / prev * 100 if prev else 0.0,
+            change_pct=round(((price - prev) / prev * 100), 2) if prev else 0.0,
             volume=float(fi.last_volume or 0), high=float(fi.day_high or price),
             low=float(fi.day_low or price), open=float(fi.open or price), prev_close=prev,
             market=market, source="yfinance")
@@ -361,7 +361,7 @@ def _quote_from_bars(bars: List[KlineBar], symbol: str, market: MarketType, sour
     last = bars[-1]
     prev = bars[-2].close if len(bars) > 1 else last.close
     return StockQuote(symbol=symbol, name=symbol, price=last.close, change=last.close - prev,
-                      change_pct=(last.close - prev) / prev * 100 if prev else 0.0,
+                      change_pct=round(((last.close - prev) / prev * 100), 2) if prev else 0.0,
                       volume=last.volume, high=last.high, low=last.low, open=last.open,
                       prev_close=prev, market=market, source=source, stale=True)
 

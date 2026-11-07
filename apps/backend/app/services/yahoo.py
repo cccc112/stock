@@ -57,7 +57,7 @@ class YahooFinanceService:
             price = info.last_price
             prev_close = info.previous_close
             change = price - prev_close
-            change_pct = (change / prev_close) * 100 if prev_close else 0
+            change_pct = round(((change / prev_close) * 100), 2) if prev_close else 0.0
             
             market = MarketType.TW if formatted_symbol.endswith('.TW') or formatted_symbol.endswith('.TWO') else MarketType.US
             

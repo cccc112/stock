@@ -286,7 +286,7 @@ export default function InstitutionsPage() {
           const res = await apiStocks.getQuote(sym);
           const p = Number(res?.data?.price);
           if (p > 0) {
-            const pct = Number(res?.data?.change_pct ?? res?.data?.changePercent ?? 0);
+            const pct = Number(Number(res?.data?.change_pct ?? res?.data?.changePercent ?? 0).toFixed(2));
             return { symbol: sym, price: p, change_pct: pct };
           }
         } catch {}
@@ -813,15 +813,15 @@ export default function InstitutionsPage() {
                           </div>
                           <div className="text-right">
                             <div className="font-mono font-bold text-sm text-primary">
-                              NT${curPrice}
+                              NT${Number(curPrice || 0).toFixed(2)}
                             </div>
                             <div
                               className={`font-mono text-xs ${
-                                curPct >= 0 ? "text-up-tw" : "text-down-tw"
+                                Number(curPct || 0) >= 0 ? "text-up-tw" : "text-down-tw"
                               } font-semibold`}
                             >
-                              {curPct > 0 ? "+" : ""}
-                              {curPct}%
+                              {Number(curPct || 0) > 0 ? "+" : ""}
+                              {Number(curPct || 0).toFixed(2)}%
                             </div>
                           </div>
                         </div>
@@ -1383,7 +1383,7 @@ export default function InstitutionsPage() {
                           >
                             <div className="text-xs text-secondary truncate">{s.sector}</div>
                             <div className="text-sm font-bold font-mono text-accent mt-0.5">
-                              {s.pct}%
+                              {Number(s.pct || 0).toFixed(2)}%
                             </div>
                           </div>
                         ))}
@@ -1450,7 +1450,7 @@ export default function InstitutionsPage() {
                                   >
                                     {act}{" "}
                                     {h?.changePct
-                                      ? `(${h.changePct > 0 ? "+" : ""}${h.changePct}%)`
+                                      ? `(${Number(h.changePct) > 0 ? "+" : ""}${Number(h.changePct).toFixed(2)}%)`
                                       : ""}
                                   </span>
                                 </td>

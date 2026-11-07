@@ -60,7 +60,7 @@ class TWSEService:
                 return None
 
             change = current_price - prev_close
-            change_pct = (change / prev_close * 100) if prev_close else 0
+            change_pct = round((change / prev_close * 100), 2) if prev_close else 0.0
 
             return StockQuote(
                 symbol=symbol,
