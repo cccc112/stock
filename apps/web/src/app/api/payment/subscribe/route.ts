@@ -15,15 +15,25 @@ export async function POST(req: NextRequest) {
     // 訂單編號不得超過 20 碼
     const tradeNo = `OT${Date.now().toString().slice(-14)}`;
 
+    // 解析前端傳入的方案 (標準版 NT$ 99 / Pro 旗艦版 NT$ 299)
+    const body = await req.json().catch(() => ({}));
+    const plan = body?.plan === "standard" ? "standard" : "pro";
+    const totalAmount = plan === "standard" ? 99 : 299;
+    const itemName =
+      plan === "standard"
+        ? "OmniTick 標準版 每日籌碼精華月費方案"
+        : "OmniTick Pro 旗艦版 盤中主力雷達月費方案";
+    const tradeDesc = plan === "standard" ? "OmniTick Standard" : "OmniTick Pro";
+
     const orderParams = {
       merchantTradeNo: tradeNo,
       merchantTradeDate: tradeDate,
-      totalAmount: 399,
-      tradeDesc: "OmniTick Pro Subscription",
-      itemName: "OmniTick Pro 盤中主力雷達月費方案",
+      totalAmount,
+      tradeDesc,
+      itemName,
       returnUrl: `${origin}/api/payment/ecpay-callback`,
       periodReturnUrl: `${origin}/api/payment/ecpay-callback`,
-      clientBackUrl: `${origin}/alerts?subscribed=true`,
+      clientBackUrl: `${origin}/alerts?subscribed=true&plan=${plan}`,
     };
 
     const { actionUrl, params } = buildPeriodicalPaymentParams(orderParams);

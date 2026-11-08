@@ -51,8 +51,9 @@ export async function POST(req: NextRequest) {
     const merchantTradeNo = callbackData.MerchantTradeNo;
     const amount = Number(callbackData.Amount || callbackData.PeriodAmount || callbackData.TotalAmount || 0);
 
-    // 5. 資安防護：校驗金額 (防止客戶端或中間人修改扣款金額)
-    if (amount !== 399 && amount !== 3990) {
+    // 5. 資安防護：校驗金額 (防止客戶端或中間人修改扣款金額，支援標準版 99 與 Pro 旗艦版 299)
+    const validAmounts = [99, 990, 299, 2990, 399, 3990];
+    if (!validAmounts.includes(amount)) {
       console.warn(`[ECPay Webhook Security] 交易金額異常: NT$ ${amount}, 訂單: ${merchantTradeNo}`);
       // 若金額不符預設方案，紀錄風控標記
     }

@@ -32,7 +32,7 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
   const [copied, setCopied] = useState(false);
   const [isBound, setIsBound] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState(14);
-  const [isSubscribing, setIsSubscribing] = useState(false);
+  const [subscribingPlan, setSubscribingPlan] = useState<"standard" | "pro" | null>(null);
   const [botInfo, setBotInfo] = useState<BotInfo | null>(null);
 
   useEffect(() => {
@@ -68,12 +68,13 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
     }
   };
 
-  const handleSubscribe = async () => {
-    setIsSubscribing(true);
+  const handleSubscribe = async (plan: "standard" | "pro") => {
+    setSubscribingPlan(plan);
     try {
       const res = await fetch("/api/payment/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
       });
       const data = await res.json();
       if (data.success && data.actionUrl && data.params) {
@@ -99,7 +100,7 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
       console.error("Subscription redirect failed:", err);
       alert("連線付款伺服器逾時，請稍後重試。");
     } finally {
-      setIsSubscribing(false);
+      setSubscribingPlan(null);
     }
   };
 
@@ -206,38 +207,77 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
         </div>
       </div>
 
-      {/* 方案與付款區 */}
+      {/* 雙層方案定價與付款區 */}
       {!compact && (
-        <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-[var(--bg-primary)] to-emerald-500/10 border border-amber-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-amber-400 flex items-center gap-1">
-                <Crown size={14} /> Pro 尊榮方案
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">
-                {trialDaysLeft} 天免費倒數
-              </span>
-            </div>
-            <p className="text-xs text-secondary leading-relaxed">
-              綁定成功即享 14 天 Pro 雷達即時推播。試用到期後自動轉為每日 15:30 籌碼精華，無任何扣款風險。
-            </p>
-          </div>
+        <div className="mt-4 pt-4 border-t border-[var(--border)]">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {/* 標準版方案 */}
+            <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] hover:border-emerald-500/40 transition-all flex flex-col justify-between gap-3">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-emerald-400" /> 標準版方案
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-semibold border border-emerald-500/25">
+                    超值首選
+                  </span>
+                </div>
+                <p className="text-xs text-secondary leading-relaxed">
+                  每日 15:30 盤後法人籌碼精華推播、大盤多空量化動量與自選股監控。
+                </p>
+              </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-            <div className="text-right">
-              <div className="text-base font-extrabold font-mono text-primary">NT$ 399</div>
-              <div className="text-[10px] text-secondary">/ 月（或 NT$ 3,990 / 年）</div>
+              <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]/60">
+                <div>
+                  <div className="text-base font-extrabold font-mono text-primary">NT$ 99</div>
+                  <div className="text-[10px] text-secondary">/ 月（年繳 NT$ 990）</div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => handleSubscribe("standard")}
+                  disabled={subscribingPlan !== null}
+                  className="bg-emerald-600/15 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/30 font-bold text-xs flex items-center gap-1.5 shadow-sm whitespace-nowrap cursor-pointer active:scale-95 transition-all"
+                >
+                  <CreditCard size={13} />
+                  <span>{subscribingPlan === "standard" ? "前往付款中心..." : "訂閱標準版 (NT$ 99)"}</span>
+                </Button>
+              </div>
             </div>
-            <Button
-              size="sm"
-              variant="primary"
-              onClick={handleSubscribe}
-              disabled={isSubscribing}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm whitespace-nowrap cursor-pointer active:scale-95"
-            >
-              <CreditCard size={13} />
-              <span>{isSubscribing ? "前往付款中心..." : "信用卡安全訂閱"}</span>
-            </Button>
+
+            {/* Pro 旗艦版 */}
+            <div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/10 via-[var(--bg-primary)] to-emerald-500/10 border border-amber-500/30 hover:border-amber-500/50 transition-all flex flex-col justify-between gap-3 relative overflow-hidden">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                    <Crown size={14} /> Pro 旗艦版
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+                    {trialDaysLeft} 天免費試用
+                  </span>
+                </div>
+                <p className="text-xs text-secondary leading-relaxed">
+                  盤中主力大單即時雷達、AI 智能解盤、深度 13F 機構持倉與 ETF 申購穿透。
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]/60">
+                <div>
+                  <div className="text-base font-extrabold font-mono text-primary">NT$ 299</div>
+                  <div className="text-[10px] text-secondary">/ 月（年繳 NT$ 2,990）</div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => handleSubscribe("pro")}
+                  disabled={subscribingPlan !== null}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm whitespace-nowrap cursor-pointer active:scale-95"
+                >
+                  <CreditCard size={13} />
+                  <span>{subscribingPlan === "pro" ? "前往付款中心..." : "訂閱 Pro 版 (NT$ 299)"}</span>
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}
