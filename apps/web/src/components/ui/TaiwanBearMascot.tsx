@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   Sparkles,
@@ -79,6 +80,15 @@ const POKE_QUOTES = [
   "今天也是元氣滿滿的一天！多頭空頭都能找出獲利勝率！",
   "別盯盤盯太累，喝口水，好行情是等出來的！",
 ];
+
+const Bear3DModel = dynamic(() => import("@/components/ui/Bear3DModel"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-[180px] h-[180px] flex items-center justify-center">
+      <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+    </div>
+  ),
+});
 
 export default function TaiwanBearMascot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -460,9 +470,18 @@ export default function TaiwanBearMascot() {
             </div>
           )}
 
-          {/* 頁籤內容 3: 熊霸互動 (Interact) */}
+          {/* 頁籤內容 3: 熊霸互動 (Interact - 內嵌 3D 互動手辦模型) */}
           {activeTab === "interact" && (
             <div className="space-y-3">
+              {/* 3D 熊霸立體手辦互動視窗 */}
+              <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-gradient-to-b from-[var(--bg-primary)] to-[var(--bg-tertiary)] border border-[var(--border)] overflow-hidden shadow-inner">
+                <div className="text-[10px] text-muted font-mono mb-1 flex items-center gap-1">
+                  <Sparkles size={11} className="text-amber-400" />
+                  <span>3D 手辦模式（按住可 360° 旋轉）</span>
+                </div>
+                <Bear3DModel size={190} compact={true} interactive={true} showQuote={false} />
+              </div>
+
               <div className="p-3 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border)] space-y-3">
                 {/* 能量條與好感度 */}
                 <div>
@@ -563,95 +582,170 @@ export default function TaiwanBearMascot() {
           }`}
           title="點擊與台灣黑熊「熊霸」互動，查看今日解盤與靈籤"
         >
-          {/* 精緻台灣黑熊 SVG */}
+          {/* 頂級手辦級台灣黑熊 SVG */}
           <svg
-            className="w-12 h-12 sm:w-14 sm:h-14 drop-shadow-lg overflow-visible"
+            className="w-12 h-12 sm:w-14 sm:h-14 drop-shadow-xl overflow-visible"
             viewBox="0 0 100 100"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
           >
-            {/* 左耳與右耳 (帶微幅 ear-wiggle 擺動動畫) */}
+            <defs>
+              {/* 頭部與身體黑曜石立體球形漸層 */}
+              <radialGradient id="bearBodyGrad" cx="40%" cy="30%" r="70%">
+                <stop offset="0%" stopColor="#334155" />
+                <stop offset="35%" stopColor="#1e293b" />
+                <stop offset="75%" stopColor="#0b0f17" />
+                <stop offset="100%" stopColor="#020617" />
+              </radialGradient>
+
+              {/* 耳窩粉嫩肉球漸層 */}
+              <radialGradient id="bearEarInnerGrad" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#fecdd3" />
+                <stop offset="60%" stopColor="#fb7185" />
+                <stop offset="100%" stopColor="#e11d48" />
+              </radialGradient>
+
+              {/* 口鼻部奶油米白立體漸層 */}
+              <radialGradient id="bearMuzzleGrad" cx="45%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="65%" stopColor="#f1f5f9" />
+                <stop offset="100%" stopColor="#cbd5e1" />
+              </radialGradient>
+
+              {/* 瞳孔深邃水潤漸層 */}
+              <radialGradient id="bearEyeGrad" cx="35%" cy="30%" r="70%">
+                <stop offset="0%" stopColor="#0284c7" />
+                <stop offset="40%" stopColor="#0f172a" />
+                <stop offset="100%" stopColor="#020617" />
+              </radialGradient>
+
+              {/* 腮紅柔和漸層 */}
+              <radialGradient id="bearBlushGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.55" />
+                <stop offset="70%" stopColor="#fb7185" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#fb7185" stopOpacity="0" />
+              </radialGradient>
+
+              {/* 胸前純白立體大 V 領陰影微光 */}
+              <filter id="vGlow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" floodColor="#000000" floodOpacity="0.4" />
+              </filter>
+            </defs>
+
+            {/* 左耳與右耳 (帶微幅 ear-wiggle 擺動動畫與立體外圈) */}
             <g className="bear-ear-wiggle origin-[24px_24px]">
-              <circle cx="24" cy="24" r="14" fill="#0f172a" stroke="#334155" strokeWidth="2.5" />
-              <circle cx="24" cy="24" r="8" fill="#fda4af" opacity="0.8" />
+              <circle cx="24" cy="24" r="14" fill="url(#bearBodyGrad)" stroke="#475569" strokeWidth="1.5" />
+              <circle cx="24" cy="24" r="8.5" fill="url(#bearEarInnerGrad)" opacity="0.9" />
             </g>
             <g className="bear-ear-wiggle origin-[76px_24px]">
-              <circle cx="76" cy="24" r="14" fill="#0f172a" stroke="#334155" strokeWidth="2.5" />
-              <circle cx="76" cy="24" r="8" fill="#fda4af" opacity="0.8" />
+              <circle cx="76" cy="24" r="14" fill="url(#bearBodyGrad)" stroke="#475569" strokeWidth="1.5" />
+              <circle cx="76" cy="24" r="8.5" fill="url(#bearEarInnerGrad)" opacity="0.9" />
             </g>
 
             {/* 科技耳機天線 (量化雷達感應器) */}
             <path
-              d="M 20 18 Q 50 6 80 18"
+              d="M 22 17 Q 50 4 78 17"
               stroke={hasAlert ? "#f43f5e" : "#38bdf8"}
-              strokeWidth="3"
+              strokeWidth="2.5"
               strokeLinecap="round"
               fill="none"
               opacity="0.85"
             />
             <circle
               cx="50"
-              cy="8"
+              cy="7.5"
               r="4"
               fill={hasAlert ? "#f43f5e" : "#38bdf8"}
               className={hasAlert ? "animate-ping" : ""}
             />
+            <circle cx="50" cy="7.5" r="2.5" fill="#ffffff" />
 
-            {/* 頭部主體 (毛茸茸黑色外型) */}
-            <rect x="14" y="20" width="72" height="68" rx="34" fill="#090d16" stroke="#1e293b" strokeWidth="2" />
+            {/* 頭部主體 (手辦級圓潤膠囊立體球形) */}
+            <rect
+              x="13"
+              y="19"
+              width="74"
+              height="70"
+              rx="37"
+              fill="url(#bearBodyGrad)"
+              stroke="#334155"
+              strokeWidth="1.5"
+            />
 
-            {/* 圓滾滾白皙臉頰紅暈 */}
-            <circle cx="28" cy="62" r="4.5" fill="#f43f5e" opacity="0.4" />
-            <circle cx="72" cy="62" r="4.5" fill="#f43f5e" opacity="0.4" />
+            {/* 頭頂高光光澤弧線 (手辦 PVC 質感) */}
+            <path
+              d="M 28 26 Q 50 20 72 26"
+              stroke="#94a3b8"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              opacity="0.25"
+              fill="none"
+            />
 
-            {/* 靈動大眼睛 (支援自動眨眼動畫) */}
+            {/* 圓滾滾粉嫩紅暈 */}
+            <circle cx="27" cy="61" r="7" fill="url(#bearBlushGrad)" />
+            <circle cx="73" cy="61" r="7" fill="url(#bearBlushGrad)" />
+
+            {/* 靈動大眼睛 (支援自動眨眼動畫與星芒高光) */}
             {isBlinking ? (
               // 眨眼閉眼弧線
               <>
-                <path d="M 32 46 Q 38 48 44 46" stroke="#f8fafc" strokeWidth="3" strokeLinecap="round" fill="none" />
-                <path d="M 56 46 Q 62 48 68 46" stroke="#f8fafc" strokeWidth="3" strokeLinecap="round" fill="none" />
+                <path d="M 32 46 Q 38 49 44 46" stroke="#f8fafc" strokeWidth="3" strokeLinecap="round" fill="none" />
+                <path d="M 56 46 Q 62 49 68 46" stroke="#f8fafc" strokeWidth="3" strokeLinecap="round" fill="none" />
               </>
             ) : mood === "BULLISH" ? (
               // 歡樂笑瞇眼 (弧線)
               <>
-                <path d="M 32 46 Q 38 40 44 46" stroke="#f8fafc" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-                <path d="M 56 46 Q 62 40 68 46" stroke="#f8fafc" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+                <path d="M 31 47 Q 38 40 45 47" stroke="#f8fafc" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+                <path d="M 55 47 Q 62 40 69 47" stroke="#f8fafc" strokeWidth="3.5" strokeLinecap="round" fill="none" />
               </>
             ) : mood === "FEAR" ? (
-              // 堅定專注大眼 (圓形 + 堅毅高光)
+              // 堅定專注大眼 (立體漸層瞳孔 + 銳利雙高光)
               <>
                 <circle cx="38" cy="46" r="6" fill="#f8fafc" />
-                <circle cx="39" cy="45" r="3.5" fill="#0284c7" />
+                <circle cx="38.5" cy="46" r="4.2" fill="url(#bearEyeGrad)" />
+                <circle cx="37" cy="44" r="1.6" fill="#ffffff" />
+                <circle cx="40" cy="47.5" r="0.8" fill="#38bdf8" />
+
                 <circle cx="62" cy="46" r="6" fill="#f8fafc" />
-                <circle cx="63" cy="45" r="3.5" fill="#0284c7" />
+                <circle cx="61.5" cy="46" r="4.2" fill="url(#bearEyeGrad)" />
+                <circle cx="60" cy="44" r="1.6" fill="#ffffff" />
+                <circle cx="63" cy="47.5" r="0.8" fill="#38bdf8" />
               </>
             ) : (
-              // 智慧探索眼 (黑眼珠 + 白色高光)
+              // 智慧探索眼 (深邃大眼 + 雙點靈動高光)
               <>
-                <circle cx="38" cy="46" r="5.5" fill="#f8fafc" />
-                <circle cx="39" cy="45" r="2.8" fill="#0f172a" />
-                <circle cx="40" cy="44" r="1" fill="#ffffff" />
-                <circle cx="62" cy="46" r="5.5" fill="#f8fafc" />
-                <circle cx="63" cy="45" r="2.8" fill="#0f172a" />
-                <circle cx="64" cy="44" r="1" fill="#ffffff" />
+                <circle cx="38" cy="46" r="5.8" fill="#ffffff" />
+                <circle cx="38.5" cy="46" r="4.2" fill="url(#bearEyeGrad)" />
+                <circle cx="37" cy="44.2" r="1.6" fill="#ffffff" />
+                <circle cx="40" cy="47.5" r="0.7" fill="#ffffff" opacity="0.8" />
+
+                <circle cx="62" cy="46" r="5.8" fill="#ffffff" />
+                <circle cx="61.5" cy="46" r="4.2" fill="url(#bearEyeGrad)" />
+                <circle cx="60" cy="44.2" r="1.6" fill="#ffffff" />
+                <circle cx="63" cy="47.5" r="0.7" fill="#ffffff" opacity="0.8" />
               </>
             )}
 
-            {/* 口鼻部 (白色/米黃微凸橢圓) */}
-            <ellipse cx="50" cy="58" rx="14" ry="10" fill="#f1f5f9" />
-            {/* 黑熊黑色三角小鼻子 */}
-            <path d="M 45 54 L 55 54 L 50 60 Z" fill="#0f172a" />
-            {/* 微笑小嘴 */}
-            <path d="M 47 62 Q 50 65 53 62" stroke="#0f172a" strokeWidth="2" strokeLinecap="round" fill="none" />
+            {/* 立體口鼻部 (立體米白奶油微凸橢圓) */}
+            <ellipse cx="50" cy="58" rx="14.5" ry="10.5" fill="url(#bearMuzzleGrad)" stroke="#cbd5e1" strokeWidth="0.8" />
+            
+            {/* 黑熊黑色立體三角小鼻子 (帶高光點) */}
+            <path d="M 44.5 53.5 Q 50 51.5 55.5 53.5 Q 50 60 44.5 53.5 Z" fill="#090d16" />
+            <circle cx="49" cy="54" r="0.8" fill="#94a3b8" />
 
-            {/* ★ 核心靈魂：胸前巨大純白「V」字胸標 (正宗台灣黑熊標誌，永久純白 #ffffff，絕不隨市場變綠變金) ★ */}
+            {/* 療癒微笑小嘴 */}
+            <path d="M 46.5 61.5 Q 50 64.5 53.5 61.5" stroke="#090d16" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+
+            {/* ★ 核心靈魂：胸前巨大純白立體「V」字胸標 (正宗台灣黑熊標誌，永久純白，帶手辦陰影) ★ */}
             <path
-              d="M 32 75 L 50 92 L 68 75"
+              d="M 33 75 L 50 91 L 67 75"
               stroke="#ffffff"
-              strokeWidth="7"
+              strokeWidth="6.5"
               strokeLinecap="round"
               strokeLinejoin="round"
               fill="none"
+              filter="url(#vGlow)"
             />
           </svg>
 
