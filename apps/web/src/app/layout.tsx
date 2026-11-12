@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "@/styles/globals.css";
 import Sidebar from "@/components/layout/Sidebar";
@@ -8,9 +8,27 @@ import WatchlistRadarListener from "@/components/layout/WatchlistRadarListener";
 import TaiwanBearMascot from "@/components/ui/TaiwanBearMascot";
 import { BeginnerModeProvider } from "@/components/ui/TermTooltip";
 
+export const viewport: Viewport = {
+  themeColor: "#090d16",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   title: "OmniTick - 奧米全時智投終端 · 證交所直連 0 秒即時撮合",
   description: "直連證交所 0 秒極速撮合、AI 多因子量化模型、ETF 申報持股異動與全球政經即時雷達",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "OmniTick 智投",
+  },
+  icons: {
+    icon: "/omnitick-avatar.png",
+    apple: "/omnitick-avatar.png",
+  },
 };
 
 export default function RootLayout({

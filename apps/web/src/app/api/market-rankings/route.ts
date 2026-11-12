@@ -251,43 +251,61 @@ async function enrichAllWithRealtimeTwse(
     resultMap.set(it.symbol, cached || it);
   }
 
+  const parseP = (v: any) => {
+    if (!v || v === "-") return 0;
+    const n = parseFloat(String(v).replace(/,/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  // 解析五檔委買/委賣第一檔價格 (當 TWSE MIS 的 z 暫時為 "-" 時，五檔第一檔即為當下真實盤中價)
+  const parseBestBidAsk = (raw: any) => {
+    if (!raw || typeof raw !== "string") return 0;
+    const first = raw.split("_")[0];
+    return parseP(first);
+  };
+
   try {
     const uniqueItems = Array.from(
       new Map(items.map((s) => [s.symbol.toUpperCase(), s])).values()
     );
-    const exCh = uniqueItems
-      .map((s) => (s.market === "TPEx" ? "otc_" : "tse_") + s.symbol + ".tw")
-      .join("|");
 
-    const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${encodeURIComponent(
-      exCh
-    )}&json=1&delay=0&_=${Date.now()}`;
-
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        Referer: "https://mis.twse.com.tw/stock/fibest.jsp",
-      },
-      cache: "no-store",
-      signal: AbortSignal.timeout(4500),
-    });
-
-    if (!res.ok) return resultMap;
-    const json = await res.json();
-    const arr = Array.isArray(json?.msgArray) ? json.msgArray : [];
-    if (arr.length === 0) return resultMap;
-
-    const byCode: Record<string, any> = {};
-    for (const m of arr) {
-      if (m?.c) byCode[String(m.c).toUpperCase()] = m;
+    // 分批併發查詢 TWSE MIS (每批最多 18 檔，避免單次 ex_ch 過長遭證交所切斷)
+    const chunkSize = 18;
+    const chunks: RankedStockItem[][] = [];
+    for (let i = 0; i < uniqueItems.length; i += chunkSize) {
+      chunks.push(uniqueItems.slice(i, i + chunkSize));
     }
 
-    const parseP = (v: any) => {
-      if (!v || v === "-") return 0;
-      const n = parseFloat(String(v).replace(/,/g, ""));
-      return Number.isFinite(n) ? n : 0;
-    };
+    const byCode: Record<string, any> = {};
+
+    await Promise.allSettled(
+      chunks.map(async (chunk) => {
+        const exCh = chunk
+          .map((s) => (s.market === "TPEx" ? "otc_" : "tse_") + s.symbol + ".tw")
+          .join("|");
+
+        const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${encodeURIComponent(
+          exCh
+        )}&json=1&delay=0&_=${Date.now()}`;
+
+        const res = await fetch(url, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            Referer: "https://mis.twse.com.tw/stock/fibest.jsp",
+          },
+          cache: "no-store",
+          signal: AbortSignal.timeout(4000),
+        });
+
+        if (!res.ok) return;
+        const json = await res.json();
+        const arr = Array.isArray(json?.msgArray) ? json.msgArray : [];
+        for (const m of arr) {
+          if (m?.c) byCode[String(m.c).toUpperCase()] = m;
+        }
+      })
+    );
 
     for (const it of uniqueItems) {
       const live = byCode[it.symbol.toUpperCase()];
@@ -295,15 +313,30 @@ async function enrichAllWithRealtimeTwse(
 
       const z = parseP(live.z);
       const pz = parseP(live.pz);
+      const bestBid = parseBestBidAsk(live.b);
+      const bestAsk = parseBestBidAsk(live.a);
       const o = parseP(live.o);
       const y = parseP(live.y);
       const vLots = parseP(live.v);
       const cached = lastKnownLiveQuotes.get(it.symbol);
 
-      // 成交價判定：即時成交價 (z) > 試算 (pz) > 開盤 (o) > 快取最新價 > 原價
-      let livePrice = z > 0 ? z : pz > 0 ? pz : o > 0 ? o : cached?.price || it.price;
+      // 成交價判定：即時成交價 (z) > 試算 (pz) > 委買第一檔 (bestBid) > 委賣第一檔 (bestAsk) > 開盤 (o) > 快取最新價 > 原價
+      const livePrice =
+        z > 0
+          ? z
+          : pz > 0
+          ? pz
+          : bestBid > 0
+          ? bestBid
+          : bestAsk > 0
+          ? bestAsk
+          : o > 0
+          ? o
+          : cached?.price || it.price;
+
       // 昨收價判定：TWSE MIS (y) > 快取昨收 > 原昨收
-      const prevClose = y > 0 ? y : cached?.price ? (cached.price - cached.change) : (it.price - it.change);
+      const prevClose =
+        y > 0 ? y : cached?.price ? cached.price - cached.change : it.price - it.change;
 
       // 如果有真實價格與昨收，精準計算漲跌金額與漲跌幅
       let chg = it.change;
@@ -314,19 +347,25 @@ async function enrichAllWithRealtimeTwse(
       }
 
       const volLots = vLots > 0 ? Math.round(vLots) : cached?.volume_lots || it.volume_lots;
+      const volShares = volLots * 1000;
+      const liveTurnoverB =
+        livePrice > 0 && volShares > 0
+          ? Number(((livePrice * volShares) / 1e8).toFixed(2))
+          : it.turnover_b;
 
       const enriched: RankedStockItem = {
         ...it,
+        name: live.n ? String(live.n).trim() : it.name,
         price: livePrice,
         change: chg,
         change_pct: pct,
         volume_lots: volLots,
-        volume: volLots * 1000,
+        volume: volShares,
+        turnover_b: liveTurnoverB,
         limit_up: parseP(live.u) || it.limit_up,
         limit_down: parseP(live.w) || it.limit_down,
       };
 
-      // 只要確認不是 0.00 且有價格，更新伺服器持久快顯記憶體
       if (enriched.price > 0) {
         lastKnownLiveQuotes.set(it.symbol, enriched);
       }
@@ -567,18 +606,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(flowItems);
   }
 
-  const rawTwse = sortRankings(marketCache?.twseAll || [], sortBy, limit, false);
-  const rawTpex = sortRankings(marketCache?.tpexAll || [], sortBy, limit, false);
+  const poolSize = Math.max(limit + 8, 22);
+  const rawTwse = sortRankings(marketCache?.twseAll || [], sortBy, poolSize, false);
+  const rawTpex = sortRankings(marketCache?.tpexAll || [], sortBy, poolSize, false);
   const allEtfs = allTw.filter((x) => x.is_etf);
-  const rawEtf = sortRankings(allEtfs, sortBy, limit, true);
+  const rawEtf = sortRankings(allEtfs, sortBy, poolSize, true);
 
-  // 單一批次統一查詢 TWSE MIS，防止 3 個並發請求互相競爭與超時斷線
+  // 分批併發統一查詢 TWSE MIS 並依據最新盤中即時價量重新動態排序
   const allCandidates = [...rawTwse, ...rawTpex, ...rawEtf];
   const enrichedMap = await enrichAllWithRealtimeTwse(allCandidates);
 
-  const twse = rawTwse.map((s) => enrichedMap.get(s.symbol) || s);
-  const tpex = rawTpex.map((s) => enrichedMap.get(s.symbol) || s);
-  const etf = rawEtf.map((s) => enrichedMap.get(s.symbol) || s);
+  const enrichedTwse = rawTwse.map((s) => enrichedMap.get(s.symbol) || s);
+  const enrichedTpex = rawTpex.map((s) => enrichedMap.get(s.symbol) || s);
+  const enrichedEtf = rawEtf.map((s) => enrichedMap.get(s.symbol) || s);
+
+  const twse = sortRankings(enrichedTwse, sortBy, limit, false);
+  const tpex = sortRankings(enrichedTpex, sortBy, limit, false);
+  const etf = sortRankings(enrichedEtf, sortBy, limit, true);
 
   return NextResponse.json(
     {
@@ -586,6 +630,7 @@ export async function GET(req: NextRequest) {
       tpex,
       etf,
       date: marketCache?.date || "",
+      live_ts: Date.now(),
     },
     {
       headers: {

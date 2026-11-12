@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Menu, Search, Sun, Moon } from "lucide-react";
 import { SIDEBAR_TOGGLE_EVENT } from "@/components/layout/Sidebar";
 import { apiStocks } from "@/lib/api";
 import UserMenu from "@/components/auth/UserMenu";
 import BrandLogo from "@/components/ui/BrandLogo";
+import InstallAppButton from "@/components/ui/InstallAppModal";
 
 export default function TopBar() {
   const [time, setTime] = useState("");
@@ -153,12 +155,19 @@ export default function TopBar() {
           <Menu size={20} />
         </button>
 
-        <div className="flex items-center gap-1.5 md:hidden flex-shrink-0">
+        <Link
+          href="/dashboard"
+          onClick={() => {
+            document.querySelector(".page-content")?.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          className="flex items-center gap-1.5 md:hidden flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
+          title="點擊回到戰情首頁"
+        >
           <BrandLogo size={24} />
           <span className="font-extrabold font-mono text-sm tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-300 bg-clip-text text-transparent">
             OmniTick
           </span>
-        </div>
+        </Link>
 
         <div ref={boxRef} className="relative flex-1">
           <form onSubmit={handleSubmit}>
@@ -221,7 +230,9 @@ export default function TopBar() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+      <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
+        <InstallAppButton />
+
         <button
           type="button"
           onClick={toggleTheme}

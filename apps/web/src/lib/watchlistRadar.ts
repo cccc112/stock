@@ -301,13 +301,53 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("watchlist_radar_alert", { detail: ev }));
 
+      // ★ 自動連通 LINE 官方帳號主動推播 (預設開啟) ★
+      const lineAutoPushEnabled = localStorage.getItem("line_auto_push_enabled") !== "false";
+      if (lineAutoPushEnabled) {
+        fetch("/api/line/push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "radar",
+            mode: "broadcast",
+            data: {
+              symbol: ev.symbol,
+              name: ev.name,
+              price: ev.price,
+              change: Number(((ev.price * ev.changePct) / 100).toFixed(2)),
+              changePct: ev.changePct,
+              volumeLots: 25000,
+              triggerName: ev.title,
+              triggerDesc: ev.message,
+              category: ev.type === "up" ? "BREAKOUT" : "VOLUME",
+            },
+          }),
+        })
+          .then((r) => r.json())
+          .then((res) => {
+            if (res?.success) {
+              const logItem = {
+                symbol: ev.symbol,
+                name: ev.name,
+                title: ev.title,
+                price: ev.price,
+                changePct: ev.changePct,
+                time: new Date().toLocaleTimeString("zh-TW", { hour12: false }),
+              };
+              localStorage.setItem("last_line_auto_push_log", JSON.stringify(logItem));
+              window.dispatchEvent(new CustomEvent("line_auto_pushed", { detail: logItem }));
+            }
+          })
+          .catch(() => {});
+      }
+
       // 發送系統桌面 Notification（純靜音視覺通知）
       if (isNotificationSupported() && Notification.permission === "granted") {
         try {
           const notif = new Notification(`${ev.title} (${ev.symbol})`, {
             body: ev.message,
             silent: true, // 純靜音
-            icon: "/favicon.ico",
+            icon: "/omnitick-avatar.png",
           });
           notif.onclick = () => {
             window.focus();

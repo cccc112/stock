@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   runWatchlistRadarScan,
+  getWatchlistSymbols,
   isMarketTradingHours,
   isNotificationSupported,
   getNotificationPermission,
@@ -60,10 +61,43 @@ export default function WatchlistRadarListener() {
     window.addEventListener("watchlist_radar_alert", handleRadarEvent);
     window.addEventListener("watchlist_radar_toggle", handleToggleEvent);
 
-    // 啟動定時輪詢掃描
-    const runScan = () => {
-      if (localStorage.getItem("watchlist_radar_enabled") === "false") return;
-      runWatchlistRadarScan();
+    // 啟動定時輪詢掃描與 LINE 自動主動通報巡檢
+    const runScan = async () => {
+      if (localStorage.getItem("watchlist_radar_enabled") !== "false") {
+        await runWatchlistRadarScan();
+      }
+
+      // 檢查是否啟用 LINE 自動主動通報巡檢 (預設開啟，每 25 分鐘自動巡檢一次避免洗版)
+      const lineAutoEnabled = localStorage.getItem("line_auto_push_enabled") !== "false";
+      if (lineAutoEnabled) {
+        const lastCronTs = Number(localStorage.getItem("last_auto_line_cron_ts") || 0);
+        const now = Date.now();
+        if (now - lastCronTs > 25 * 60 * 1000) {
+          localStorage.setItem("last_auto_line_cron_ts", String(now));
+          const symbols = getWatchlistSymbols();
+          fetch("/api/line/auto-notify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ symbols }),
+          })
+            .then((r) => r.json())
+            .then((data) => {
+              if (data?.success && data.target) {
+                const logItem = {
+                  symbol: data.target.symbol,
+                  name: data.target.name,
+                  title: data.triggerName || "熊霸定時主動巡檢",
+                  price: data.target.price,
+                  changePct: data.target.changePct,
+                  time: new Date().toLocaleTimeString("zh-TW", { hour12: false }),
+                };
+                localStorage.setItem("last_line_auto_push_log", JSON.stringify(logItem));
+                window.dispatchEvent(new CustomEvent("line_auto_pushed", { detail: logItem }));
+              }
+            })
+            .catch(() => {});
+        }
+      }
     };
 
     // 初次載入 4 秒後先掃描一次

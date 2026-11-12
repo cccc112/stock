@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Link from "next/link";
+import { getWatchlistSymbols } from "@/lib/watchlistRadar";
 import {
   Sparkles,
   Zap,
@@ -14,6 +16,9 @@ import {
   Radio,
   ArrowRight,
   MessageSquare,
+  Send,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
 
 // 動態加載 3D 熊霸模型，杜絕 SSR 水合報錯
@@ -27,6 +32,32 @@ const Bear3DModel = dynamic(() => import("@/components/ui/Bear3DModel"), {
 });
 
 export default function BearHeroRadar() {
+  const [pushing, setPushing] = useState(false);
+  const [pushResult, setPushResult] = useState<string>("");
+
+  const handleInstantLinePush = async () => {
+    setPushing(true);
+    setPushResult("");
+    try {
+      const symbols = getWatchlistSymbols();
+      const res = await fetch("/api/line/auto-notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbols }),
+      });
+      const data = await res.json();
+      if (data?.success && data.target) {
+        setPushResult(`已主動推播 ${data.target.symbol} ${data.target.name} ($${data.target.price}) 至 LINE！`);
+      } else {
+        setPushResult(data?.error || "推播失敗，請確認 LINE 設定");
+      }
+    } catch {
+      setPushResult("連線逾時，請稍後再試");
+    } finally {
+      setPushing(false);
+    }
+  };
+
   return (
     <Card className="p-5 md:p-6 border-amber-500/30 bg-gradient-to-r from-[var(--bg-secondary)] via-[var(--bg-secondary)] to-amber-500/5 relative overflow-hidden">
       {/* 科技背景光暈裝飾 */}
@@ -106,6 +137,16 @@ export default function BearHeroRadar() {
 
           {/* 快捷操作列 */}
           <div className="flex flex-wrap items-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={handleInstantLinePush}
+              disabled={pushing}
+              className="px-3.5 py-2 rounded-lg bg-[#06C755] hover:bg-[#05b34c] text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition-all cursor-pointer active:scale-95 disabled:opacity-60"
+            >
+              {pushing ? <Loader2 size={14} className="animate-spin" /> : <Send size={13} />}
+              <span>{pushing ? "主動通報中..." : "立即主動通報戰報至 LINE"}</span>
+            </button>
+
             <Link href="/alerts">
               <Button size="sm" variant="primary" className="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm">
                 <Radio size={14} /> 查看熊霸即時警報中心 <ArrowRight size={13} />
@@ -117,6 +158,12 @@ export default function BearHeroRadar() {
                 <Sparkles size={13} className="text-amber-400" /> 今日 AI 量化選股池
               </Button>
             </Link>
+
+            {pushResult && (
+              <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                <CheckCircle2 size={13} /> {pushResult}
+              </span>
+            )}
           </div>
         </div>
       </div>

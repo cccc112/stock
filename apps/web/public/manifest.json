@@ -1,0 +1,54 @@
+{
+  "name": "OmniTick 奧米全時智投終端",
+  "short_name": "OmniTick 智投",
+  "description": "證交所 0 秒即時撮合、AI 多因子量化模型、台灣黑熊 V-Bear 盤中主力雷達與 LINE 主動推播",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#090d16",
+  "theme_color": "#090d16",
+  "categories": ["finance", "business", "productivity"],
+  "icons": [
+    {
+      "src": "/omnitick-avatar.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/omnitick-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/omnitick-avatar.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "戰情總覽",
+      "short_name": "戰情室",
+      "description": "開啟即時大盤與自訂股票戰情室",
+      "url": "/dashboard",
+      "icons": [{ "src": "/omnitick-avatar.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "智慧雷達與 LINE 通報",
+      "short_name": "主力雷達",
+      "description": "查看盤中 VCP 突破與 LINE 主動推播設定",
+      "url": "/alerts",
+      "icons": [{ "src": "/omnitick-avatar.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "自選股清單",
+      "short_name": "自選股",
+      "description": "管理個人自選股與分類",
+      "url": "/watchlist",
+      "icons": [{ "src": "/omnitick-avatar.png", "sizes": "192x192" }]
+    }
+  ]
+}

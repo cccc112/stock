@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import {
@@ -13,8 +13,13 @@ import {
   Check,
   Zap,
   CreditCard,
+  BellRing,
+  Send,
+  Loader2,
+  Radio,
 } from "lucide-react";
 import { getCurrentUserNamespace } from "@/hooks/useAuth";
+import { getWatchlistSymbols } from "@/lib/watchlistRadar";
 
 interface LineBindingCardProps {
   compact?: boolean;
@@ -27,16 +32,29 @@ interface BotInfo {
   addFriendUrl?: string;
 }
 
+interface AutoPushLog {
+  symbol: string;
+  name: string;
+  title: string;
+  price: number;
+  changePct: number;
+  time: string;
+}
+
 export default function LineBindingCard({ compact = false }: LineBindingCardProps) {
   const [bindCode, setBindCode] = useState("");
   const [copied, setCopied] = useState(false);
-  const [isBound, setIsBound] = useState(false);
-  const [trialDaysLeft, setTrialDaysLeft] = useState(14);
+  const [trialDaysLeft] = useState(14);
   const [subscribingPlan, setSubscribingPlan] = useState<"standard" | "pro" | null>(null);
   const [botInfo, setBotInfo] = useState<BotInfo | null>(null);
 
+  // LINE 主動通報狀態
+  const [autoPushEnabled, setAutoPushEnabled] = useState(true);
+  const [isTriggeringNotify, setIsTriggeringNotify] = useState(false);
+  const [lastPushLog, setLastPushLog] = useState<AutoPushLog | null>(null);
+  const [notifyFeedback, setNotifyFeedback] = useState<string>("");
+
   useEffect(() => {
-    // 讀取持久化綁定碼
     const ns = getCurrentUserNamespace();
     const storageKey = `line_bind_code_${ns}`;
     let code = localStorage.getItem(storageKey);
@@ -46,10 +64,19 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
     }
     setBindCode(code);
 
-    const boundStatus = localStorage.getItem(`line_bound_status_${ns}`) === "true";
-    setIsBound(boundStatus);
+    const enabled = localStorage.getItem("line_auto_push_enabled") !== "false";
+    setAutoPushEnabled(enabled);
 
-    // 取得伺服器端連通的真實 LINE 官方帳號資訊與加好友專用連結
+    try {
+      const savedLog = localStorage.getItem("last_line_auto_push_log");
+      if (savedLog) setLastPushLog(JSON.parse(savedLog));
+    } catch {}
+
+    const handleAutoPushed = (e: any) => {
+      if (e?.detail) setLastPushLog(e.detail);
+    };
+    window.addEventListener("line_auto_pushed", handleAutoPushed);
+
     fetch("/api/line/push")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
@@ -58,6 +85,50 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
         }
       })
       .catch(() => {});
+
+    return () => window.removeEventListener("line_auto_pushed", handleAutoPushed);
+  }, []);
+
+  const toggleAutoPush = () => {
+    const next = !autoPushEnabled;
+    setAutoPushEnabled(next);
+    localStorage.setItem("line_auto_push_enabled", String(next));
+  };
+
+  // 立即執行盤中掃描並主動推播至 LINE
+  const handleTriggerImmediateNotify = useCallback(async () => {
+    setIsTriggeringNotify(true);
+    setNotifyFeedback("");
+    try {
+      const symbols = getWatchlistSymbols();
+      const res = await fetch("/api/line/auto-notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbols }),
+      });
+      const data = await res.json();
+      if (data?.success && data.target) {
+        const logItem: AutoPushLog = {
+          symbol: data.target.symbol,
+          name: data.target.name,
+          title: data.triggerName || "熊霸主動巡檢通報",
+          price: data.target.price,
+          changePct: data.target.changePct,
+          time: new Date().toLocaleTimeString("zh-TW", { hour12: false }),
+        };
+        setLastPushLog(logItem);
+        localStorage.setItem("last_line_auto_push_log", JSON.stringify(logItem));
+        setNotifyFeedback(
+          `✅ 已主動通報至 LINE：${logItem.symbol} ${logItem.name} ($${logItem.price})`
+        );
+      } else {
+        setNotifyFeedback(`⚠️ 通報失敗：${data?.error || "請確認 LINE 官方帳號權限"}`);
+      }
+    } catch {
+      setNotifyFeedback("⚠️ 網路連線異常，請稍後再試");
+    } finally {
+      setIsTriggeringNotify(false);
+    }
   }, []);
 
   const handleCopyCode = () => {
@@ -78,7 +149,6 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
       });
       const data = await res.json();
       if (data.success && data.actionUrl && data.params) {
-        // 動態建立 form 自動提交 POST 至信用卡安全收銀授權頁面
         const form = document.createElement("form");
         form.method = "POST";
         form.action = data.actionUrl;
@@ -104,11 +174,12 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
     }
   };
 
-  // 真實加好友連結（依據 LINE 官方回傳的 basicId，絕不 404）
   const addFriendUrl =
     botInfo?.addFriendUrl ||
     (botInfo?.basicId
-      ? `https://line.me/R/ti/p/${encodeURIComponent(botInfo.basicId.startsWith("@") ? botInfo.basicId : `@${botInfo.basicId}`)}`
+      ? `https://line.me/R/ti/p/${encodeURIComponent(
+          botInfo.basicId.startsWith("@") ? botInfo.basicId : `@${botInfo.basicId}`
+        )}`
       : "https://line.me");
 
   return (
@@ -135,16 +206,31 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
                 <Sparkles size={11} /> 14 天免費 Pro 體驗
               </span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 font-mono">
-                <CheckCircle2 size={11} /> 即時推播服務連線中
+                <CheckCircle2 size={11} /> 主動通報已連線
               </span>
             </div>
             <p className="text-xs text-secondary mt-1">
-              熊霸（V-Bear）盤中即時雷達：VCP 突破、SMC 機構踩點秒速推播至 LINE，下盤後 15:30 彙整主力戰報！
+              熊霸（V-Bear）盤中即時雷達：VCP 突破、SMC 機構踩點與自選股異動自動主動推播至 LINE！
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            type="button"
+            onClick={handleTriggerImmediateNotify}
+            disabled={isTriggeringNotify}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-md shadow-amber-500/20 transition-all cursor-pointer active:scale-95 disabled:opacity-60"
+            title="立即掃描自選股與大盤焦點，馬上主動發送一張真實戰報至您的 LINE"
+          >
+            {isTriggeringNotify ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Send size={13} />
+            )}
+            <span>{isTriggeringNotify ? "主動通報發送中..." : "立即主動通報至 LINE"}</span>
+          </button>
+
           <a
             href={addFriendUrl}
             target="_blank"
@@ -154,6 +240,53 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
             <span>加入 LINE 官方帳號</span>
             <ExternalLink size={13} />
           </a>
+        </div>
+      </div>
+
+      {/* ★ 新增：LINE 主動通報即時狀態與自動巡檢開關面板 ★ */}
+      <div className="mt-4 p-3.5 rounded-xl bg-[var(--bg-primary)] border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Radio size={14} className={autoPushEnabled ? "text-emerald-400 animate-pulse" : "text-muted"} />
+            <span className="text-xs font-bold text-primary">
+              LINE 全自動主動通報引擎 (Auto Push Dispatcher)
+            </span>
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
+                autoPushEnabled
+                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                  : "bg-slate-800 text-muted"
+              }`}
+            >
+              {autoPushEnabled ? "自動監控推播 ON" : "已暫停 OFF"}
+            </span>
+          </div>
+          <p className="text-[11px] text-secondary">
+            當自選股觸發 VCP 突破、SMC 訂單塊、爆量急拉或雲端定時巡檢時，系統免手動查詢即會主動發送 LINE 戰報。
+          </p>
+          {notifyFeedback && (
+            <div className="text-xs font-bold text-emerald-400 pt-0.5">{notifyFeedback}</div>
+          )}
+          {lastPushLog && !notifyFeedback && (
+            <div className="text-[11px] font-mono text-amber-400/90 pt-0.5">
+              最近一次主動通報：[{lastPushLog.time}] {lastPushLog.symbol} {lastPushLog.name} (${lastPushLog.price}) — {lastPushLog.title}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            type="button"
+            onClick={toggleAutoPush}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+              autoPushEnabled
+                ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25"
+                : "bg-[var(--bg-secondary)] border-[var(--border)] text-secondary hover:text-primary"
+            }`}
+          >
+            <BellRing size={13} />
+            <span>{autoPushEnabled ? "主動通報：開啟中" : "主動通報：已關閉"}</span>
+          </button>
         </div>
       </div>
 
@@ -197,13 +330,13 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
         {/* Step 3 */}
         <div className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] relative space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-mono font-bold text-emerald-400">Step 3. 聊天室快查與推播</span>
+            <span className="text-[11px] font-mono font-bold text-emerald-400">Step 3. 聊天室快查與主動通報</span>
             <Zap size={13} className="text-amber-400" />
           </div>
           <p className="text-xs text-secondary">
-            直接在 LINE 輸入股號（如 <span className="font-mono text-primary font-bold">2330</span>、<span className="font-mono text-primary font-bold">0050</span>）即可秒查即時報價，盤中主力敲進自動提醒。
+            輸入股號（如 <span className="font-mono text-primary font-bold">2330</span>）秒查報價；盤中觸發突破或點擊上方「立即主動通報」即刻推送至手機。
           </p>
-          <span className="text-[10px] text-muted block">雙向全自動互動</span>
+          <span className="text-[10px] text-muted block">雙向查詢 + 盤中主動推播</span>
         </div>
       </div>
 

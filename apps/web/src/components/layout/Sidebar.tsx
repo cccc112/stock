@@ -141,10 +141,18 @@ export default function Sidebar() {
 
       <aside className={cn("sidebar", isOpen ? "open" : "")}>
         <div className="sidebar-header flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+          <Link
+            href="/dashboard"
+            onClick={() => {
+              setIsOpen(false);
+              document.querySelector(".page-content")?.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            className="flex items-center gap-2 hover:opacity-90 transition-opacity cursor-pointer flex-1 min-w-0"
+            title="點擊回到戰情總覽首頁"
+          >
             <BrandLogo size={32} showText={true} />
+            <span className="tech-glow-dot ml-0.5 flex-shrink-0" />
           </Link>
-          <span className="tech-glow-dot ml-0.5" />
           <button
             className="sidebar-close"
             onClick={() => setIsOpen(false)}

@@ -93,7 +93,7 @@ const DEFAULT_ETF: RankedStock[] = [
 export default function TrendingPanel() {
   const router = useRouter();
   const [board, setBoard] = useState<"twse" | "tpex" | "etf">("twse");
-  const [sortType, setSortType] = useState<"volume" | "turnover" | "gainers">("volume");
+  const [sortType, setSortType] = useState<"volume" | "turnover" | "gainers" | "losers">("volume");
   const [rankings, setRankings] = useState<{
     twse: RankedStock[];
     tpex: RankedStock[];
@@ -112,7 +112,8 @@ export default function TrendingPanel() {
     if (isManual) setIsRefreshing(true);
 
     try {
-      const res = await apiMarket.getRankings(16, sortType).catch(() => null);
+      const apiSort = sortType === "losers" ? "volume" : sortType;
+      const res = await apiMarket.getRankings(16, apiSort).catch(() => null);
       const data = res?.data;
       const twseList: RankedStock[] =
         data?.twse && Array.isArray(data.twse) && data.twse.length > 0 ? data.twse : [];
@@ -132,7 +133,6 @@ export default function TrendingPanel() {
             const oldMap = new Map(old.map((s) => [s.symbol, s]));
             return incoming.map((item) => {
               const oldItem = oldMap.get(item.symbol);
-              // 如果新收到的資料意外退回 0.00 與 0%，但本地已有盤中真實撮合價與漲跌，絕不讓錯誤的 0 蓋台
               if (
                 oldItem &&
                 oldItem.price > 0 &&
@@ -183,6 +183,9 @@ export default function TrendingPanel() {
     ];
     if (sortType === "gainers") {
       return base.sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0));
+    }
+    if (sortType === "losers") {
+      return base.sort((a, b) => (a.change_pct || 0) - (b.change_pct || 0));
     }
     if (sortType === "turnover") {
       return base.sort((a, b) => (b.turnover_b || 0) - (a.turnover_b || 0));
@@ -286,7 +289,17 @@ export default function TrendingPanel() {
                 : "text-muted hover:text-secondary"
             }`}
           >
-            <ArrowUpRight size={12} /> 今日漲幅
+            <ArrowUpRight size={12} /> 強勢漲幅
+          </button>
+          <button
+            onClick={() => setSortType("losers")}
+            className={`px-2 py-0.5 rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1 ${
+              sortType === "losers"
+                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold"
+                : "text-muted hover:text-secondary"
+            }`}
+          >
+            <span>弱勢跌幅</span>
           </button>
         </div>
       </div>
