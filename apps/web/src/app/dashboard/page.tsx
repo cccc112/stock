@@ -1,11 +1,13 @@
 import MarketOverview from "@/components/dashboard/MarketOverview";
 import MarketSentimentSection from "@/components/dashboard/MarketSentimentSection";
+import SectorHeatmap from "@/components/dashboard/SectorHeatmap";
 import WatchlistPanel from "@/components/dashboard/WatchlistPanel";
 import AlertFeed from "@/components/dashboard/AlertFeed";
 import AIInsightCard from "@/components/dashboard/AIInsightCard";
 import TrendingPanel from "@/components/dashboard/TrendingPanel";
 import AITradeCard from "@/components/dashboard/AITradeCard";
 import BearHeroRadar from "@/components/dashboard/BearHeroRadar";
+import WhaleOrderStream from "@/components/dashboard/WhaleOrderStream";
 
 export default function DashboardPage() {
   return (
@@ -23,12 +25,16 @@ export default function DashboardPage() {
       {/* AI 即時市場情緒與恐慌雷達 */}
       <MarketSentimentSection />
 
+      {/* 台股盤中資金板塊方塊熱力圖 (Sector Treemap Heatmap) */}
+      <SectorHeatmap />
+
       <div className="dashboard-grid items-start">
         <div className="flex flex-col gap-6 min-w-0">
           <TrendingPanel />
           <WatchlistPanel />
         </div>
         <div className="flex flex-col gap-6 min-w-0">
+          <WhaleOrderStream />
           <AITradeCard />
           <AlertFeed />
           <AIInsightCard />

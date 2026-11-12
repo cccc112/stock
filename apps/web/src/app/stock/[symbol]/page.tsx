@@ -19,6 +19,7 @@ import AIChartAnalyzer from "@/components/charts/AIChartAnalyzer";
 import FinancialsSection from "@/components/stock/FinancialsSection";
 import ETFInfoSection from "@/components/stock/ETFInfoSection";
 import StockEtfExposure from "@/components/stock/StockEtfExposure";
+import ShareDiagnosisCardModal from "@/components/stock/ShareDiagnosisCardModal";
 import AICommitteeSection from "@/components/dashboard/AICommitteeSection";
 import { Term, InfoTip } from "@/components/ui/TermTooltip";
 import AnimatedPrice from "@/components/ui/AnimatedPrice";
@@ -245,7 +246,15 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
             )}
           </div>
         </div>
-        <div className="flex gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <ShareDiagnosisCardModal
+            symbol={stock.symbol}
+            name={stock.name}
+            price={stock.price}
+            change={stock.change}
+            changePct={stock.change_pct}
+            deepSummary={deepSummary}
+          />
           <Button 
             variant="secondary"
             onClick={() => setIsFormOpen(true)}

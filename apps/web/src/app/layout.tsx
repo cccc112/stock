@@ -4,6 +4,7 @@ import "@/styles/globals.css";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import LiveTickerTape from "@/components/layout/LiveTickerTape";
+import MobileBottomNav from "@/components/layout/MobileBottomNav";
 import BackendStatusBanner from "@/components/layout/BackendStatusBanner";
 import WatchlistRadarListener from "@/components/layout/WatchlistRadarListener";
 import TaiwanBearMascot from "@/components/ui/TaiwanBearMascot";
@@ -66,13 +67,14 @@ export default function RootLayout({
               <TopBar />
               <LiveTickerTape />
               <WatchlistRadarListener />
-              <main className="page-content">
+              <main className="page-content pb-20 md:pb-6">
                 {children}
               </main>
-              <footer className="disclaimer">
+              <footer className="disclaimer pb-16 md:pb-4">
                 免責聲明：本系統僅供模擬與學術討論，非投資建議。
               </footer>
               <TaiwanBearMascot />
+              <MobileBottomNav />
             </div>
           </div>
         </BeginnerModeProvider>

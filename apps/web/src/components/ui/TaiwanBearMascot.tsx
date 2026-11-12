@@ -259,7 +259,7 @@ export default function TaiwanBearMascot() {
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-40 select-none print:hidden flex flex-col items-end">
+    <div className="fixed bottom-20 md:bottom-5 right-4 md:right-5 z-40 select-none print:hidden flex flex-col items-end">
       {/* 1. 互動彈出式對話視窗 (Pop-over) */}
       {isOpen && (
         <div className="mb-3 w-84 sm:w-92 rounded-2xl border border-[var(--border)] bg-[var(--bg-glass)] shadow-2xl backdrop-blur-xl p-4 animate-spring-pop origin-bottom-right text-primary">
