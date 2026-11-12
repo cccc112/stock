@@ -31,12 +31,17 @@ export default function Bear3DModel({
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [isHappy, setIsHappy] = useState(false);
   const spinVelocityRef = useRef(0);
+  const jumpVelocityRef = useRef(0);
+  const jumpHeightRef = useRef(0);
+  const squashFactorRef = useRef(0);
   const isDraggingRef = useRef(false);
   const previousMousePositionRef = useRef({ x: 0, y: 0 });
 
   const triggerCelebrate = useCallback(() => {
     setIsHappy(true);
     spinVelocityRef.current = Math.PI * 2.2; // 順暢 360 度歡樂轉一圈
+    jumpVelocityRef.current = 0.16;          // 觸發皮克斯級歡樂跳躍初速度
+    squashFactorRef.current = -0.15;         // 起跳瞬間垂直拉伸 (Stretch)
     setQuoteIndex((prev) => (prev + 1) % BEAR_QUOTES.length);
     setTimeout(() => setIsHappy(false), 1200);
   }, []);
@@ -438,14 +443,62 @@ export default function Bear3DModel({
     bodyGroup.add(vMesh);
 
     // ==========================================
-    // 6. 動畫循環與互動邏輯
+    // D. 3D 環繞量子星塵光點系統 (Floating Quantum Starlight Particles)
+    // ==========================================
+    const particlesGroup = new THREE.Group();
+    rootGroup.add(particlesGroup);
+
+    const particleGeo = new THREE.SphereGeometry(0.036, 10, 10);
+    const goldParticleMat = new THREE.MeshBasicMaterial({
+      color: 0xfbbf24,
+      transparent: true,
+      opacity: 0.85,
+    });
+    const cyanParticleMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.85,
+    });
+
+    interface StarParticle {
+      mesh: THREE.Mesh;
+      angle: number;
+      radius: number;
+      baseY: number;
+      speed: number;
+      phase: number;
+    }
+
+    const starParticles: StarParticle[] = [];
+    for (let i = 0; i < 20; i++) {
+      const mat = i % 2 === 0 ? goldParticleMat : cyanParticleMat;
+      const pMesh = new THREE.Mesh(particleGeo, mat);
+      const angle = (i / 20) * Math.PI * 2;
+      const radius = 1.45 + (i % 3) * 0.28;
+      const baseY = -1.2 + (i / 20) * 2.6;
+      const scale = 0.6 + (i % 4) * 0.25;
+      pMesh.scale.setScalar(scale);
+      particlesGroup.add(pMesh);
+      starParticles.push({
+        mesh: pMesh,
+        angle,
+        radius,
+        baseY,
+        speed: 0.4 + (i % 5) * 0.12,
+        phase: i * 0.7,
+      });
+    }
+
+    // ==========================================
+    // 6. 動畫循環與互動邏輯 (含皮克斯 Squash & Stretch 彈簧物理 + 視差追蹤)
     // ==========================================
     let reqId: number;
     const clock = new THREE.Clock();
     let targetRotationX = 0;
     let targetRotationY = 0;
+    let mouseNormX = 0;
+    let mouseNormY = 0;
     let blinkTimer = 0;
-    let isBlinking = false;
 
     // 滑鼠游標平滑追蹤
     const onMouseMove = (e: MouseEvent) => {
@@ -453,6 +506,8 @@ export default function Bear3DModel({
       const rect = container.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / width) * 2 - 1;
       const y = -(((e.clientY - rect.top) / height) * 2 - 1);
+      mouseNormX = Math.max(-1, Math.min(1, x));
+      mouseNormY = Math.max(-1, Math.min(1, y));
       targetRotationY = Math.max(-0.6, Math.min(0.6, x * 0.55));
       targetRotationX = Math.max(-0.35, Math.min(0.35, -y * 0.35));
     };
@@ -507,43 +562,86 @@ export default function Bear3DModel({
       reqId = requestAnimationFrame(animate);
       const elapsed = clock.getElapsedTime();
 
-      // 1. 浮動呼吸微起伏 (Organic breathing & bobbing)
-      const breath = Math.sin(elapsed * 2.2);
-      bearMain.position.y = breath * 0.07;
-      bodyMesh.scale.set(1.02 + breath * 0.015, 1.08 + breath * 0.01, 0.96);
-
-      // 2. 視角跟隨 / 歡樂旋轉 (Lerp Tracking & Celebration Spin)
-      if (spinVelocityRef.current > 0.01) {
-        bearMain.rotation.y += spinVelocityRef.current * 0.12;
-        spinVelocityRef.current *= 0.93; // 柔順減速阻尼
-      } else if (!isDraggingRef.current) {
-        bearMain.rotation.y += (targetRotationY - bearMain.rotation.y) * 0.07;
-        bearMain.rotation.x += (targetRotationX - bearMain.rotation.x) * 0.07;
+      // 1. 皮克斯級彈簧跳躍與擠壓拉伸物理 (Jump + Squash & Stretch)
+      if (jumpHeightRef.current > 0 || jumpVelocityRef.current !== 0) {
+        jumpHeightRef.current += jumpVelocityRef.current;
+        jumpVelocityRef.current -= 0.011; // 重力加速度
+        if (jumpHeightRef.current <= 0) {
+          jumpHeightRef.current = 0;
+          jumpVelocityRef.current = 0;
+          squashFactorRef.current = 0.18; // 落地瞬間果凍壓扁 (Squash)
+        }
       }
 
-      // 3. 有機 3D 眨眼循環 (Every ~3.8 seconds)
+      // 彈簧阻尼收斂 Squash Factor
+      squashFactorRef.current *= 0.84;
+
+      // 2. 浮動呼吸微起伏 + 跳躍高度疊加
+      const breath = Math.sin(elapsed * 2.4);
+      const currentY = breath * 0.065 + jumpHeightRef.current;
+      bearMain.position.y = currentY;
+
+      // 套用果凍擠壓回彈比例
+      const scaleX = 1.0 + squashFactorRef.current;
+      const scaleY = 1.0 - squashFactorRef.current * 0.9;
+      bearMain.scale.set(scaleX, scaleY, scaleX);
+      bodyMesh.scale.set(1.02 + breath * 0.015, 1.08 + breath * 0.012, 0.96);
+
+      // 地面接觸陰影隨離地高度真實縮放
+      const shadowScale = Math.max(0.55, 1.0 - currentY * 0.35);
+      shadowMesh.scale.setScalar(shadowScale);
+
+      // 3. 視角跟隨 / 歡樂旋轉 (Lerp Tracking & Celebration Spin)
+      if (spinVelocityRef.current > 0.01) {
+        bearMain.rotation.y += spinVelocityRef.current * 0.12;
+        spinVelocityRef.current *= 0.92; // 柔順減速阻尼
+      } else if (!isDraggingRef.current) {
+        bearMain.rotation.y += (targetRotationY - bearMain.rotation.y) * 0.075;
+        bearMain.rotation.x += (targetRotationX - bearMain.rotation.x) * 0.075;
+      }
+
+      // 4. 頭部與眼珠獨立視差微追蹤 (Parallax Eye & Head Gaze)
+      headGroup.rotation.y += (mouseNormX * 0.18 - headGroup.rotation.y) * 0.1;
+      headGroup.rotation.x += (-mouseNormY * 0.12 - headGroup.rotation.x) * 0.1;
+      eyesGroup.position.x += (mouseNormX * 0.045 - eyesGroup.position.x) * 0.15;
+      eyesGroup.position.y += (mouseNormY * 0.035 - eyesGroup.position.y) * 0.15;
+
+      // 5. 有機 3D 眨眼循環 (Every ~3.8 seconds)
       blinkTimer += 0.016;
       if (blinkTimer > 3.6) {
-        isBlinking = true;
-        eyesGroup.scale.y = 0.15; // 閉眼
-        if (blinkTimer > 3.75) {
+        eyesGroup.scale.y = 0.12; // 閉眼
+        if (blinkTimer > 3.76) {
           eyesGroup.scale.y = 1.0; // 睜開
-          isBlinking = false;
           blinkTimer = 0;
         }
       }
 
-      // 4. 耳朵呆萌微律動 (Cute Ear Wiggle)
-      leftEarGroup.rotation.z = Math.sin(elapsed * 3.5) * 0.05;
-      rightEarGroup.rotation.z = -Math.sin(elapsed * 3.5) * 0.05;
+      // 6. 耳朵呆萌微律動與雙手歡呼動作
+      leftEarGroup.rotation.z = Math.sin(elapsed * 3.5) * 0.06;
+      rightEarGroup.rotation.z = -Math.sin(elapsed * 3.5) * 0.06;
 
-      // 5. 右手招手動作 (Gentle paw waving)
-      rightArmGroup.rotation.x = -0.35 + Math.sin(elapsed * 4.0) * 0.15;
+      const cheerOffset = jumpHeightRef.current > 0.05 ? -0.9 : 0;
+      rightArmGroup.rotation.x = -0.35 + cheerOffset + Math.sin(elapsed * 4.2) * 0.16;
+      leftArmGroup.rotation.x = -0.35 + cheerOffset * 0.8 - Math.sin(elapsed * 3.2) * 0.08;
 
-      // 6. 全息光環旋轉與呼吸微脈衝
-      haloMesh.rotation.z = elapsed * 1.5;
-      tipMesh.scale.setScalar(1.0 + Math.sin(elapsed * 4.5) * 0.14);
-      vChestLight.intensity = 2.0 + Math.sin(elapsed * 3.0) * 0.4;
+      // 7. 3D 環繞星塵光點螺旋浮動
+      const particleBoost = spinVelocityRef.current > 0.2 ? 3.5 : 1.0;
+      for (const sp of starParticles) {
+        sp.angle += 0.008 * sp.speed * particleBoost;
+        const floatY = sp.baseY + Math.sin(elapsed * 1.8 + sp.phase) * 0.22;
+        sp.mesh.position.set(
+          Math.cos(sp.angle) * sp.radius,
+          floatY,
+          Math.sin(sp.angle) * sp.radius - 0.3
+        );
+        const pulseScale = 0.55 + Math.sin(elapsed * 3.2 + sp.phase) * 0.3;
+        sp.mesh.scale.setScalar(pulseScale);
+      }
+
+      // 8. 全息光環旋轉與呼吸微脈衝
+      haloMesh.rotation.z = elapsed * 1.8;
+      tipMesh.scale.setScalar(1.0 + Math.sin(elapsed * 4.5) * 0.16);
+      vChestLight.intensity = 2.0 + Math.sin(elapsed * 3.0) * 0.45;
 
       renderer.render(scene, camera);
     };

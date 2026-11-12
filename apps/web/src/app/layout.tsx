@@ -3,6 +3,7 @@ import Script from "next/script";
 import "@/styles/globals.css";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
+import LiveTickerTape from "@/components/layout/LiveTickerTape";
 import BackendStatusBanner from "@/components/layout/BackendStatusBanner";
 import WatchlistRadarListener from "@/components/layout/WatchlistRadarListener";
 import TaiwanBearMascot from "@/components/ui/TaiwanBearMascot";
@@ -63,6 +64,7 @@ export default function RootLayout({
             <div className="main-content">
               <BackendStatusBanner />
               <TopBar />
+              <LiveTickerTape />
               <WatchlistRadarListener />
               <main className="page-content">
                 {children}
