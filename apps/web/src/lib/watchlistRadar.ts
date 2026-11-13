@@ -2,6 +2,8 @@
 
 import { fetchOrBuildDeepReport } from "@/lib/clientDeepReport";
 import { getCurrentUserNamespace } from "@/hooks/useAuth";
+import { getSyncedHoldings } from "@/lib/holdingsSync";
+import { isTwMarketTradingHours, isUsMarketTradingHours } from "@/lib/marketHours";
 
 export interface RadarAlertEvent {
   id: string;
@@ -84,20 +86,7 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
  * 檢查當前是否為台股或美股盤中交易時段
  */
 export function isMarketTradingHours(): boolean {
-  const now = new Date();
-  const day = now.getDay();
-  if (day === 0 || day === 6) return false; // 週末
-
-  const hour = now.getHours();
-  const min = now.getMinutes();
-  const timeNum = hour * 100 + min;
-
-  // 台股交易時間：09:00 ~ 13:30
-  const isTwTrading = timeNum >= 900 && timeNum <= 1330;
-  // 美股夏令/冬令大致時間：21:30 ~ 05:00
-  const isUsTrading = timeNum >= 2130 || timeNum <= 500;
-
-  return isTwTrading || isUsTrading;
+  return isTwMarketTradingHours() || isUsMarketTradingHours();
 }
 
 /**
@@ -293,6 +282,34 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
     localStorage.setItem(STORAGE_KEY_COOLDOWN, JSON.stringify(cooldownMap));
   } catch {}
 
+  // 預先取得「當日熱門前 10 檔」與「個人庫存持股」白名單，確保 LINE 主動通報嚴格只推送此範圍內的消息
+  let hotTop10Set = new Set<string>();
+  const hotVolumeMap = new Map<string, number>();
+  const holdingSet = new Set<string>(
+    getSyncedHoldings().map((h) => h.symbol.trim().toUpperCase())
+  );
+
+  const lineAutoPushEnabled =
+    typeof window !== "undefined" && localStorage.getItem("line_auto_push_enabled") !== "false";
+
+  if (lineAutoPushEnabled && triggeredEvents.length > 0 && isTwMarketTradingHours(true)) {
+    try {
+      const rankRes = await fetch("/api/market-rankings?limit=10&sort_by=volume", {
+        cache: "no-store",
+      });
+      if (rankRes.ok) {
+        const rankJson = await rankRes.json();
+        const combined = [...(rankJson?.twse || []), ...(rankJson?.tpex || [])]
+          .sort((a: any, b: any) => (b.volume_lots || 0) - (a.volume_lots || 0))
+          .slice(0, 10);
+        hotTop10Set = new Set(combined.map((x: any) => String(x.symbol).toUpperCase()));
+        for (const x of combined) {
+          hotVolumeMap.set(String(x.symbol).toUpperCase(), Number(x.volume_lots || 0));
+        }
+      }
+    } catch {}
+  }
+
   // 廣播與儲存觸發事件
   for (const ev of triggeredEvents) {
     saveTriggeredAlert(ev);
@@ -301,9 +318,11 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("watchlist_radar_alert", { detail: ev }));
 
-      // ★ 自動連通 LINE 官方帳號主動推播 (預設開啟) ★
-      const lineAutoPushEnabled = localStorage.getItem("line_auto_push_enabled") !== "false";
-      if (lineAutoPushEnabled) {
+      const upperSym = ev.symbol.toUpperCase();
+      const eligibleForLine = hotTop10Set.has(upperSym) || holdingSet.has(upperSym);
+
+      // ★ 嚴格限定：僅在台股交易時段，且標的是「當天熱門 10 檔」或「庫存持股」時才推播至 LINE ★
+      if (lineAutoPushEnabled && isTwMarketTradingHours(true) && eligibleForLine) {
         fetch("/api/line/push", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -316,8 +335,10 @@ export async function runWatchlistRadarScan(): Promise<RadarAlertEvent[]> {
               price: ev.price,
               change: Number(((ev.price * ev.changePct) / 100).toFixed(2)),
               changePct: ev.changePct,
-              volumeLots: 25000,
-              triggerName: ev.title,
+              volumeLots: hotVolumeMap.get(upperSym) || 0,
+              triggerName: holdingSet.has(upperSym)
+                ? `庫存焦點警示 · ${ev.title}`
+                : `熱門10檔焦點 · ${ev.title}`,
               triggerDesc: ev.message,
               category: ev.type === "up" ? "BREAKOUT" : "VOLUME",
             },

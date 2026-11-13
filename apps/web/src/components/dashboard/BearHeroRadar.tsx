@@ -6,7 +6,7 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Link from "next/link";
-import { getWatchlistSymbols } from "@/lib/watchlistRadar";
+import { refreshSyncedHoldingsFromApi } from "@/lib/holdingsSync";
 import {
   Sparkles,
   Zap,
@@ -39,15 +39,17 @@ export default function BearHeroRadar() {
     setPushing(true);
     setPushResult("");
     try {
-      const symbols = getWatchlistSymbols();
+      const holdings = await refreshSyncedHoldingsFromApi(1500);
       const res = await fetch("/api/line/auto-notify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbols }),
+        body: JSON.stringify({ holdings }),
       });
       const data = await res.json();
       if (data?.success && data.target) {
-        setPushResult(`已主動推播 ${data.target.symbol} ${data.target.name} ($${data.target.price}) 至 LINE！`);
+        setPushResult(
+          `已推播「當日熱門 10 檔 + 庫存 ${holdings.length} 檔消息」至 LINE！（領頭：${data.target.symbol} ${data.target.name}）`
+        );
       } else {
         setPushResult(data?.error || "推播失敗，請確認 LINE 設定");
       }

@@ -8,6 +8,7 @@ import ReviewReport from "@/components/simulator/ReviewReport";
 import { formatCurrency, cn } from "@/lib/utils";
 import { Bot } from "lucide-react";
 import { apiSimulator } from "@/lib/api";
+import { saveSyncedSimHoldings } from "@/lib/holdingsSync";
 
 export default function SimulatorPage() {
   const [aiAutoTrading, setAiAutoTrading] = useState(false);
@@ -23,7 +24,9 @@ export default function SimulatorPage() {
     setLoading(true);
     try {
       const res = await apiSimulator.getPortfolios();
-      setPortfolios(Array.isArray(res.data) ? res.data : []);
+      const list = Array.isArray(res.data) ? res.data : [];
+      setPortfolios(list);
+      saveSyncedSimHoldings(list);
     } catch (e) {
       console.error(e);
     } finally {

@@ -1,458 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  enrichAllWithRealtimeTwse,
+  getCachedTwMarketData,
+  getRealtimeMarketRankings,
+  type RankedStockItem,
+} from "@/lib/twRankings";
 
 export const dynamic = "force-dynamic";
 
-export interface RankedStockItem {
-  symbol: string;
-  name: string;
-  market: "TWSE" | "TPEx";
-  price: number;
-  change: number;
-  change_pct: number;
-  volume: number;
-  volume_lots: number;
-  turnover_b: number;
-  date: string;
-  stale: boolean;
-  is_etf?: boolean;
-  limit_up?: number;
-  limit_down?: number;
-}
+export { getCachedTwMarketData };
+export type { RankedStockItem };
 
-let cachedData: {
-  ts: number;
-  twseAll: RankedStockItem[];
-  tpexAll: RankedStockItem[];
-  date: string;
-} | null = null;
-
-// 伺服器模組級持久即時行情快照（防止網路抖動或暫時性超時時回退至昨日盤後日報與 0.00%）
-const lastKnownLiveQuotes = new Map<string, RankedStockItem>();
-
-const CACHE_TTL_MS = 60_000;
-
-function parseNum(val: unknown): number {
-  if (val == null) return 0;
-  const s = String(val)
-    .replace(/,/g, "")
-    .replace(/\+/g, "")
-    .replace(/X/gi, "")
-    .replace(/除權息|除息|除權/g, "")
-    .trim();
-  const n = parseFloat(s);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function formatRocDate(raw: unknown): string {
-  const s = String(raw || "").trim();
-  if (/^\d{7}$/.test(s)) {
-    const rocYear = parseInt(s.slice(0, 3), 10);
-    const yyyy = rocYear + 1911;
-    const mm = s.slice(3, 5);
-    const dd = s.slice(5, 7);
-    return `${yyyy}-${mm}-${dd}`;
-  }
-  if (/^\d{8}$/.test(s)) {
-    return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
-  }
-  return s;
-}
-
-function isValidStockOrEtfCode(code: string): boolean {
-  // 4 碼普通股 (1000~9999) 或 全市場台股 ETF (0050, 00679B, 00980A, 00982A, 00981T, 00982D, 009802 等)
-  return /^[1-9]\d{3}$/.test(code) || /^00\d{2,4}[A-Z]?$/i.test(code);
-}
-
-async function fetchTwseAll(): Promise<RankedStockItem[]> {
-  // 1. 優先從證交所官方主站 RWD 抓取即時收盤日報 (盤後 14:00~14:30 立即更新，避開 OpenAPI 網關快取滯後)
-  try {
-    const rwdRes = await fetch("https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL", {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        Accept: "text/csv,application/json,*/*",
-      },
-      cache: "no-store",
-      signal: AbortSignal.timeout(3500),
-    });
-    if (rwdRes.ok) {
-      const text = await rwdRes.text();
-      const lines = text.split("\n");
-      const rwdItems: RankedStockItem[] = [];
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-        const cols = line.split(",").map((s) => s.replace(/^"|"$/g, "").trim());
-        if (cols.length < 10) continue;
-        const [rawDate, code, name, rawVol, rawVal, , , , rawClose, rawChg] = cols;
-        const upperCode = code.toUpperCase();
-        if (!isValidStockOrEtfCode(upperCode)) continue;
-
-        const price = parseNum(rawClose);
-        const volShares = Math.round(parseNum(rawVol));
-        const valNtd = parseNum(rawVal);
-        const chg = parseNum(rawChg);
-        if (price <= 0) continue;
-
-        const prev = price - chg;
-        const chgPct = prev > 0 ? Number(((chg / prev) * 100).toFixed(2)) : 0;
-        const dateStr = formatRocDate(rawDate);
-
-        rwdItems.push({
-          symbol: upperCode,
-          name: name || upperCode,
-          market: "TWSE",
-          price,
-          change: chg,
-          change_pct: chgPct,
-          volume: volShares,
-          volume_lots: Math.round(volShares / 1000),
-          turnover_b: Number((valNtd / 1e8).toFixed(2)),
-          date: dateStr,
-          stale: false,
-          is_etf: upperCode.startsWith("00"),
-        });
-      }
-      if (rwdItems.length > 0) return rwdItems;
-    }
-  } catch (err) {
-    console.error("fetchTwseAll RWD fallback to OpenAPI:", err);
-  }
-
-  // 2. 備援：若官方 RWD 異常，降級至 OpenAPI
-  const res = await fetch(
-    "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL",
-    {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        Accept: "application/json",
-      },
-      cache: "no-store",
-      signal: AbortSignal.timeout(2500),
-    }
-  );
-  if (!res.ok) return [];
-  const rows = await res.json();
-  if (!Array.isArray(rows)) return [];
-
-  const items: RankedStockItem[] = [];
-  for (const row of rows) {
-    const code = String(row?.Code || "").trim().toUpperCase();
-    if (!isValidStockOrEtfCode(code)) continue;
-
-    const price = parseNum(row?.ClosingPrice);
-    const volShares = Math.round(parseNum(row?.TradeVolume));
-    const valNtd = parseNum(row?.TradeValue);
-    const chg = parseNum(row?.Change);
-    if (price <= 0) continue;
-
-    const prev = price - chg;
-    const chgPct = prev > 0 ? Number(((chg / prev) * 100).toFixed(2)) : 0;
-    const dateStr = formatRocDate(row?.Date);
-
-    items.push({
-      symbol: code,
-      name: String(row?.Name || code).trim(),
-      market: "TWSE",
-      price,
-      change: chg,
-      change_pct: chgPct,
-      volume: volShares,
-      volume_lots: Math.round(volShares / 1000),
-      turnover_b: Number((valNtd / 1e8).toFixed(2)),
-      date: dateStr,
-      stale: false,
-      is_etf: code.startsWith("00"),
-    });
-  }
-  return items;
-}
-
-// 當日 TPEx 櫃買市場真實熱門成交量基準排行 (備援保底，保證 0 延遲且絕非假資料)
-const REAL_TPEX_TOP_SNAPSHOT: RankedStockItem[] = [
-  { symbol: "1815", name: "富喬", market: "TPEx", price: 121.5, change: -13.5, change_pct: -10.0, volume: 99744000, volume_lots: 99744, turnover_b: 12.12, date: "2026-11-05", stale: false, is_etf: false },
-  { symbol: "8042", name: "金山電", market: "TPEx", price: 131.5, change: -1.5, change_pct: -1.13, volume: 51968000, volume_lots: 51968, turnover_b: 6.83, date: "2026-11-05", stale: false, is_etf: false },
-  { symbol: "6148", name: "驊宏資", market: "TPEx", price: 43.4, change: -0.8, change_pct: -1.81, volume: 49381000, volume_lots: 49381, turnover_b: 2.14, date: "2026-11-05", stale: false, is_etf: false },
-  { symbol: "6182", name: "合晶", market: "TPEx", price: 74.7, change: -8.1, change_pct: -9.78, volume: 28937000, volume_lots: 28937, turnover_b: 2.16, date: "2026-11-05", stale: false, is_etf: false },
-  { symbol: "3105", name: "穩懋", market: "TPEx", price: 451.0, change: -50.0, change_pct: -9.98, volume: 24515000, volume_lots: 24515, turnover_b: 11.06, date: "2026-11-05", stale: false, is_etf: false },
-  { symbol: "6244", name: "茂迪", market: "TPEx", price: 19.4, change: -0.9, change_pct: -4.43, volume: 20622000, volume_lots: 20622, turnover_b: 0.40, date: "2026-11-05", stale: false, is_etf: false },
-  { symbol: "8358", name: "金居", market: "TPEx", price: 334.0, change: -32.5, change_pct: -8.87, volume: 19489000, volume_lots: 19489, turnover_b: 6.51, date: "2026-11-05", stale: false, is_etf: false },
-  { symbol: "5314", name: "世紀*", market: "TPEx", price: 21.15, change: -1.55, change_pct: -6.83, volume: 19125000, volume_lots: 19125, turnover_b: 0.40, date: "2026-11-05", stale: false, is_etf: false },
-  { symbol: "6147", name: "頎邦", market: "TPEx", price: 157.5, change: -17.5, change_pct: -10.0, volume: 19010000, volume_lots: 19010, turnover_b: 2.99, date: "2026-11-05", stale: false, is_etf: false },
-  { symbol: "6488", name: "環球晶", market: "TPEx", price: 564.0, change: -55.0, change_pct: -8.89, volume: 18954000, volume_lots: 18954, turnover_b: 10.69, date: "2026-11-05", stale: false, is_etf: false },
-  { symbol: "8069", name: "元太", market: "TPEx", price: 285.0, change: -18.0, change_pct: -5.94, volume: 18230000, volume_lots: 18230, turnover_b: 5.19, date: "2026-11-05", stale: false, is_etf: false },
-  { symbol: "3293", name: "鈊象", market: "TPEx", price: 1085.0, change: -45.0, change_pct: -3.98, volume: 12400000, volume_lots: 12400, turnover_b: 13.45, date: "2026-11-05", stale: false, is_etf: false },
+const EXTRA_ASSETS = [
+  { symbol: "NVDA", name: "NVIDIA (輝達)", market: "US", industry: "AI 半導體" },
+  { symbol: "AAPL", name: "Apple (蘋果)", market: "US", industry: "消費電子" },
+  { symbol: "TSLA", name: "Tesla (特斯拉)", market: "US", industry: "電動車與機器人" },
+  { symbol: "MSFT", name: "Microsoft (微軟)", market: "US", industry: "雲端與 AI" },
+  { symbol: "GOOGL", name: "Alphabet (谷歌)", market: "US", industry: "搜尋與雲端" },
+  { symbol: "AMZN", name: "Amazon (亞馬遜)", market: "US", industry: "電商與 AWS" },
+  { symbol: "META", name: "Meta Platforms (臉書)", market: "US", industry: "社群與 AI" },
+  { symbol: "TSM", name: "台積電 ADR", market: "US", industry: "晶圓代工" },
+  { symbol: "AMD", name: "AMD (超微)", market: "US", industry: "AI 晶片" },
+  { symbol: "AVGO", name: "Broadcom (博通)", market: "US", industry: "網通與 ASIC" },
+  { symbol: "PLTR", name: "Palantir", market: "US", industry: "AI 大數據" },
+  { symbol: "QQQ", name: "Invesco 那斯達克100 ETF", market: "US", industry: "美股科技 ETF" },
+  { symbol: "SPY", name: "SPDR 標普500 ETF", market: "US", industry: "美股大盤 ETF" },
+  { symbol: "VOO", name: "Vanguard 標普500 ETF", market: "US", industry: "美股大盤 ETF" },
+  { symbol: "SMH", name: "VanEck 半導體 ETF", market: "US", industry: "半導體 ETF" },
+  { symbol: "SOXX", name: "iShares 半導體 ETF", market: "US", industry: "半導體 ETF" },
+  { symbol: "TLT", name: "iShares 20+年美債 ETF", market: "US", industry: "美債 ETF" },
+  { symbol: "IBIT", name: "iShares 比特幣現貨 ETF", market: "US", industry: "加密貨幣 ETF" },
+  { symbol: "GLD", name: "SPDR 黃金現貨 ETF", market: "US", industry: "黃金 ETF" },
+  { symbol: "BTC-USD", name: "比特幣 (Bitcoin)", market: "US", industry: "加密貨幣" },
+  { symbol: "ETH-USD", name: "以太坊 (Ethereum)", market: "US", industry: "加密貨幣" },
+  { symbol: "GC=F", name: "黃金期貨 (Gold)", market: "US", industry: "貴金屬期貨" },
+  { symbol: "CL=F", name: "西德州原油期貨 (WTI)", market: "US", industry: "能源期貨" },
+  { symbol: "TWD=X", name: "美元/台幣 (USD/TWD)", market: "US", industry: "外匯匯率" },
+  { symbol: "^TWII", name: "台股加權指數", market: "TW", industry: "大盤指數" },
+  { symbol: "^TWOII", name: "櫃買指數", market: "TW", industry: "大盤指數" },
+  { symbol: "^GSPC", name: "S&P 500 指數", market: "US", industry: "美股指數" },
+  { symbol: "^IXIC", name: "那斯達克指數", market: "US", industry: "美股指數" },
+  { symbol: "^SOX", name: "費城半導體指數", market: "US", industry: "美股指數" },
+  { symbol: "^TNX", name: "美債10年殖利率", market: "US", industry: "利率指標" },
 ];
-
-async function fetchTpexAll(): Promise<RankedStockItem[]> {
-  try {
-    const res = await fetch(
-      "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes",
-      {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-          Accept: "application/json",
-        },
-        cache: "no-store",
-        signal: AbortSignal.timeout(8500),
-      }
-    );
-    if (!res.ok) return REAL_TPEX_TOP_SNAPSHOT;
-    const rows = await res.json();
-    if (!Array.isArray(rows) || rows.length === 0) return REAL_TPEX_TOP_SNAPSHOT;
-
-    const items: RankedStockItem[] = [];
-    for (const row of rows) {
-      const code = String(row?.SecuritiesCompanyCode || "").trim().toUpperCase();
-      if (!isValidStockOrEtfCode(code)) continue;
-
-      const price = parseNum(row?.Close);
-      const volShares = Math.round(parseNum(row?.TradingShares));
-      const valNtd = parseNum(row?.TransactionAmount);
-      const chg = parseNum(row?.Change);
-      if (price <= 0) continue;
-
-      const prev = price - chg;
-      const chgPct = prev > 0 ? Number(((chg / prev) * 100).toFixed(2)) : 0;
-      const dateStr = formatRocDate(row?.Date);
-
-      items.push({
-        symbol: code,
-        name: String(row?.CompanyName || code).trim(),
-        market: "TPEx",
-        price,
-        change: chg,
-        change_pct: chgPct,
-        volume: volShares,
-        volume_lots: Math.round(volShares / 1000),
-        turnover_b: Number((valNtd / 1e8).toFixed(2)),
-        date: dateStr,
-        stale: false,
-        is_etf: code.startsWith("00"),
-      });
-    }
-    return items.length > 0 ? items : REAL_TPEX_TOP_SNAPSHOT;
-  } catch {
-    return REAL_TPEX_TOP_SNAPSHOT;
-  }
-}
-
-async function enrichAllWithRealtimeTwse(
-  items: RankedStockItem[]
-): Promise<Map<string, RankedStockItem>> {
-  const resultMap = new Map<string, RankedStockItem>();
-  if (!items || items.length === 0) return resultMap;
-
-  // 預設填入既有快取或原始項目，保證絕對不會退回空物件
-  for (const it of items) {
-    const cached = lastKnownLiveQuotes.get(it.symbol);
-    resultMap.set(it.symbol, cached || it);
-  }
-
-  const parseP = (v: any) => {
-    if (!v || v === "-") return 0;
-    const n = parseFloat(String(v).replace(/,/g, ""));
-    return Number.isFinite(n) ? n : 0;
-  };
-
-  // 解析五檔委買/委賣第一檔價格 (當 TWSE MIS 的 z 暫時為 "-" 時，五檔第一檔即為當下真實盤中價)
-  const parseBestBidAsk = (raw: any) => {
-    if (!raw || typeof raw !== "string") return 0;
-    const first = raw.split("_")[0];
-    return parseP(first);
-  };
-
-  try {
-    const uniqueItems = Array.from(
-      new Map(items.map((s) => [s.symbol.toUpperCase(), s])).values()
-    );
-
-    // 分批併發查詢 TWSE MIS (每批最多 18 檔，避免單次 ex_ch 過長遭證交所切斷)
-    const chunkSize = 18;
-    const chunks: RankedStockItem[][] = [];
-    for (let i = 0; i < uniqueItems.length; i += chunkSize) {
-      chunks.push(uniqueItems.slice(i, i + chunkSize));
-    }
-
-    const byCode: Record<string, any> = {};
-
-    await Promise.allSettled(
-      chunks.map(async (chunk) => {
-        const exCh = chunk
-          .map((s) => (s.market === "TPEx" ? "otc_" : "tse_") + s.symbol + ".tw")
-          .join("|");
-
-        const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${encodeURIComponent(
-          exCh
-        )}&json=1&delay=0&_=${Date.now()}`;
-
-        const res = await fetch(url, {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            Referer: "https://mis.twse.com.tw/stock/fibest.jsp",
-          },
-          cache: "no-store",
-          signal: AbortSignal.timeout(4000),
-        });
-
-        if (!res.ok) return;
-        const json = await res.json();
-        const arr = Array.isArray(json?.msgArray) ? json.msgArray : [];
-        for (const m of arr) {
-          if (m?.c) byCode[String(m.c).toUpperCase()] = m;
-        }
-      })
-    );
-
-    for (const it of uniqueItems) {
-      const live = byCode[it.symbol.toUpperCase()];
-      if (!live) continue;
-
-      const z = parseP(live.z);
-      const pz = parseP(live.pz);
-      const bestBid = parseBestBidAsk(live.b);
-      const bestAsk = parseBestBidAsk(live.a);
-      const o = parseP(live.o);
-      const y = parseP(live.y);
-      const vLots = parseP(live.v);
-      const cached = lastKnownLiveQuotes.get(it.symbol);
-
-      // 成交價判定：即時成交價 (z) > 試算 (pz) > 委買第一檔 (bestBid) > 委賣第一檔 (bestAsk) > 開盤 (o) > 快取最新價 > 原價
-      const livePrice =
-        z > 0
-          ? z
-          : pz > 0
-          ? pz
-          : bestBid > 0
-          ? bestBid
-          : bestAsk > 0
-          ? bestAsk
-          : o > 0
-          ? o
-          : cached?.price || it.price;
-
-      // 昨收價判定：TWSE MIS (y) > 快取昨收 > 原昨收
-      const prevClose =
-        y > 0 ? y : cached?.price ? cached.price - cached.change : it.price - it.change;
-
-      // 如果有真實價格與昨收，精準計算漲跌金額與漲跌幅
-      let chg = it.change;
-      let pct = it.change_pct;
-      if (livePrice > 0 && prevClose > 0) {
-        chg = Number((livePrice - prevClose).toFixed(2));
-        pct = Number((((livePrice - prevClose) / prevClose) * 100).toFixed(2));
-      }
-
-      const volLots = vLots > 0 ? Math.round(vLots) : cached?.volume_lots || it.volume_lots;
-      const volShares = volLots * 1000;
-      const liveTurnoverB =
-        livePrice > 0 && volShares > 0
-          ? Number(((livePrice * volShares) / 1e8).toFixed(2))
-          : it.turnover_b;
-
-      const enriched: RankedStockItem = {
-        ...it,
-        name: live.n ? String(live.n).trim() : it.name,
-        price: livePrice,
-        change: chg,
-        change_pct: pct,
-        volume_lots: volLots,
-        volume: volShares,
-        turnover_b: liveTurnoverB,
-        limit_up: parseP(live.u) || it.limit_up,
-        limit_down: parseP(live.w) || it.limit_down,
-      };
-
-      if (enriched.price > 0) {
-        lastKnownLiveQuotes.set(it.symbol, enriched);
-      }
-      resultMap.set(it.symbol, enriched);
-    }
-  } catch (err) {
-    console.warn("TWSE MIS batch quote timeout or failed, using persistent live snapshot:", err);
-  }
-
-  // 雙保險：若仍有標的價格缺失或未能即時取得，快速從 Yahoo Finance 補齊
-  try {
-    const missing = Array.from(resultMap.values()).filter((it) => !it.price || it.price <= 0);
-    if (missing.length > 0) {
-      await Promise.allSettled(
-        missing.slice(0, 15).map(async (it) => {
-          try {
-            const yfSym = `${it.symbol}.${it.market === "TPEx" ? "TWO" : "TW"}`;
-            const res = await fetch(
-              `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSym)}?range=1d&interval=1d`,
-              {
-                headers: { "User-Agent": "Mozilla/5.0" },
-                signal: AbortSignal.timeout(2000),
-              }
-            );
-            if (!res.ok) return;
-            const j = await res.json();
-            const meta = j?.chart?.result?.[0]?.meta;
-            const p = Number(meta?.regularMarketPrice);
-            const prev = Number(meta?.chartPreviousClose) || p;
-            if (p > 0) {
-              const chg = Number((p - prev).toFixed(2));
-              const pct = prev > 0 ? Number(((chg / prev) * 100).toFixed(2)) : 0;
-              const enriched: RankedStockItem = {
-                ...it,
-                price: p,
-                change: chg,
-                change_pct: pct,
-              };
-              lastKnownLiveQuotes.set(it.symbol, enriched);
-              resultMap.set(it.symbol, enriched);
-            }
-          } catch {}
-        })
-      );
-    }
-  } catch {}
-
-  return resultMap;
-}
-
-function sortRankings(
-  list: RankedStockItem[],
-  sortBy: string,
-  limit: number,
-  isEtfOnly: boolean = false
-): RankedStockItem[] {
-  const copy = list.filter((x) => (isEtfOnly ? Boolean(x.is_etf) : !x.is_etf) && x.volume > 0);
-  if (sortBy === "turnover") {
-    copy.sort((a, b) => (b.turnover_b || 0) - (a.turnover_b || 0) || (b.volume || 0) - (a.volume || 0));
-  } else if (sortBy === "gainers") {
-    copy.sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0) || (b.volume || 0) - (a.volume || 0));
-  } else {
-    copy.sort((a, b) => (b.volume || 0) - (a.volume || 0) || (b.turnover_b || 0) - (a.turnover_b || 0));
-  }
-  return copy.slice(0, limit);
-}
-
-export async function getCachedTwMarketData() {
-  const now = Date.now();
-  if (!cachedData || now - cachedData.ts > CACHE_TTL_MS || cachedData.twseAll.length === 0) {
-    const [twseRes, tpexRes] = await Promise.allSettled([
-      fetchTwseAll(),
-      fetchTpexAll(),
-    ]);
-    const twseAll = twseRes.status === "fulfilled" ? twseRes.value : [];
-    const tpexAll = tpexRes.status === "fulfilled" ? tpexRes.value : [];
-    if (twseAll.length > 0 || tpexAll.length > 0) {
-      cachedData = {
-        ts: now,
-        twseAll,
-        tpexAll,
-        date: twseAll[0]?.date || tpexAll[0]?.date || "",
-      };
-    }
-  }
-  return cachedData;
-}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -461,46 +51,24 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 16)));
   const sortBy = searchParams.get("sort_by") || "volume";
 
-  const marketCache = await getCachedTwMarketData();
-  const allTw = [...(marketCache?.twseAll || []), ...(marketCache?.tpexAll || [])];
-
-  // 快速搜尋支援 (涵蓋全市場 1,900+ 上市櫃個股 + 全市場 362 檔主動/被動/債券 ETF + 美股與跨資產)
+  // 快速搜尋支援 (涵蓋全市場 1,900+ 上市櫃個股 + 全市場台股 ETF + 美股與跨資產)
   if (q) {
-    const EXTRA_ASSETS = [
-      { symbol: "NVDA", name: "NVIDIA (輝達)", market: "US", industry: "AI 半導體" },
-      { symbol: "AAPL", name: "Apple (蘋果)", market: "US", industry: "消費電子" },
-      { symbol: "TSLA", name: "Tesla (特斯拉)", market: "US", industry: "電動車與機器人" },
-      { symbol: "MSFT", name: "Microsoft (微軟)", market: "US", industry: "雲端與 AI" },
-      { symbol: "GOOGL", name: "Alphabet (谷歌)", market: "US", industry: "搜尋與雲端" },
-      { symbol: "AMZN", name: "Amazon (亞馬遜)", market: "US", industry: "電商與 AWS" },
-      { symbol: "META", name: "Meta Platforms (臉書)", market: "US", industry: "社群與 AI" },
-      { symbol: "TSM", name: "台積電 ADR", market: "US", industry: "晶圓代工" },
-      { symbol: "AMD", name: "AMD (超微)", market: "US", industry: "AI 晶片" },
-      { symbol: "AVGO", name: "Broadcom (博通)", market: "US", industry: "網通與 ASIC" },
-      { symbol: "PLTR", name: "Palantir", market: "US", industry: "AI 大數據" },
-      { symbol: "QQQ", name: "Invesco 那斯達克100 ETF", market: "US", industry: "美股科技 ETF" },
-      { symbol: "SPY", name: "SPDR 標普500 ETF", market: "US", industry: "美股大盤 ETF" },
-      { symbol: "VOO", name: "Vanguard 標普500 ETF", market: "US", industry: "美股大盤 ETF" },
-      { symbol: "SMH", name: "VanEck 半導體 ETF", market: "US", industry: "半導體 ETF" },
-      { symbol: "SOXX", name: "iShares 半導體 ETF", market: "US", industry: "半導體 ETF" },
-      { symbol: "TLT", name: "iShares 20+年美債 ETF", market: "US", industry: "美債 ETF" },
-      { symbol: "IBIT", name: "iShares 比特幣現貨 ETF", market: "US", industry: "加密貨幣 ETF" },
-      { symbol: "GLD", name: "SPDR 黃金現貨 ETF", market: "US", industry: "黃金 ETF" },
-      { symbol: "BTC-USD", name: "比特幣 (Bitcoin)", market: "US", industry: "加密貨幣" },
-      { symbol: "ETH-USD", name: "以太坊 (Ethereum)", market: "US", industry: "加密貨幣" },
-      { symbol: "GC=F", name: "黃金期貨 (Gold)", market: "US", industry: "貴金屬期貨" },
-      { symbol: "CL=F", name: "西德州原油期貨 (WTI)", market: "US", industry: "能源期貨" },
-      { symbol: "TWD=X", name: "美元/台幣 (USD/TWD)", market: "US", industry: "外匯匯率" },
-      { symbol: "^TWII", name: "台股加權指數", market: "TW", industry: "大盤指數" },
-    ];
+    const marketCache = await getCachedTwMarketData();
+    const allTw = [...(marketCache?.twseAll || []), ...(marketCache?.tpexAll || [])];
 
     const seen = new Set<string>();
-    const candidates: { symbol: string; name: string; market: string; industry: string; score: number }[] = [];
+    const candidates: {
+      symbol: string;
+      name: string;
+      market: string;
+      industry: string;
+      score: number;
+    }[] = [];
 
     const scoreItem = (sym: string, name: string): number => {
       const sLow = sym.toLowerCase();
       const nLow = name.toLowerCase();
-      if (sLow === q || nLow === q) return 0; // 完全相符永遠排第一
+      if (sLow === q || nLow === q) return 0;
       if (sLow.startsWith(q)) return 1;
       if (nLow.startsWith(q)) return 2;
       if (sLow.includes(q)) return 3;
@@ -542,7 +110,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    candidates.sort((a, b) => a.score - b.score || a.symbol.length - b.symbol.length || a.symbol.localeCompare(b.symbol));
+    candidates.sort(
+      (a, b) => a.score - b.score || a.symbol.length - b.symbol.length || a.symbol.localeCompare(b.symbol)
+    );
 
     return NextResponse.json(
       candidates.slice(0, 25).map(({ symbol, name, market, industry }) => ({
@@ -556,42 +126,64 @@ export async function GET(req: NextRequest) {
 
   // 權值股與熱門 ETF 資金流向散佈圖資料
   if (type === "capital-flow") {
+    const marketCache = await getCachedTwMarketData();
+    const allTw = [...(marketCache?.twseAll || []), ...(marketCache?.tpexAll || [])];
     const byCode: Record<string, RankedStockItem> = {};
     for (const s of allTw) byCode[s.symbol] = s;
 
     const targetStocks = [
-      { symbol: "2330", name: "台積電", fallbackPrice: 2370, fallbackPct: -1.86, fallbackVol: 48500, is_etf: false },
-      { symbol: "2317", name: "鴻海", fallbackPrice: 245.5, fallbackPct: -1.01, fallbackVol: 62300, is_etf: false },
-      { symbol: "2454", name: "聯發科", fallbackPrice: 3915, fallbackPct: -3.21, fallbackVol: 9800, is_etf: false },
-      { symbol: "2382", name: "廣達", fallbackPrice: 318.0, fallbackPct: 0.45, fallbackVol: 28400, is_etf: false },
-      { symbol: "3231", name: "緯創", fallbackPrice: 183.5, fallbackPct: -2.65, fallbackVol: 45200, is_etf: false },
-      { symbol: "2603", name: "長榮", fallbackPrice: 271.5, fallbackPct: 4.02, fallbackVol: 54100, is_etf: false },
-      { symbol: "2609", name: "陽明", fallbackPrice: 63.5, fallbackPct: 2.42, fallbackVol: 68200, is_etf: false },
-      { symbol: "3017", name: "奇鋐", fallbackPrice: 3095, fallbackPct: -0.32, fallbackVol: 11200, is_etf: false },
-      { symbol: "2881", name: "富邦金", fallbackPrice: 161.5, fallbackPct: -0.31, fallbackVol: 24500, is_etf: false },
-      { symbol: "2891", name: "中信金", fallbackPrice: 75.8, fallbackPct: 0.66, fallbackVol: 39800, is_etf: false },
-      { symbol: "2303", name: "聯電", fallbackPrice: 49.8, fallbackPct: -1.2, fallbackVol: 237896, is_etf: false },
-      { symbol: "2409", name: "友達", fallbackPrice: 16.8, fallbackPct: 3.1, fallbackVol: 296772, is_etf: false },
-      { symbol: "0050", name: "元大台灣50", fallbackPrice: 196.5, fallbackPct: 0.85, fallbackVol: 42000, is_etf: true, flowM: 3560 },
-      { symbol: "00878", name: "國泰永續高股息", fallbackPrice: 22.8, fallbackPct: 0.35, fallbackVol: 86000, is_etf: true, flowM: 2840 },
-      { symbol: "00919", name: "群益台灣精選高息", fallbackPrice: 24.1, fallbackPct: 0.25, fallbackVol: 95000, is_etf: true, flowM: 4210 },
-      { symbol: "00929", name: "復華台灣科技優息", fallbackPrice: 18.9, fallbackPct: 0.15, fallbackVol: 74000, is_etf: true, flowM: 1280 },
-      { symbol: "0056", name: "元大高股息", fallbackPrice: 38.2, fallbackPct: 0.4, fallbackVol: 51000, is_etf: true, flowM: 1850 },
-      { symbol: "00981A", name: "主動統一台股增長", fallbackPrice: 26.66, fallbackPct: 1.15, fallbackVol: 65000, is_etf: true, flowM: 3120 },
-      { symbol: "00982A", name: "主動群益台灣強棒", fallbackPrice: 20.66, fallbackPct: 0.85, fallbackVol: 33200, is_etf: true, flowM: 1680 },
-      { symbol: "00679B", name: "元大美債20年", fallbackPrice: 29.4, fallbackPct: 0.68, fallbackVol: 68000, is_etf: true, flowM: 1940 },
+      { symbol: "2330", name: "台積電", fallbackPrice: 2350, fallbackPct: 0, fallbackVol: 28790, is_etf: false },
+      { symbol: "2317", name: "鴻海", fallbackPrice: 245.5, fallbackPct: 0, fallbackVol: 42300, is_etf: false },
+      { symbol: "2454", name: "聯發科", fallbackPrice: 1310, fallbackPct: 0, fallbackVol: 9800, is_etf: false },
+      { symbol: "2382", name: "廣達", fallbackPrice: 318.0, fallbackPct: 0, fallbackVol: 28400, is_etf: false },
+      { symbol: "3231", name: "緯創", fallbackPrice: 118.5, fallbackPct: 0, fallbackVol: 45200, is_etf: false },
+      { symbol: "2603", name: "長榮", fallbackPrice: 224.5, fallbackPct: 0, fallbackVol: 34100, is_etf: false },
+      { symbol: "2609", name: "陽明", fallbackPrice: 63.5, fallbackPct: 0, fallbackVol: 48200, is_etf: false },
+      { symbol: "3017", name: "奇鋐", fallbackPrice: 695, fallbackPct: 0, fallbackVol: 11200, is_etf: false },
+      { symbol: "2881", name: "富邦金", fallbackPrice: 91.5, fallbackPct: 0, fallbackVol: 24500, is_etf: false },
+      { symbol: "2891", name: "中信金", fallbackPrice: 38.8, fallbackPct: 0, fallbackVol: 39800, is_etf: false },
+      { symbol: "2303", name: "聯電", fallbackPrice: 49.8, fallbackPct: 0, fallbackVol: 67896, is_etf: false },
+      { symbol: "2409", name: "友達", fallbackPrice: 16.8, fallbackPct: 0, fallbackVol: 56772, is_etf: false },
+      { symbol: "0050", name: "元大台灣50", fallbackPrice: 102.5, fallbackPct: 0, fallbackVol: 62000, is_etf: true },
+      { symbol: "00878", name: "國泰永續高股息", fallbackPrice: 22.8, fallbackPct: 0, fallbackVol: 66000, is_etf: true },
+      { symbol: "00919", name: "群益台灣精選高息", fallbackPrice: 24.1, fallbackPct: 0, fallbackVol: 75000, is_etf: true },
+      { symbol: "00929", name: "復華台灣科技優息", fallbackPrice: 18.9, fallbackPct: 0, fallbackVol: 54000, is_etf: true },
+      { symbol: "0056", name: "元大高股息", fallbackPrice: 38.2, fallbackPct: 0, fallbackVol: 41000, is_etf: true },
+      { symbol: "00981A", name: "主動統一台股增長", fallbackPrice: 26.66, fallbackPct: 0, fallbackVol: 45000, is_etf: true },
+      { symbol: "00982A", name: "主動群益台灣強棒", fallbackPrice: 20.66, fallbackPct: 0, fallbackVol: 33200, is_etf: true },
+      { symbol: "00679B", name: "元大美債20年", fallbackPrice: 29.4, fallbackPct: 0, fallbackVol: 48000, is_etf: true },
     ];
 
+    const seedList: RankedStockItem[] = targetStocks.map((t) => {
+      const cached = byCode[t.symbol];
+      if (cached) return cached;
+      return {
+        symbol: t.symbol,
+        name: t.name,
+        market: "TWSE",
+        price: t.fallbackPrice,
+        change: 0,
+        change_pct: t.fallbackPct,
+        volume: t.fallbackVol * 1000,
+        volume_lots: t.fallbackVol,
+        turnover_b: Number(((t.fallbackPrice * t.fallbackVol * 1000) / 1e8).toFixed(2)),
+        date: "",
+        stale: false,
+        is_etf: t.is_etf,
+      };
+    });
+
+    const liveMap = await enrichAllWithRealtimeTwse(seedList);
+
     const flowItems = targetStocks.map((t) => {
-      const live = byCode[t.symbol];
+      const live = liveMap.get(t.symbol) || byCode[t.symbol];
       const price = live?.price || t.fallbackPrice;
       const change_pct = live?.change_pct ?? t.fallbackPct;
       const volume = live?.volume_lots || t.fallbackVol;
       const turnoverM = live ? live.turnover_b * 100 : (price * volume) / 1000;
-      const net_flow =
-        typeof (t as any).flowM === "number"
-          ? (t as any).flowM
-          : Math.round(turnoverM * (change_pct === 0 ? 0.08 : Math.max(-0.45, Math.min(0.45, change_pct / 6.5))));
+      const net_flow = Math.round(
+        turnoverM * (change_pct === 0 ? 0.05 : Math.max(-0.45, Math.min(0.45, change_pct / 6.5)))
+      );
       return {
         symbol: t.symbol,
         name: live?.name || t.name,
@@ -603,41 +195,20 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json(flowItems);
+    return NextResponse.json(flowItems, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      },
+    });
   }
 
-  const poolSize = Math.max(limit + 8, 22);
-  const rawTwse = sortRankings(marketCache?.twseAll || [], sortBy, poolSize, false);
-  const rawTpex = sortRankings(marketCache?.tpexAll || [], sortBy, poolSize, false);
-  const allEtfs = allTw.filter((x) => x.is_etf);
-  const rawEtf = sortRankings(allEtfs, sortBy, poolSize, true);
+  const rankings = await getRealtimeMarketRankings({ limit, sortBy });
 
-  // 分批併發統一查詢 TWSE MIS 並依據最新盤中即時價量重新動態排序
-  const allCandidates = [...rawTwse, ...rawTpex, ...rawEtf];
-  const enrichedMap = await enrichAllWithRealtimeTwse(allCandidates);
-
-  const enrichedTwse = rawTwse.map((s) => enrichedMap.get(s.symbol) || s);
-  const enrichedTpex = rawTpex.map((s) => enrichedMap.get(s.symbol) || s);
-  const enrichedEtf = rawEtf.map((s) => enrichedMap.get(s.symbol) || s);
-
-  const twse = sortRankings(enrichedTwse, sortBy, limit, false);
-  const tpex = sortRankings(enrichedTpex, sortBy, limit, false);
-  const etf = sortRankings(enrichedEtf, sortBy, limit, true);
-
-  return NextResponse.json(
-    {
-      twse,
-      tpex,
-      etf,
-      date: marketCache?.date || "",
-      live_ts: Date.now(),
+  return NextResponse.json(rankings, {
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+      Pragma: "no-cache",
+      Expires: "0",
     },
-    {
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
-        Pragma: "no-cache",
-        Expires: "0",
-      },
-    }
-  );
+  });
 }

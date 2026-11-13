@@ -7,6 +7,7 @@ import Badge from "@/components/ui/Badge";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { apiStocks, apiMarket } from "@/lib/api";
+import { isTwMarketTradingHours } from "@/lib/marketHours";
 import { formatNumber, formatVolume } from "@/lib/utils";
 
 interface RankedItem {
@@ -81,8 +82,27 @@ export default function StockIndexPage() {
     };
 
     loadRankings();
+    const timer = isTwMarketTradingHours(true)
+      ? setInterval(() => {
+          apiMarket
+            .getRankings(6, rankSort)
+            .then((res) => {
+              if (!alive || !res?.data) return;
+              if (Array.isArray(res.data.twse) && res.data.twse.length > 0) {
+                setTwseTop(res.data.twse.slice(0, 6));
+              }
+              if (Array.isArray(res.data.tpex) && res.data.tpex.length > 0) {
+                setTpexTop(res.data.tpex.slice(0, 6));
+              }
+              if (res.data.date) setRankDate(res.data.date);
+            })
+            .catch(() => null);
+        }, 5000)
+      : null;
+
     return () => {
       alive = false;
+      if (timer) clearInterval(timer);
     };
   }, [rankSort]);
 

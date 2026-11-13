@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { getCurrentUserNamespace } from "@/hooks/useAuth";
-import { getWatchlistSymbols } from "@/lib/watchlistRadar";
+import { refreshSyncedHoldingsFromApi } from "@/lib/holdingsSync";
 
 interface LineBindingCardProps {
   compact?: boolean;
@@ -123,23 +123,23 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
     localStorage.setItem("line_auto_push_enabled", String(next));
   };
 
-  // 立即執行盤中掃描並主動推播至 LINE
+  // 立即執行當日熱門 10 檔 + 庫存消息掃描並主動推播至 LINE
   const handleTriggerImmediateNotify = useCallback(async () => {
     setIsTriggeringNotify(true);
     setNotifyFeedback("");
     try {
-      const symbols = getWatchlistSymbols();
+      const holdings = await refreshSyncedHoldingsFromApi(1500);
       const res = await fetch("/api/line/auto-notify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbols }),
+        body: JSON.stringify({ holdings }),
       });
       const data = await res.json();
       if (data?.success && data.target) {
         const logItem: AutoPushLog = {
           symbol: data.target.symbol,
           name: data.target.name,
-          title: data.triggerName || "熊霸主動巡檢通報",
+          title: data.triggerName || "當日熱門10檔 + 庫存消息",
           price: data.target.price,
           changePct: data.target.changePct,
           time: new Date().toLocaleTimeString("zh-TW", { hour12: false }),
@@ -147,7 +147,7 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
         setLastPushLog(logItem);
         localStorage.setItem("last_line_auto_push_log", JSON.stringify(logItem));
         setNotifyFeedback(
-          `✅ 已主動通報至 LINE：${logItem.symbol} ${logItem.name} ($${logItem.price})`
+          `✅ 已通報「當日熱門10檔 + 庫存 ${holdings.length} 檔消息」至 LINE！（領頭：${logItem.symbol} ${logItem.name} $${logItem.price}）`
         );
       } else {
         setNotifyFeedback(`⚠️ 通報失敗：${data?.error || "請確認 LINE 官方帳號權限"}`);
@@ -315,7 +315,7 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
                 </span>
               </div>
               <p className="text-xs text-secondary mt-1">
-                熊霸（V-Bear）盤中即時雷達：VCP 突破、SMC 機構踩點與自選股異動自動主動推播至 LINE！
+                熊霸（V-Bear）主動通報：嚴格精選「當日熱門前 10 檔」與「個人庫存持股」最新行情及新聞推播至 LINE！
               </p>
             </div>
           </div>
@@ -326,7 +326,7 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
               onClick={handleTriggerImmediateNotify}
               disabled={isTriggeringNotify}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-md shadow-amber-500/20 transition-all cursor-pointer active:scale-95 disabled:opacity-60"
-              title="立即掃描自選股與大盤焦點，馬上主動發送一張真實戰報至您的 LINE"
+              title="立即彙整當日熱門 10 檔、庫存持股與焦點新聞發送至 LINE"
             >
               {isTriggeringNotify ? (
                 <Loader2 size={14} className="animate-spin" />
@@ -367,7 +367,7 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
               </span>
             </div>
             <p className="text-[11px] text-secondary">
-              當自選股觸發 VCP 突破、SMC 訂單塊、爆量急拉或雲端定時巡檢時，系統免手動查詢即會主動發送 LINE 戰報。
+              主動通報僅發送「當日台股熱門 10 檔」與「您的庫存持股」最新行情及相關新聞，不對其餘觀察清單洗版。
             </p>
             {notifyFeedback && (
               <div className="text-xs font-bold text-emerald-400 pt-0.5">{notifyFeedback}</div>

@@ -3,11 +3,12 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
-import { formatNumber, formatVolume, getChangeColorClass } from "@/lib/utils";
+import { formatNumber, getChangeColorClass } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { apiMarket, apiStocks } from "@/lib/api";
+import { apiMarket } from "@/lib/api";
+import { isTwMarketTradingHours } from "@/lib/marketHours";
 import { Term } from "@/components/ui/TermTooltip";
-import { RefreshCw, Flame, ArrowUpRight, DollarSign } from "lucide-react";
+import { RefreshCw, Flame, ArrowUpRight, DollarSign, PauseCircle } from "lucide-react";
 import AnimatedPrice from "@/components/ui/AnimatedPrice";
 
 interface RankedStock {
@@ -23,73 +24,6 @@ interface RankedStock {
   is_etf?: boolean;
 }
 
-const STOCK_NAMES: Record<string, string> = {
-  "2330": "台積電", "2317": "鴻海", "2454": "聯發科",
-  "3231": "緯創", "2382": "廣達", "2603": "長榮",
-  "2881": "富邦金", "2882": "國泰金", "2303": "聯電",
-  "3037": "欣興", "2357": "華碩", "2609": "陽明",
-  "3017": "奇鋐", "2376": "技嘉", "2618": "長榮航",
-  "6669": "緯穎", "2356": "英業達", "2383": "台光電",
-  "1519": "華城", "1503": "士電", "1513": "中興電",
-  "3661": "世芯-KY", "2615": "萬海", "2891": "中信金",
-  "2409": "友達", "2308": "台達電",
-  "8069": "元太", "6488": "環球晶", "3293": "鈊象",
-  "5347": "世界", "3324": "雙鴻", "8299": "群聯",
-  "6223": "旺矽", "3529": "力旺", "6187": "萬潤",
-  "5483": "中美晶", "3105": "穩懋", "6547": "高端疫苗",
-  "3680": "家登", "3131": "弘塑", "6274": "台燿",
-  "8358": "金居", "5425": "台半", "6188": "廣明",
-};
-
-const TWSE_POOLS = [
-  "2330", "2317", "2454", "3231", "2382", "2603", "2881", "2882",
-  "2303", "3037", "2357", "2609", "3017", "2376", "6669", "2383",
-  "1519", "1503", "1513", "3661", "2615", "2891", "2409", "2308"
-];
-
-const TPEX_POOLS = [
-  "8069", "6488", "3293", "5347", "3324", "8299", "6223", "3529",
-  "6187", "5483", "3105", "3680", "3131", "6274", "8358", "5425",
-  "6188", "6547"
-];
-
-const DEFAULT_TWSE: RankedStock[] = [
-  { symbol: "2330", name: "台積電", market: "TWSE", price: 1025.00, change: -15.00, change_pct: -1.44, volume: 48500000, volume_lots: 48500, turnover_b: 49.71 },
-  { symbol: "2317", name: "鴻海", market: "TWSE", price: 212.50, change: 2.50, change_pct: 1.19, volume: 62300000, volume_lots: 62300, turnover_b: 13.24 },
-  { symbol: "2454", name: "聯發科", market: "TWSE", price: 1290.00, change: -10.00, change_pct: -0.77, volume: 9800000, volume_lots: 9800, turnover_b: 12.64 },
-  { symbol: "3231", name: "緯創", market: "TWSE", price: 114.50, change: 1.00, change_pct: 0.88, volume: 45200000, volume_lots: 45200, turnover_b: 5.17 },
-  { symbol: "2382", name: "廣達", market: "TWSE", price: 310.00, change: 4.50, change_pct: 1.47, volume: 28400000, volume_lots: 28400, turnover_b: 8.80 },
-  { symbol: "2603", name: "長榮", market: "TWSE", price: 206.50, change: 5.50, change_pct: 2.74, volume: 54100000, volume_lots: 54100, turnover_b: 11.17 },
-  { symbol: "2609", name: "陽明", market: "TWSE", price: 68.20, change: 1.80, change_pct: 2.71, volume: 68200000, volume_lots: 68200, turnover_b: 4.65 },
-  { symbol: "3017", name: "奇鋐", market: "TWSE", price: 645.00, change: -8.00, change_pct: -1.23, volume: 11200000, volume_lots: 11200, turnover_b: 7.22 },
-];
-
-const DEFAULT_TPEX: RankedStock[] = [
-  { symbol: "1815", name: "富喬", market: "TPEx", price: 121.50, change: -13.50, change_pct: -10.00, volume: 99744000, volume_lots: 99744, turnover_b: 12.12 },
-  { symbol: "8042", name: "金山電", market: "TPEx", price: 131.50, change: -1.50, change_pct: -1.13, volume: 51968000, volume_lots: 51968, turnover_b: 6.83 },
-  { symbol: "6148", name: "驊宏資", market: "TPEx", price: 43.40, change: -0.80, change_pct: -1.81, volume: 49381000, volume_lots: 49381, turnover_b: 2.14 },
-  { symbol: "6182", name: "合晶", market: "TPEx", price: 74.70, change: -8.10, change_pct: -9.78, volume: 28937000, volume_lots: 28937, turnover_b: 2.16 },
-  { symbol: "3105", name: "穩懋", market: "TPEx", price: 451.00, change: -50.00, change_pct: -9.98, volume: 24515000, volume_lots: 24515, turnover_b: 11.06 },
-  { symbol: "6244", name: "茂迪", market: "TPEx", price: 19.40, change: -0.90, change_pct: -4.43, volume: 20622000, volume_lots: 20622, turnover_b: 0.40 },
-  { symbol: "8358", name: "金居", market: "TPEx", price: 334.00, change: -32.50, change_pct: -8.87, volume: 19489000, volume_lots: 19489, turnover_b: 6.51 },
-  { symbol: "5314", name: "世紀*", market: "TPEx", price: 21.15, change: -1.55, change_pct: -6.83, volume: 19125000, volume_lots: 19125, turnover_b: 0.40 },
-  { symbol: "6147", name: "頎邦", market: "TPEx", price: 157.50, change: -17.50, change_pct: -10.00, volume: 19010000, volume_lots: 19010, turnover_b: 2.99 },
-  { symbol: "6488", name: "環球晶", market: "TPEx", price: 564.00, change: -55.00, change_pct: -8.89, volume: 18954000, volume_lots: 18954, turnover_b: 10.69 },
-];
-
-const DEFAULT_ETF: RankedStock[] = [
-  { symbol: "0050", name: "元大台灣50", market: "TWSE", price: 100.60, change: -3.50, change_pct: -3.36, volume: 42500000, volume_lots: 42500, turnover_b: 42.75 },
-  { symbol: "00878", name: "國泰永續高股息", market: "TWSE", price: 22.85, change: -0.15, change_pct: -0.65, volume: 88500000, volume_lots: 88500, turnover_b: 20.22 },
-  { symbol: "00919", name: "群益台灣精選高息", market: "TWSE", price: 23.90, change: 0.10, change_pct: 0.42, volume: 95200000, volume_lots: 95200, turnover_b: 22.75 },
-  { symbol: "00929", name: "復華台灣科技優息", market: "TWSE", price: 18.25, change: -0.05, change_pct: -0.27, volume: 76000000, volume_lots: 76000, turnover_b: 13.87 },
-  { symbol: "0056", name: "元大高股息", market: "TWSE", price: 37.80, change: -0.20, change_pct: -0.53, volume: 52000000, volume_lots: 52000, turnover_b: 19.65 },
-  { symbol: "00940", name: "元大台灣價值高息", market: "TWSE", price: 9.45, change: -0.05, change_pct: -0.53, volume: 68000000, volume_lots: 68000, turnover_b: 6.42 },
-  { symbol: "00679B", name: "元大美債20年", market: "TPEx", price: 29.50, change: 0.20, change_pct: 0.68, volume: 65000000, volume_lots: 65000, turnover_b: 19.17 },
-  { symbol: "00406A", name: "主動中信台灣收益", market: "TWSE", price: 15.20, change: 0.12, change_pct: 0.80, volume: 38000000, volume_lots: 38000, turnover_b: 5.77 },
-  { symbol: "00981A", name: "主動統一台股增長", market: "TWSE", price: 26.66, change: 0.30, change_pct: 1.14, volume: 65000000, volume_lots: 65000, turnover_b: 17.33 },
-  { symbol: "00982A", name: "主動群益台灣強棒", market: "TWSE", price: 20.66, change: 0.18, change_pct: 0.88, volume: 33200000, volume_lots: 33200, turnover_b: 6.86 },
-];
-
 export default function TrendingPanel() {
   const router = useRouter();
   const [board, setBoard] = useState<"twse" | "tpex" | "etf">("twse");
@@ -99,21 +33,28 @@ export default function TrendingPanel() {
     tpex: RankedStock[];
     etf: RankedStock[];
   }>({
-    twse: DEFAULT_TWSE,
-    tpex: DEFAULT_TPEX,
-    etf: DEFAULT_ETF,
+    twse: [],
+    tpex: [],
+    etf: [],
   });
   const [tradeDate, setTradeDate] = useState<string>("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>("");
+  const [isTrading, setIsTrading] = useState<boolean>(() => isTwMarketTradingHours(true));
+
+  useEffect(() => {
+    const syncState = () => setIsTrading(isTwMarketTradingHours(true));
+    syncState();
+    const t = setInterval(syncState, 15000);
+    return () => clearInterval(t);
+  }, []);
 
   const fetchRankings = useCallback(async (isManual = false) => {
     if (isManual) setIsRefreshing(true);
 
     try {
-      const apiSort = sortType === "losers" ? "volume" : sortType;
-      const res = await apiMarket.getRankings(16, apiSort).catch(() => null);
+      const res = await apiMarket.getRankings(16, sortType).catch(() => null);
       const data = res?.data;
       const twseList: RankedStock[] =
         data?.twse && Array.isArray(data.twse) && data.twse.length > 0 ? data.twse : [];
@@ -172,10 +113,11 @@ export default function TrendingPanel() {
 
   useEffect(() => {
     fetchRankings();
-    // 盤中每 2.5 秒極速無縫輪詢最新成交量價與排行
-    const interval = setInterval(() => fetchRankings(false), 2500);
+    if (!isTrading) return;
+    // 盤中時段每 3.5 秒即時刷新最新成交量價與排行
+    const interval = setInterval(() => fetchRankings(false), 3500);
     return () => clearInterval(interval);
-  }, [fetchRankings]);
+  }, [fetchRankings, isTrading]);
 
   const list = useMemo(() => {
     const base = [
@@ -206,9 +148,18 @@ export default function TrendingPanel() {
       headerAction={
         <div className="flex items-center gap-2">
           {lastUpdated && (
-            <span className="text-[11px] font-mono text-accent/80 hidden sm:inline flex items-center gap-1">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>2.5秒即時跳動 ({lastUpdated})</span>
+            <span className="text-[11px] font-mono hidden sm:inline-flex items-center gap-1 text-accent/80">
+              {isTrading ? (
+                <>
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>盤中即時 ({lastUpdated})</span>
+                </>
+              ) : (
+                <>
+                  <PauseCircle size={11} className="text-amber-400/80" />
+                  <span className="text-muted">已收盤 · {tradeDate || lastUpdated}</span>
+                </>
+              )}
             </span>
           )}
           <button

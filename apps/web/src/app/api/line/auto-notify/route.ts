@@ -1,144 +1,150 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveChannelAccessToken } from "@/app/api/line/push/route";
-import { createRadarAlertFlexCard, RadarSignalData } from "@/lib/line/flexCards";
+import {
+  createHotAndHoldingsDailyFlex,
+  type HoldingLineItem,
+  type HotRankLineItem,
+} from "@/lib/line/flexCards";
+import { getTwMarketPhase } from "@/lib/marketHours";
+import { fetchStockNewsQuery } from "@/lib/stockNews";
+import {
+  enrichAllWithRealtimeTwse,
+  getCachedTwMarketData,
+  getRealtimeMarketRankings,
+  type RankedStockItem,
+} from "@/lib/twRankings";
 
 export const dynamic = "force-dynamic";
 
-const DEFAULT_WATCH_POOL = [
-  { symbol: "2330", name: "台積電", market: "tse" },
-  { symbol: "2317", name: "鴻海", market: "tse" },
-  { symbol: "2454", name: "聯發科", market: "tse" },
-  { symbol: "2603", name: "長榮", market: "tse" },
-  { symbol: "3231", name: "緯創", market: "tse" },
-  { symbol: "2382", name: "廣達", market: "tse" },
-  { symbol: "3017", name: "奇鋐", market: "tse" },
-  { symbol: "0050", name: "元大台灣50", market: "tse" },
-];
-
-interface LiveSnap {
+interface IncomingHolding {
   symbol: string;
-  name: string;
-  price: number;
-  change: number;
-  changePct: number;
-  volumeLots: number;
+  name?: string;
+  shares?: number;
+  avg_price?: number;
+  current_price?: number;
+  pnl_pct?: number;
+  source?: string;
 }
 
-async function fetchRealtimePoolQuotes(symbols?: string[]): Promise<LiveSnap[]> {
-  const targetList =
-    symbols && symbols.length > 0
-      ? symbols.slice(0, 12).map((s) => {
-          const clean = String(s).trim().toUpperCase();
-          const preset = DEFAULT_WATCH_POOL.find((p) => p.symbol === clean);
-          return {
-            symbol: clean,
-            name: preset?.name || clean,
-            market: "tse",
-          };
-        })
-      : DEFAULT_WATCH_POOL;
-
-  const parseP = (v: any) => {
-    if (!v || v === "-") return 0;
-    const n = parseFloat(String(v).replace(/,/g, ""));
-    return Number.isFinite(n) ? n : 0;
-  };
-
-  const parseBest = (raw: any) => {
-    if (!raw || typeof raw !== "string") return 0;
-    return parseP(raw.split("_")[0]);
-  };
-
-  const results: LiveSnap[] = [];
-
+async function fetchYahooSingleQuote(symbol: string): Promise<{
+  price: number;
+  changePct: number;
+  name?: string;
+} | null> {
   try {
-    const exCh = targetList.map((s) => `${s.market}_${s.symbol}.tw`).join("|");
-    const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${encodeURIComponent(
-      exCh
-    )}&json=1&delay=0&_=${Date.now()}`;
+    const res = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+        symbol
+      )}?range=1d&interval=1d`,
+      {
+        headers: { "User-Agent": "Mozilla/5.0" },
+        cache: "no-store",
+        signal: AbortSignal.timeout(3000),
+      }
+    );
+    if (!res.ok) return null;
+    const json = await res.json();
+    const meta = json?.chart?.result?.[0]?.meta;
+    const price = Number(meta?.regularMarketPrice);
+    const prev = Number(meta?.chartPreviousClose) || price;
+    if (!(price > 0)) return null;
+    const changePct = prev > 0 ? Number((((price - prev) / prev) * 100).toFixed(2)) : 0;
+    return {
+      price,
+      changePct,
+      name: meta?.shortName || meta?.symbol,
+    };
+  } catch {
+    return null;
+  }
+}
 
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0",
-        Referer: "https://mis.twse.com.tw/stock/fibest.jsp",
-      },
-      cache: "no-store",
-      signal: AbortSignal.timeout(4500),
+async function enrichHoldings(rawHoldings: IncomingHolding[]): Promise<HoldingLineItem[]> {
+  if (!Array.isArray(rawHoldings) || rawHoldings.length === 0) return [];
+
+  const uniqueMap = new Map<string, IncomingHolding>();
+  for (const h of rawHoldings) {
+    const sym = String(h?.symbol || "").trim().toUpperCase();
+    const shares = Number(h?.shares ?? 0);
+    if (!sym || shares <= 0) continue;
+    if (!uniqueMap.has(sym)) uniqueMap.set(sym, { ...h, symbol: sym, shares });
+  }
+  const list = Array.from(uniqueMap.values()).slice(0, 10);
+  if (list.length === 0) return [];
+
+  const twCodes = list.filter((h) => /^\d{4,6}[A-Z]?$/i.test(h.symbol));
+  const nonTwList = list.filter((h) => !/^\d{4,6}[A-Z]?$/i.test(h.symbol));
+
+  const twLiveMap = new Map<string, RankedStockItem>();
+  if (twCodes.length > 0) {
+    const marketCache = await getCachedTwMarketData().catch(() => null);
+    const knownByCode = new Map<string, RankedStockItem>();
+    const tpexSet = new Set<string>();
+    for (const s of marketCache?.twseAll || []) knownByCode.set(s.symbol, s);
+    for (const s of marketCache?.tpexAll || []) {
+      knownByCode.set(s.symbol, s);
+      tpexSet.add(s.symbol);
+    }
+
+    const candidates: RankedStockItem[] = twCodes.map((h) => {
+      const found = knownByCode.get(h.symbol);
+      if (found) return found;
+      return {
+        symbol: h.symbol,
+        name: h.name || h.symbol,
+        market: "TWSE",
+        price: Number(h.current_price || h.avg_price || 0),
+        change: 0,
+        change_pct: 0,
+        volume: 0,
+        volume_lots: 0,
+        turnover_b: 0,
+        date: "",
+        stale: false,
+        is_etf: h.symbol.startsWith("00"),
+      };
     });
 
-    if (res.ok) {
-      const json = await res.json();
-      const arr = Array.isArray(json?.msgArray) ? json.msgArray : [];
-      for (const m of arr) {
-        if (!m?.c) continue;
-        const z = parseP(m.z);
-        const pz = parseP(m.pz);
-        const bid = parseBest(m.b);
-        const ask = parseBest(m.a);
-        const o = parseP(m.o);
-        const y = parseP(m.y);
-        const v = parseP(m.v);
+    const enriched = await enrichAllWithRealtimeTwse(candidates, tpexSet);
+    for (const [k, v] of enriched.entries()) twLiveMap.set(k, v);
+  }
 
-        const price = z > 0 ? z : pz > 0 ? pz : bid > 0 ? bid : ask > 0 ? ask : o > 0 ? o : y;
-        if (price <= 0) continue;
-
-        const prev = y > 0 ? y : price;
-        const chg = Number((price - prev).toFixed(2));
-        const pct = prev > 0 ? Number(((chg / prev) * 100).toFixed(2)) : 0;
-
-        results.push({
-          symbol: String(m.c).toUpperCase(),
-          name: m.n ? String(m.n).trim() : String(m.c),
-          price,
-          change: chg,
-          changePct: pct,
-          volumeLots: Math.round(v),
-        });
-      }
-    }
-  } catch {}
-
-  // 若 TWSE MIS 休市或未取得，使用 Yahoo Finance 補齊
-  if (results.length === 0) {
+  const nonTwLiveMap = new Map<string, { price: number; changePct: number; name?: string }>();
+  if (nonTwList.length > 0) {
     await Promise.allSettled(
-      targetList.slice(0, 5).map(async (item) => {
-        try {
-          const yfRes = await fetch(
-            `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-              item.symbol + ".TW"
-            )}?range=1d&interval=1d`,
-            {
-              headers: { "User-Agent": "Mozilla/5.0" },
-              signal: AbortSignal.timeout(3000),
-            }
-          );
-          if (!yfRes.ok) return;
-          const j = await yfRes.json();
-          const meta = j?.chart?.result?.[0]?.meta;
-          const p = Number(meta?.regularMarketPrice);
-          const prev = Number(meta?.chartPreviousClose) || p;
-          const vol = Math.round((Number(meta?.regularMarketVolume) || 0) / 1000);
-          if (p > 0) {
-            const chg = Number((p - prev).toFixed(2));
-            const pct = prev > 0 ? Number(((chg / prev) * 100).toFixed(2)) : 0;
-            results.push({
-              symbol: item.symbol,
-              name: item.name,
-              price: p,
-              change: chg,
-              changePct: pct,
-              volumeLots: vol,
-            });
-          }
-        } catch {}
+      nonTwList.map(async (h) => {
+        const q = await fetchYahooSingleQuote(h.symbol);
+        if (q) nonTwLiveMap.set(h.symbol, q);
       })
     );
   }
 
-  return results;
+  return list.map((h) => {
+    const tw = twLiveMap.get(h.symbol);
+    const nonTw = nonTwLiveMap.get(h.symbol);
+    const livePrice = tw?.price || nonTw?.price || Number(h.current_price || 0);
+    const changePct = tw ? tw.change_pct : nonTw ? nonTw.changePct : 0;
+    const avgPrice = Number(h.avg_price || 0);
+    const pnlPct =
+      avgPrice > 0 && livePrice > 0
+        ? Number((((livePrice - avgPrice) / avgPrice) * 100).toFixed(2))
+        : typeof h.pnl_pct === "number"
+        ? h.pnl_pct
+        : undefined;
+
+    return {
+      symbol: h.symbol,
+      name: tw?.name || h.name || nonTw?.name || h.symbol,
+      shares: Number(h.shares || 0),
+      price: livePrice,
+      changePct,
+      pnlPct,
+      source: h.source,
+    };
+  });
 }
 
-async function runAutoNotify(customSymbols?: string[]) {
+async function runAutoNotify(holdingsInput?: IncomingHolding[]) {
   const tokenRes = await resolveChannelAccessToken();
   if (!tokenRes.token) {
     return NextResponse.json(
@@ -150,47 +156,72 @@ async function runAutoNotify(customSymbols?: string[]) {
     );
   }
 
-  const snaps = await fetchRealtimePoolQuotes(customSymbols);
-  if (snaps.length === 0) {
+  // 1. 取得當日即時熱門排行榜（上市+上櫃成交量前 10 大）與同步庫存
+  const [rankings, enrichedHoldings] = await Promise.all([
+    getRealtimeMarketRankings({ limit: 10, sortBy: "volume" }),
+    enrichHoldings(holdingsInput || []),
+  ]);
+
+  const combinedHot = [...(rankings.twse || []), ...(rankings.tpex || [])]
+    .filter((s) => s.price > 0)
+    .sort(
+      (a, b) =>
+        (b.volume_lots || 0) - (a.volume_lots || 0) ||
+        (b.turnover_b || 0) - (a.turnover_b || 0)
+    );
+
+  // 去重取嚴格前 10 檔
+  const seenHot = new Set<string>();
+  const hotTop10: HotRankLineItem[] = [];
+  for (const s of combinedHot) {
+    if (seenHot.has(s.symbol)) continue;
+    seenHot.add(s.symbol);
+    hotTop10.push({
+      rank: hotTop10.length + 1,
+      symbol: s.symbol,
+      name: s.name,
+      price: s.price,
+      changePct: s.change_pct,
+      volumeLots: s.volume_lots,
+    });
+    if (hotTop10.length >= 10) break;
+  }
+
+  if (hotTop10.length === 0) {
     return NextResponse.json(
-      { success: false, error: "目前無法取得即時市場報價" },
+      { success: false, error: "目前無法取得當日熱門 10 檔行情資料" },
       { status: 500 }
     );
   }
 
-  // 挑選當下異動最顯著（絕對漲跌幅最大或成交量最大）的領頭標的進行主動通報
-  snaps.sort(
-    (a, b) => Math.abs(b.changePct) - Math.abs(a.changePct) || b.volumeLots - a.volumeLots
-  );
-  const top = snaps[0];
+  // 2. 抓取「當天熱門 10 檔」與「使用者庫存持股」最新新聞快訊
+  const hotQuery = hotTop10
+    .slice(0, 3)
+    .map((s) => `${s.name} ${s.symbol}`)
+    .join(" OR ");
+  const holdingQuery =
+    enrichedHoldings.length > 0
+      ? enrichedHoldings
+          .slice(0, 4)
+          .map((h) => `${h.name} ${h.symbol}`)
+          .join(" OR ")
+      : "";
 
-  const isUp = top.changePct >= 0;
-  let triggerName = "熊霸主動巡檢 · 盤中主力焦點";
-  let triggerDesc = `即時成交 ${top.volumeLots.toLocaleString()} 張，目前報價 NT$${top.price} (${
-    isUp ? "+" : ""
-  }${top.changePct}%)，系統持續鎖定籌碼異動。`;
+  const [hotNews, holdingNews] = await Promise.all([
+    fetchStockNewsQuery(hotQuery, 3),
+    holdingQuery ? fetchStockNewsQuery(holdingQuery, 3) : Promise.resolve([]),
+  ]);
 
-  if (top.changePct >= 2.0) {
-    triggerName = "主力大單敲進 · 強勢放量突破";
-    triggerDesc = `盤中帶量強攻 +${top.changePct}%（成交 ${top.volumeLots.toLocaleString()} 張），突破短期均線壓力區，多方動能強勁！`;
-  } else if (top.changePct <= -2.0) {
-    triggerName = "盤中震盪回測 · 機構支撐防守";
-    triggerDesc = `盤中回檔 ${top.changePct}%（成交 ${top.volumeLots.toLocaleString()} 張），進入下方 SMC 機構訂單塊觀察區，注意停損防守紀律。`;
-  }
-
-  const radarData: RadarSignalData = {
-    symbol: top.symbol,
-    name: top.name,
-    price: top.price,
-    change: top.change,
-    changePct: top.changePct,
-    volumeLots: top.volumeLots,
-    triggerName,
-    triggerDesc,
-    category: isUp ? "BREAKOUT" : "VOLUME",
-  };
-
-  const flexMsg = createRadarAlertFlexCard(radarData);
+  const phase = getTwMarketPhase();
+  const flexMsg = createHotAndHoldingsDailyFlex({
+    date: rankings.date || phase.clock.dateStr,
+    timeLabel: phase.clock.formattedTime.slice(0, 5),
+    marketStatusLabel: phase.label,
+    hotTop10,
+    hotNews,
+    holdings: enrichedHoldings,
+    holdingNews,
+  });
 
   const lineRes = await fetch("https://api.line.me/v2/bot/message/broadcast", {
     method: "POST",
@@ -212,10 +243,25 @@ async function runAutoNotify(customSymbols?: string[]) {
     );
   }
 
+  const top1 = hotTop10[0];
+  const triggerName = `當日熱門10檔 + 庫存(${enrichedHoldings.length}檔)消息`;
+
   return NextResponse.json({
     success: true,
+    mode: "hot10_and_holdings",
     notifiedAt: new Date().toISOString(),
-    target: top,
+    date: rankings.date || phase.clock.dateStr,
+    target: {
+      symbol: top1.symbol,
+      name: top1.name,
+      price: top1.price,
+      changePct: top1.changePct,
+      volumeLots: top1.volumeLots,
+    },
+    hotTop10,
+    holdings: enrichedHoldings,
+    hotNewsCount: hotNews.length,
+    holdingNewsCount: holdingNews.length,
     triggerName,
   });
 }
@@ -226,6 +272,6 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const symbols = Array.isArray(body?.symbols) ? body.symbols : undefined;
-  return runAutoNotify(symbols);
+  const holdings = Array.isArray(body?.holdings) ? body.holdings : [];
+  return runAutoNotify(holdings);
 }

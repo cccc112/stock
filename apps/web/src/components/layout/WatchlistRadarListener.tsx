@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   runWatchlistRadarScan,
-  getWatchlistSymbols,
   isMarketTradingHours,
   isNotificationSupported,
   getNotificationPermission,
   requestNotificationPermission,
   RadarAlertEvent,
 } from "@/lib/watchlistRadar";
+import { refreshSyncedHoldingsFromApi } from "@/lib/holdingsSync";
+import { getTaipeiClock } from "@/lib/marketHours";
 import { Bell, BellOff, X, ExternalLink, Zap, AlertTriangle, TrendingUp } from "lucide-react";
 
 export default function WatchlistRadarListener() {
@@ -67,18 +68,21 @@ export default function WatchlistRadarListener() {
         await runWatchlistRadarScan();
       }
 
-      // 檢查是否啟用 LINE 自動主動通報巡檢 (預設開啟，每 25 分鐘自動巡檢一次避免洗版)
+      // 檢查是否啟用 LINE 自動主動通報巡檢（嚴格僅於台股交易與盤後整理時段 09:00~14:15 觸發，且只報熱門10檔+庫存消息）
       const lineAutoEnabled = localStorage.getItem("line_auto_push_enabled") !== "false";
-      if (lineAutoEnabled) {
+      const twClock = getTaipeiClock();
+      const inLineAutoWindow = twClock.isWeekday && twClock.hhmm >= 900 && twClock.hhmm <= 1415;
+
+      if (lineAutoEnabled && inLineAutoWindow) {
         const lastCronTs = Number(localStorage.getItem("last_auto_line_cron_ts") || 0);
         const now = Date.now();
         if (now - lastCronTs > 25 * 60 * 1000) {
           localStorage.setItem("last_auto_line_cron_ts", String(now));
-          const symbols = getWatchlistSymbols();
+          const holdings = await refreshSyncedHoldingsFromApi(1800);
           fetch("/api/line/auto-notify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ symbols }),
+            body: JSON.stringify({ holdings }),
           })
             .then((r) => r.json())
             .then((data) => {
@@ -86,7 +90,7 @@ export default function WatchlistRadarListener() {
                 const logItem = {
                   symbol: data.target.symbol,
                   name: data.target.name,
-                  title: data.triggerName || "熊霸定時主動巡檢",
+                  title: data.triggerName || "當日熱門10檔 + 庫存消息",
                   price: data.target.price,
                   changePct: data.target.changePct,
                   time: new Date().toLocaleTimeString("zh-TW", { hour12: false }),

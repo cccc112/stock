@@ -10,6 +10,7 @@ import TransactionForm from "@/components/portfolio/TransactionForm";
 import SimulatorPage from "@/app/simulator/page";
 import { Plus } from "lucide-react";
 import { apiPortfolio } from "@/lib/api";
+import { saveSyncedRealHoldings } from "@/lib/holdingsSync";
 
 export default function PortfolioPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -24,6 +25,7 @@ export default function PortfolioPage() {
         apiPortfolio.getSummary(),
       ]);
       setHoldings(holdingsRes.data);
+      saveSyncedRealHoldings(holdingsRes.data);
       setSummary(summaryRes.data);
     } catch (e) {
       console.error(e);

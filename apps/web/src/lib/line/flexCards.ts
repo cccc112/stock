@@ -398,3 +398,412 @@ export function createWelcomeFlexCard(bindingCode: string) {
     },
   };
 }
+
+export interface HotRankLineItem {
+  rank: number;
+  symbol: string;
+  name: string;
+  price: number;
+  changePct: number;
+  volumeLots: number;
+}
+
+export interface HoldingLineItem {
+  symbol: string;
+  name: string;
+  shares: number;
+  price: number;
+  changePct: number;
+  pnlPct?: number;
+  source?: string;
+}
+
+export interface HeadlineLineItem {
+  title: string;
+  source: string;
+  link: string;
+}
+
+export interface HotAndHoldingsDailyData {
+  date: string;
+  timeLabel: string;
+  marketStatusLabel: string;
+  hotTop10: HotRankLineItem[];
+  hotNews: HeadlineLineItem[];
+  holdings: HoldingLineItem[];
+  holdingNews: HeadlineLineItem[];
+}
+
+/**
+ * 4. 專屬「當日熱門 10 檔 + 庫存持股 & 新聞消息」雙卡精選日報 (Carousel)
+ */
+export function createHotAndHoldingsDailyFlex(data: HotAndHoldingsDailyData) {
+  const safeText = (v: unknown, fallback = "—") => {
+    const s = String(v ?? "").trim();
+    return s.length > 0 ? s : fallback;
+  };
+
+  const hotRows = data.hotTop10.slice(0, 10).map((item) => {
+    const isUp = item.changePct > 0;
+    const isDown = item.changePct < 0;
+    const pctColor = isUp ? "#dc2626" : isDown ? "#059669" : "#475569";
+    const pctSign = isUp ? "+" : "";
+    const volText =
+      item.volumeLots >= 10000
+        ? `${(item.volumeLots / 10000).toFixed(1)}萬張`
+        : `${item.volumeLots.toLocaleString()}張`;
+
+    return {
+      type: "box",
+      layout: "horizontal",
+      spacing: "sm",
+      alignItems: "center",
+      paddingTop: "4px",
+      paddingBottom: "4px",
+      contents: [
+        {
+          type: "text",
+          text: `${item.rank}.`,
+          size: "xs",
+          weight: "bold",
+          color: item.rank <= 3 ? "#d97706" : "#64748b",
+          flex: 1,
+        },
+        {
+          type: "text",
+          text: `${safeText(item.symbol)} ${safeText(item.name)}`.slice(0, 14),
+          size: "xs",
+          weight: "bold",
+          color: "#0f172a",
+          flex: 5,
+          wrap: false,
+        },
+        {
+          type: "text",
+          text: `$${Number(item.price || 0).toFixed(item.price >= 100 ? 1 : 2)}`,
+          size: "xs",
+          color: "#0f172a",
+          align: "end",
+          flex: 2,
+        },
+        {
+          type: "text",
+          text: `${pctSign}${Number(item.changePct || 0).toFixed(2)}%`,
+          size: "xs",
+          weight: "bold",
+          color: pctColor,
+          align: "end",
+          flex: 3,
+        },
+        {
+          type: "text",
+          text: volText,
+          size: "xxs",
+          color: "#64748b",
+          align: "end",
+          flex: 2,
+        },
+      ],
+      action: {
+        type: "uri",
+        label: item.symbol,
+        uri: `https://stock-green-ten.vercel.app/stock/${encodeURIComponent(item.symbol)}`,
+      },
+    };
+  });
+
+  const buildNewsSection = (title: string, news: HeadlineLineItem[]) => {
+    const items =
+      news.length > 0
+        ? news.slice(0, 3).map((n) => ({
+            type: "box",
+            layout: "vertical",
+            paddingTop: "6px",
+            contents: [
+              {
+                type: "text",
+                text: `• ${safeText(n.title).slice(0, 48)}`,
+                size: "xs",
+                color: "#1e293b",
+                wrap: true,
+                maxLines: 2,
+              },
+              {
+                type: "text",
+                text: safeText(n.source, "財經新聞"),
+                size: "xxs",
+                color: "#64748b",
+                margin: "xs",
+              },
+            ],
+            action: {
+              type: "uri",
+              label: "閱讀",
+              uri:
+                n.link && /^https?:\/\//i.test(n.link) && n.link.length <= 900
+                  ? n.link
+                  : "https://stock-green-ten.vercel.app/news",
+            },
+          }))
+        : [
+            {
+              type: "text",
+              text: "暫無最新重大相關新聞",
+              size: "xs",
+              color: "#64748b",
+              margin: "sm",
+            },
+          ];
+
+    return {
+      type: "box",
+      layout: "vertical",
+      margin: "md",
+      paddingAll: "10px",
+      backgroundColor: "#f8fafc",
+      cornerRadius: "8px",
+      contents: [
+        {
+          type: "text",
+          text: title,
+          size: "xs",
+          weight: "bold",
+          color: "#0f172a",
+        },
+        ...items,
+      ],
+    };
+  };
+
+  const hotBubble = {
+    type: "bubble",
+    size: "mega",
+    header: {
+      type: "box",
+      layout: "vertical",
+      backgroundColor: "#090d16",
+      paddingAll: "14px",
+      contents: [
+        {
+          type: "box",
+          layout: "horizontal",
+          justifyContent: "space-between",
+          contents: [
+            {
+              type: "text",
+              text: "今日台股熱門 TOP 10",
+              color: "#f59e0b",
+              weight: "bold",
+              size: "sm",
+            },
+            {
+              type: "text",
+              text: safeText(data.marketStatusLabel, "即時"),
+              color: "#34d399",
+              weight: "bold",
+              size: "xs",
+              align: "end",
+            },
+          ],
+        },
+        {
+          type: "text",
+          text: `${safeText(data.date)} · ${safeText(data.timeLabel)} 成交量焦點榜`,
+          color: "#94a3b8",
+          size: "xxs",
+          margin: "xs",
+        },
+      ],
+    },
+    body: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "12px",
+      contents: [
+        ...(hotRows.length > 0
+          ? hotRows
+          : [{ type: "text", text: "目前無熱門排行榜資料", size: "xs", color: "#64748b" }]),
+        buildNewsSection("🔥 熱門焦點最新新聞", data.hotNews),
+      ],
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "10px",
+      contents: [
+        {
+          type: "button",
+          style: "primary",
+          color: "#0f172a",
+          height: "sm",
+          action: {
+            type: "uri",
+            label: "前往 OmniTick 熱門戰情室",
+            uri: "https://stock-green-ten.vercel.app/dashboard",
+          },
+        },
+      ],
+    },
+  };
+
+  const holdingRows =
+    data.holdings.length > 0
+      ? data.holdings.slice(0, 8).map((h) => {
+          const isUp = h.changePct > 0;
+          const isDown = h.changePct < 0;
+          const pctColor = isUp ? "#dc2626" : isDown ? "#059669" : "#475569";
+          const sign = isUp ? "+" : "";
+          const pnlText =
+            typeof h.pnlPct === "number" && Number.isFinite(h.pnlPct)
+              ? `損益 ${h.pnlPct >= 0 ? "+" : ""}${h.pnlPct.toFixed(1)}%`
+              : `${h.shares.toLocaleString()} 股`;
+
+          return {
+            type: "box",
+            layout: "horizontal",
+            spacing: "sm",
+            alignItems: "center",
+            paddingTop: "5px",
+            paddingBottom: "5px",
+            contents: [
+              {
+                type: "text",
+                text: `${safeText(h.symbol)} ${safeText(h.name)}`.slice(0, 14),
+                size: "xs",
+                weight: "bold",
+                color: "#0f172a",
+                flex: 5,
+              },
+              {
+                type: "text",
+                text:
+                  h.price > 0
+                    ? `$${Number(h.price).toFixed(h.price >= 100 ? 1 : 2)}`
+                    : "—",
+                size: "xs",
+                color: "#0f172a",
+                align: "end",
+                flex: 2,
+              },
+              {
+                type: "text",
+                text: `${sign}${Number(h.changePct || 0).toFixed(2)}%`,
+                size: "xs",
+                weight: "bold",
+                color: pctColor,
+                align: "end",
+                flex: 2,
+              },
+              {
+                type: "text",
+                text: pnlText,
+                size: "xxs",
+                color: "#64748b",
+                align: "end",
+                flex: 3,
+              },
+            ],
+            action: {
+              type: "uri",
+              label: h.symbol,
+              uri: `https://stock-green-ten.vercel.app/stock/${encodeURIComponent(h.symbol)}`,
+            },
+          };
+        })
+      : [
+          {
+            type: "text",
+            text: "尚未偵測到您的真實/模擬庫存持股。前往「投資組合」新增持股後，LINE 主動通報將為您追蹤庫存損益與相關新聞！",
+            size: "xs",
+            color: "#64748b",
+            wrap: true,
+          },
+        ];
+
+  const holdingBubble = {
+    type: "bubble",
+    size: "mega",
+    header: {
+      type: "box",
+      layout: "vertical",
+      backgroundColor: "#0f172a",
+      paddingAll: "14px",
+      contents: [
+        {
+          type: "box",
+          layout: "horizontal",
+          justifyContent: "space-between",
+          contents: [
+            {
+              type: "text",
+              text: "庫存持股即時消息",
+              color: "#38bdf8",
+              weight: "bold",
+              size: "sm",
+            },
+            {
+              type: "text",
+              text: `${data.holdings.length} 檔持股`,
+              color: "#f8fafc",
+              weight: "bold",
+              size: "xs",
+              align: "end",
+            },
+          ],
+        },
+        {
+          type: "text",
+          text: `${safeText(data.date)} · 專屬部位追蹤與持股新聞快訊`,
+          color: "#94a3b8",
+          size: "xxs",
+          margin: "xs",
+        },
+      ],
+    },
+    body: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "12px",
+      contents: [
+        ...holdingRows,
+        ...(data.holdings.length > 0
+          ? [buildNewsSection("📰 庫存相關重要新聞", data.holdingNews)]
+          : []),
+      ],
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "10px",
+      contents: [
+        {
+          type: "button",
+          style: "primary",
+          color: "#059669",
+          height: "sm",
+          action: {
+            type: "uri",
+            label: "管理我的投資組合與庫存",
+            uri: "https://stock-green-ten.vercel.app/portfolio",
+          },
+        },
+      ],
+    },
+  };
+
+  const top1 = data.hotTop10[0];
+  const altPrefix = top1
+    ? `當日熱門10檔領頭: ${top1.symbol} ${top1.name} $${top1.price} (${
+        top1.changePct >= 0 ? "+" : ""
+      }${top1.changePct}%)`
+    : "今日台股熱門 TOP 10";
+
+  return {
+    type: "flex",
+    altText: `【OmniTick】${altPrefix} ｜ 庫存 ${data.holdings.length} 檔消息快報`.slice(0, 390),
+    contents: {
+      type: "carousel",
+      contents: [hotBubble, holdingBubble],
+    },
+  };
+}

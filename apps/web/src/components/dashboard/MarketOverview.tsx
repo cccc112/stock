@@ -7,6 +7,7 @@ import Badge from "@/components/ui/Badge";
 import { apiStocks } from "@/lib/api";
 import AnimatedPrice from "@/components/ui/AnimatedPrice";
 import { getCurrentUserNamespace } from "@/hooks/useAuth";
+import { isTwMarketTradingHours, isUsMarketTradingHours } from "@/lib/marketHours";
 import {
   Plus,
   Settings2,
@@ -29,39 +30,51 @@ interface OverviewCardItem {
   market: "TW" | "US";
 }
 
+function inferCardMarket(symbol: string): "TW" | "US" {
+  const s = symbol.trim().toUpperCase();
+  if (s === "^TWII" || s === "^TWOII" || s === "TWD=X" || /\.TWO?$/.test(s) || /^\d{4,6}[A-Z]*$/.test(s)) {
+    return "TW";
+  }
+  return "US";
+}
+
 const DEFAULT_CARDS: Omit<OverviewCardItem, "price" | "change" | "change_pct">[] = [
   { id: "TWII", symbol: "^TWII", name: "台股加權指數", market: "TW" },
-  { id: "2330", symbol: "2330", name: "台積電", market: "TW" },
-  { id: "2317", symbol: "2317", name: "鴻海", market: "TW" },
-  { id: "2454", symbol: "2454", name: "聯發科", market: "TW" },
-  { id: "SOX", symbol: "^SOX", name: "費城半導體", market: "TW" },
-  { id: "NVDA", symbol: "NVDA", name: "NVIDIA (輝達)", market: "TW" },
-  { id: "BTC", symbol: "BTC-USD", name: "比特幣 (BTC)", market: "TW" },
+  { id: "GSPC", symbol: "^GSPC", name: "S&P 500 指數", market: "US" },
+  { id: "IXIC", symbol: "^IXIC", name: "那斯達克指數", market: "US" },
+  { id: "SOX", symbol: "^SOX", name: "費城半導體", market: "US" },
+  { id: "BTC", symbol: "BTC-USD", name: "比特幣 (BTC)", market: "US" },
+  { id: "GOLD", symbol: "GC=F", name: "黃金期貨", market: "US" },
   { id: "USDTWD", symbol: "TWD=X", name: "美元/台幣", market: "TW" },
+  { id: "TNX", symbol: "^TNX", name: "美債10年殖利率", market: "US" },
 ];
+
+// 舊版預設個別股清單，若偵測到未經使用者手動調整的舊預設配置則自動升級回指標性預設值
+const LEGACY_UNEDITED_SYMBOLS = ["^TWII", "2330", "2317", "2454", "^SOX", "NVDA", "BTC-USD", "TWD=X"];
 
 const QUICK_PRESETS: { symbol: string; name: string }[] = [
   { symbol: "^TWII", name: "台股加權指數" },
+  { symbol: "^TWOII", name: "櫃買指數" },
+  { symbol: "^GSPC", name: "S&P 500 指數" },
+  { symbol: "^IXIC", name: "那斯達克指數" },
+  { symbol: "^SOX", name: "費城半導體" },
+  { symbol: "^VIX", name: "VIX 恐慌指數" },
+  { symbol: "^TNX", name: "美債10年殖利率" },
+  { symbol: "BTC-USD", name: "比特幣 (BTC)" },
+  { symbol: "GC=F", name: "黃金期貨" },
+  { symbol: "CL=F", name: "WTI 原油" },
+  { symbol: "TWD=X", name: "美元/台幣" },
+  { symbol: "TSM", name: "台積電 ADR" },
   { symbol: "2330", name: "台積電" },
   { symbol: "2317", name: "鴻海" },
   { symbol: "2454", name: "聯發科" },
   { symbol: "2603", name: "長榮" },
-  { symbol: "3231", name: "緯創" },
-  { symbol: "2382", name: "廣達" },
-  { symbol: "3017", name: "奇鋐" },
   { symbol: "0050", name: "元大台灣50" },
   { symbol: "00878", name: "國泰永續高股息" },
   { symbol: "00919", name: "群益台灣精選高息" },
-  { symbol: "^GSPC", name: "S&P 500" },
-  { symbol: "^IXIC", name: "Nasdaq 綜合" },
-  { symbol: "^SOX", name: "費城半導體" },
   { symbol: "NVDA", name: "NVIDIA (輝達)" },
   { symbol: "TSLA", name: "Tesla (特斯拉)" },
   { symbol: "AAPL", name: "Apple (蘋果)" },
-  { symbol: "BTC-USD", name: "比特幣 (BTC)" },
-  { symbol: "GC=F", name: "黃金期貨" },
-  { symbol: "TWD=X", name: "美元/台幣" },
-  { symbol: "^TNX", name: "美債10年殖利率" },
 ];
 
 const STORAGE_BASE_KEY = "dashboard_custom_overview_cards_v1";
@@ -89,17 +102,33 @@ export default function MarketOverview() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setCards(
-            parsed.map((item: any) => ({
-              id: item.symbol || item.id,
-              symbol: String(item.symbol).toUpperCase(),
-              name: item.name || item.symbol,
-              market: "TW",
-              price: Number(item.price) || 0,
-              change: Number(item.change) || 0,
-              change_pct: Number(item.change_pct) || 0,
-            }))
-          );
+          const isLegacyUnedited =
+            parsed.length === LEGACY_UNEDITED_SYMBOLS.length &&
+            parsed.every(
+              (item: any, i: number) =>
+                String(item?.symbol || "").toUpperCase() === LEGACY_UNEDITED_SYMBOLS[i]
+            );
+
+          if (isLegacyUnedited) {
+            const migrated = DEFAULT_CARDS.map((i) => ({ ...i, price: 0, change: 0, change_pct: 0 }));
+            setCards(migrated);
+            localStorage.setItem(getStorageKey(), JSON.stringify(DEFAULT_CARDS));
+          } else {
+            setCards(
+              parsed.map((item: any) => {
+                const sym = String(item.symbol).toUpperCase();
+                return {
+                  id: item.symbol || item.id,
+                  symbol: sym,
+                  name: item.name || item.symbol,
+                  market: item.market === "US" || item.market === "TW" ? item.market : inferCardMarket(sym),
+                  price: Number(item.price) || 0,
+                  change: Number(item.change) || 0,
+                  change_pct: Number(item.change_pct) || 0,
+                };
+              })
+            );
+          }
         }
       }
     } catch {}
@@ -181,9 +210,10 @@ export default function MarketOverview() {
   useEffect(() => {
     if (!initialized) return;
     fetchQuotesForCards(cards);
+    const pollMs = isTwMarketTradingHours(true) || isUsMarketTradingHours() ? 5000 : 30000;
     const timer = setInterval(() => {
       fetchQuotesForCards(cards);
-    }, 5000);
+    }, pollMs);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialized, symbolsSignature, fetchQuotesForCards]);
@@ -221,7 +251,7 @@ export default function MarketOverview() {
       price: 0,
       change: 0,
       change_pct: 0,
-      market: "TW",
+      market: inferCardMarket(sym),
     };
     const next = [...cards, newCard];
     setCards(next);
