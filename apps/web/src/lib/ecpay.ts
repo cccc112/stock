@@ -20,10 +20,10 @@ export interface PeriodicalOrderParams {
 
 // 綠界官方測試環境（沙盒 Stage）預設參數
 export const DEFAULT_ECPAY_CONFIG: ECPayPeriodicalConfig = {
-  MerchantID: process.env.ECPAY_MERCHANT_ID || "3002607", // 測試商店代號
-  HashKey: process.env.ECPAY_HASH_KEY || "pwFHCqoQZGmho4w6",
-  HashIV: process.env.ECPAY_HASH_IV || "EkRm7iFT261dpevs",
-  isTestMode: process.env.NODE_ENV !== "production" || !process.env.ECPAY_MERCHANT_ID,
+  MerchantID: process.env.ECPAY_MERCHANT_ID?.trim() || "3002607", // 測試商店代號
+  HashKey: process.env.ECPAY_HASH_KEY?.trim() || "pwFHCqoQZGmho4w6",
+  HashIV: process.env.ECPAY_HASH_IV?.trim() || "EkRm7iFT261dpevs",
+  isTestMode: !process.env.ECPAY_MERCHANT_ID?.trim() || process.env.ECPAY_TEST_MODE === "true",
 };
 
 /**
@@ -31,7 +31,7 @@ export const DEFAULT_ECPAY_CONFIG: ECPayPeriodicalConfig = {
  * 規格：參數依 Key 由 A~Z 排序，前後串接 HashKey 與 HashIV，UrlEncode 後轉小寫，SHA-256 後轉大寫
  */
 export function generateCheckMacValue(
-  params: Record<string, any>,
+  params: Record<string, string | number>,
   hashKey: string = DEFAULT_ECPAY_CONFIG.HashKey,
   hashIV: string = DEFAULT_ECPAY_CONFIG.HashIV
 ): string {
@@ -64,7 +64,7 @@ export function buildPeriodicalPaymentParams(
   order: PeriodicalOrderParams,
   config: ECPayPeriodicalConfig = DEFAULT_ECPAY_CONFIG
 ) {
-  const params: Record<string, any> = {
+  const params: Record<string, string | number> = {
     MerchantID: config.MerchantID,
     MerchantTradeNo: order.merchantTradeNo,
     MerchantTradeDate: order.merchantTradeDate,
@@ -98,7 +98,7 @@ export function buildPeriodicalPaymentParams(
  * 驗證綠界回傳之 Webhook 壓碼是否合法 (含防止時序攻擊 timingSafeEqual)
  */
 export function verifyECPayCallback(
-  callbackData: Record<string, any>,
+  callbackData: Record<string, string | number>,
   hashKey: string = DEFAULT_ECPAY_CONFIG.HashKey,
   hashIV: string = DEFAULT_ECPAY_CONFIG.HashIV
 ): boolean {

@@ -17,7 +17,6 @@ import {
   Send,
   Loader2,
   Radio,
-  Landmark,
   ShieldCheck,
   X,
 } from "lucide-react";
@@ -48,31 +47,27 @@ interface VipStatus {
   plan: "standard" | "pro";
   orderId: string;
   activatedAt: string;
-  last5Digits?: string;
 }
 
-const BANK_INFO = {
-  bankName: process.env.NEXT_PUBLIC_BANK_NAME || "822 中國信託商業銀行",
-  accountNumber: process.env.NEXT_PUBLIC_BANK_ACCOUNT || "9015-4088-2330",
-  accountNote: "轉帳完成後填寫下方「帳號後 5 碼」，系統將立即透過 LINE 傳送開通憑證並解鎖 VIP！",
-};
+interface CardGatewayStatus {
+  provider: string;
+  mode: "production" | "sandbox";
+  label: string;
+}
 
 export default function LineBindingCard({ compact = false }: LineBindingCardProps) {
   const [bindCode, setBindCode] = useState("");
   const [copied, setCopied] = useState(false);
-  const [copiedBank, setCopiedBank] = useState(false);
   const [trialDaysLeft] = useState(14);
   const [subscribingPlan, setSubscribingPlan] = useState<"standard" | "pro" | null>(null);
   const [botInfo, setBotInfo] = useState<BotInfo | null>(null);
 
-  // 雙通道收銀台彈窗狀態
+  // 線上刷卡收銀台狀態
   const [checkoutPlan, setCheckoutPlan] = useState<"standard" | "pro" | null>(null);
-  const [paymentChannel, setPaymentChannel] = useState<"bank" | "card">("bank");
-  const [bankCode, setBankCode] = useState("");
-  const [last5Digits, setLast5Digits] = useState("");
-  const [isSubmittingBank, setIsSubmittingBank] = useState(false);
-  const [bankError, setBankError] = useState("");
+  const [cardError, setCardError] = useState("");
+  const [gatewayStatus, setGatewayStatus] = useState<CardGatewayStatus | null>(null);
   const [vipStatus, setVipStatus] = useState<VipStatus | null>(null);
+  const [paymentSuccessNotice, setPaymentSuccessNotice] = useState("");
 
   // LINE 主動通報狀態
   const [autoPushEnabled, setAutoPushEnabled] = useState(true);
@@ -81,40 +76,86 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
   const [notifyFeedback, setNotifyFeedback] = useState<string>("");
 
   useEffect(() => {
-    const ns = getCurrentUserNamespace();
-    const storageKey = `line_bind_code_${ns}`;
-    let code = localStorage.getItem(storageKey);
-    if (!code) {
-      code = "V" + Math.floor(100000 + Math.random() * 900000);
-      localStorage.setItem(storageKey, code);
-    }
-    setBindCode(code);
+    let alive = true;
+    queueMicrotask(() => {
+      if (!alive) return;
+      const ns = getCurrentUserNamespace();
+      const storageKey = `line_bind_code_${ns}`;
+      let code = localStorage.getItem(storageKey);
+      if (!code) {
+        code = "V" + Math.floor(100000 + Math.random() * 900000);
+        localStorage.setItem(storageKey, code);
+      }
+      setBindCode(code);
 
-    const enabled = localStorage.getItem("line_auto_push_enabled") !== "false";
-    setAutoPushEnabled(enabled);
+      const enabled = localStorage.getItem("line_auto_push_enabled") !== "false";
+      setAutoPushEnabled(enabled);
 
-    try {
-      const savedLog = localStorage.getItem("last_line_auto_push_log");
-      if (savedLog) setLastPushLog(JSON.parse(savedLog));
-      const savedVip = localStorage.getItem("omnitick_vip_status");
-      if (savedVip) setVipStatus(JSON.parse(savedVip));
-    } catch {}
+      try {
+        const savedLog = localStorage.getItem("last_line_auto_push_log");
+        if (savedLog) setLastPushLog(JSON.parse(savedLog));
+        const savedVip = localStorage.getItem("omnitick_vip_status");
+        if (savedVip) setVipStatus(JSON.parse(savedVip));
+      } catch {}
 
-    const handleAutoPushed = (e: any) => {
+      // 處理刷卡成功或失敗導回參數 (?subscribed=true&plan=...&orderId=...)
+      try {
+        const sp = new URLSearchParams(window.location.search);
+        if (sp.get("subscribed") === "true") {
+          const returnedPlan: "standard" | "pro" =
+            sp.get("plan") === "standard" ? "standard" : "pro";
+          const returnedOrderId = sp.get("orderId") || `CARD${Date.now().toString().slice(-8)}`;
+          const newVip: VipStatus = {
+            plan: returnedPlan,
+            orderId: returnedOrderId,
+            activatedAt: new Date().toISOString(),
+          };
+          setVipStatus(newVip);
+          localStorage.setItem("omnitick_vip_status", JSON.stringify(newVip));
+          setPaymentSuccessNotice(
+            `🎉 線上刷卡授權完成！已為您啟用「${
+              returnedPlan === "pro" ? "Pro 旗艦版" : "標準版"
+            }」(#${returnedOrderId})`
+          );
+          window.history.replaceState({}, "", window.location.pathname);
+        } else if (sp.get("payment_error")) {
+          setPaymentSuccessNotice(`⚠️ 線上刷卡未完成：${sp.get("payment_error")}`);
+          window.history.replaceState({}, "", window.location.pathname);
+        }
+      } catch {}
+    });
+
+    const handleAutoPushed = (e: CustomEvent<AutoPushLog>) => {
       if (e?.detail) setLastPushLog(e.detail);
     };
-    window.addEventListener("line_auto_pushed", handleAutoPushed);
+    window.addEventListener("line_auto_pushed", handleAutoPushed as EventListener);
 
     fetch("/api/line/push")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data?.bot) {
+        if (alive && data?.bot) {
           setBotInfo(data.bot);
         }
       })
       .catch(() => {});
 
-    return () => window.removeEventListener("line_auto_pushed", handleAutoPushed);
+    fetch("/api/payment/subscribe")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (alive && data?.provider) {
+          setGatewayStatus({
+            provider: data.provider,
+            mode: data.mode === "production" ? "production" : "sandbox",
+            label: data.label || "",
+          });
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      alive = false;
+      window.removeEventListener("line_auto_pushed", handleAutoPushed as EventListener);
+    };
   }, []);
 
   const toggleAutoPush = () => {
@@ -167,66 +208,16 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
     }
   };
 
-  const handleCopyBankAccount = () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(BANK_INFO.accountNumber.replace(/-/g, ""));
-      setCopiedBank(true);
-      setTimeout(() => setCopiedBank(false), 2000);
-    }
-  };
-
-  // 開啟雙通道收銀台彈窗
+  // 開啟線上刷卡收銀台彈窗
   const openCheckoutModal = (plan: "standard" | "pro") => {
     setCheckoutPlan(plan);
-    setBankError("");
-    setLast5Digits("");
+    setCardError("");
   };
 
-  // 通道 A：網銀轉帳後五碼立即開通 + LINE 自動對帳通報
-  const handleBankVerifySubmit = async () => {
-    if (!checkoutPlan) return;
-    if (!/^\d{5}$/.test(last5Digits.trim())) {
-      setBankError("請輸入完整的 5 位數字匯款帳號後五碼");
-      return;
-    }
-
-    setIsSubmittingBank(true);
-    setBankError("");
-    try {
-      const res = await fetch("/api/payment/manual-notify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plan: checkoutPlan,
-          last5Digits: last5Digits.trim(),
-          bankCode: bankCode.trim(),
-          bindCode,
-        }),
-      });
-      const data = await res.json();
-      if (data?.success) {
-        const newVip: VipStatus = {
-          plan: checkoutPlan,
-          orderId: data.orderId,
-          activatedAt: data.activatedAt,
-          last5Digits: last5Digits.trim(),
-        };
-        setVipStatus(newVip);
-        localStorage.setItem("omnitick_vip_status", JSON.stringify(newVip));
-        setCheckoutPlan(null);
-      } else {
-        setBankError(data?.error || "送出驗證失敗，請稍後再試");
-      }
-    } catch {
-      setBankError("網路連線異常，請稍後再試");
-    } finally {
-      setIsSubmittingBank(false);
-    }
-  };
-
-  // 通道 B：信用卡 / Apple Pay 線上刷卡授權
+  // 線上刷卡 / Apple Pay / Google Pay 訂閱結帳
   const handleCardSubscribe = async (plan: "standard" | "pro") => {
     setSubscribingPlan(plan);
+    setCardError("");
     try {
       const externalUrl =
         plan === "pro"
@@ -234,8 +225,7 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
           : process.env.NEXT_PUBLIC_CHECKOUT_STANDARD_URL;
 
       if (externalUrl) {
-        window.open(externalUrl, "_blank", "noopener,noreferrer");
-        setSubscribingPlan(null);
+        window.location.href = externalUrl;
         return;
       }
 
@@ -245,7 +235,13 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
         body: JSON.stringify({ plan }),
       });
       const data = await res.json();
-      if (data.success && data.actionUrl && data.params) {
+
+      if (data?.success && data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+
+      if (data?.success && data.actionUrl && data.params) {
         const form = document.createElement("form");
         form.method = "POST";
         form.action = data.actionUrl;
@@ -260,12 +256,12 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
         document.body.appendChild(form);
         form.submit();
         return;
-      } else {
-        alert("前往付款授權失敗，請稍後重試。");
       }
+
+      setCardError(data?.error || "建立線上刷卡訂單失敗，請稍後重試。");
     } catch (err) {
-      console.error("Subscription redirect failed:", err);
-      alert("連線付款伺服器逾時，請稍後重試。");
+      console.error("Card checkout redirect failed:", err);
+      setCardError("連線刷卡伺服器逾時，請稍後重試。");
     } finally {
       setSubscribingPlan(null);
     }
@@ -445,9 +441,14 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
           </div>
         </div>
 
-        {/* 雙層方案定價與付款區 */}
+        {/* 線上刷卡方案定價與結帳區 */}
         {!compact && (
-          <div className="mt-4 pt-4 border-t border-[var(--border)]">
+          <div className="mt-4 pt-4 border-t border-[var(--border)] space-y-3">
+            {paymentSuccessNotice && (
+              <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-xs font-bold text-emerald-300">
+                {paymentSuccessNotice}
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               {/* 標準版方案 */}
               <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] hover:border-emerald-500/40 transition-all flex flex-col justify-between gap-3">
@@ -468,7 +469,7 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
                 <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]/60">
                   <div>
                     <div className="text-base font-extrabold font-mono text-primary">NT$ 99</div>
-                    <div className="text-[10px] text-secondary">/ 月（支援網銀秒開通 / 刷卡）</div>
+                    <div className="text-[10px] text-secondary">/ 月（線上刷卡 / Apple Pay）</div>
                   </div>
                   <Button
                     size="sm"
@@ -478,7 +479,7 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
                   >
                     <CreditCard size={13} />
                     <span>
-                      {vipStatus?.plan === "standard" ? "✅ 已開通標準版" : "訂閱標準版 (NT$ 99)"}
+                      {vipStatus?.plan === "standard" ? "✅ 已開通標準版" : "線上刷卡訂閱 (NT$ 99)"}
                     </span>
                   </Button>
                 </div>
@@ -503,7 +504,7 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
                 <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]/60">
                   <div>
                     <div className="text-base font-extrabold font-mono text-primary">NT$ 299</div>
-                    <div className="text-[10px] text-secondary">/ 月（支援網銀秒開通 / 刷卡）</div>
+                    <div className="text-[10px] text-secondary">/ 月（線上刷卡 / Apple Pay）</div>
                   </div>
                   <Button
                     size="sm"
@@ -512,7 +513,7 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
                     className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm whitespace-nowrap cursor-pointer active:scale-95"
                   >
                     <CreditCard size={13} />
-                    <span>{vipStatus?.plan === "pro" ? "✅ 已開通 Pro 旗艦版" : "訂閱 Pro 版 (NT$ 299)"}</span>
+                    <span>{vipStatus?.plan === "pro" ? "✅ 已開通 Pro 旗艦版" : "線上刷卡訂閱 (NT$ 299)"}</span>
                   </Button>
                 </div>
               </div>
@@ -521,23 +522,23 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
         )}
       </Card>
 
-      {/* ★ 雙通道極速安全收銀台彈窗 (Dual-Channel Checkout Modal) ★ */}
+      {/* ★ 線上刷卡安全收銀台彈窗 (Online Card Checkout Modal) ★ */}
       {checkoutPlan && (
         <div
           className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
           onClick={() => setCheckoutPlan(null)}
         >
           <div
-            className="w-full max-w-md rounded-2xl bg-[#0B1221] border border-emerald-500/40 shadow-2xl overflow-hidden animate-spring-pop"
+            className="w-full max-w-md rounded-2xl bg-[#0B1221] border border-amber-500/40 shadow-2xl overflow-hidden animate-spring-pop"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800 bg-slate-900/80">
               <div className="flex items-center gap-2">
-                <ShieldCheck size={18} className="text-emerald-400" />
+                <ShieldCheck size={18} className="text-amber-400" />
                 <div>
                   <h3 className="text-sm font-extrabold text-white">
-                    OmniTick 雙通道極速收銀台
+                    OmniTick 線上刷卡安全結帳
                   </h3>
                   <p className="text-[11px] text-slate-400">
                     方案：{checkoutPlan === "pro" ? "Pro 旗艦版 (NT$ 299 / 月)" : "標準版 (NT$ 99 / 月)"}
@@ -553,157 +554,74 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
               </button>
             </div>
 
-            {/* 通道切換 Tabs */}
-            <div className="grid grid-cols-2 gap-2 p-3 bg-slate-950/60 border-b border-slate-800">
-              <button
-                type="button"
-                onClick={() => setPaymentChannel("bank")}
-                className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  paymentChannel === "bank"
-                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                <Landmark size={14} />
-                <span>網銀轉帳 (秒開通)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaymentChannel("card")}
-                className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  paymentChannel === "card"
-                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                <CreditCard size={14} />
-                <span>信用卡 / Apple Pay</span>
-              </button>
-            </div>
-
-            {/* Body */}
+            {/* Body - 純線上刷卡 */}
             <div className="p-5 space-y-4">
-              {paymentChannel === "bank" ? (
-                <>
-                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] text-slate-400">收款銀行</span>
-                      <span className="text-xs font-bold text-white font-mono">
-                        {BANK_INFO.bankName}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] text-slate-400">收款帳號</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-extrabold text-emerald-400 font-mono">
-                          {BANK_INFO.accountNumber}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={handleCopyBankAccount}
-                          className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-200 flex items-center gap-1 cursor-pointer"
-                        >
-                          {copiedBank ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
-                          <span>{copiedBank ? "已複製" : "複製"}</span>
-                        </button>
+              <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <CreditCard size={14} className="text-amber-400" />
+                    <span>SSL 256-bit 加密線上刷卡</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] font-mono text-slate-300">
+                    <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700">VISA</span>
+                    <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700">MC</span>
+                    <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700">JCB</span>
+                    <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700">Apple Pay</span>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  點擊下方按鈕將導向 PCI-DSS 第三方安全刷卡收銀台完成授權，本站絕不儲存或經手任何信用卡卡號。
+                </p>
+
+                {gatewayStatus && (
+                  <div
+                    className={`p-2.5 rounded-lg border text-[11px] leading-relaxed ${
+                      gatewayStatus.mode === "production"
+                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                        : "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                    }`}
+                  >
+                    <div className="font-bold">目前通道：{gatewayStatus.label}</div>
+                    {gatewayStatus.mode === "sandbox" && (
+                      <div className="mt-1 text-[10px] text-amber-200/80 font-mono">
+                        尚未填入正式金流前，可使用測試卡號 <span className="font-bold">4311-9522-2222-2222</span>（有效年月任意未來日期、安全碼 <span className="font-bold">222</span>）實測刷卡流程。
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between pt-1 border-t border-slate-800/80">
-                      <span className="text-[11px] text-slate-400">應付金額</span>
-                      <span className="text-base font-extrabold text-amber-400 font-mono">
-                        NT$ {checkoutPlan === "pro" ? 299 : 99}
-                      </span>
-                    </div>
-                  </div>
-
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    {BANK_INFO.accountNote}
-                  </p>
-
-                  <div className="grid grid-cols-3 gap-2.5">
-                    <div>
-                      <label className="block text-[10px] text-slate-400 mb-1">
-                        銀行代碼 (選填)
-                      </label>
-                      <input
-                        type="text"
-                        maxLength={3}
-                        value={bankCode}
-                        onChange={(e) => setBankCode(e.target.value.replace(/\D/g, ""))}
-                        placeholder="如 822"
-                        className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="block text-[10px] text-emerald-400 font-bold mb-1">
-                        轉出帳號後 5 碼 (必填) *
-                      </label>
-                      <input
-                        type="text"
-                        maxLength={5}
-                        value={last5Digits}
-                        onChange={(e) => setLast5Digits(e.target.value.replace(/\D/g, ""))}
-                        placeholder="請輸入 5 位數字"
-                        className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-emerald-500/50 text-sm text-white font-mono tracking-widest focus:outline-none focus:border-emerald-400"
-                      />
-                    </div>
-                  </div>
-
-                  {bankError && (
-                    <div className="text-xs text-rose-400 font-bold">{bankError}</div>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={handleBankVerifySubmit}
-                    disabled={isSubmittingBank}
-                    className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    {isSubmittingBank ? (
-                      <Loader2 size={15} className="animate-spin" />
-                    ) : (
-                      <CheckCircle2 size={15} />
                     )}
-                    <span>
-                      {isSubmittingBank
-                        ? "正在傳送 LINE 對帳通知並開通 VIP..."
-                        : "送出後五碼 · 立即開通 VIP 並發送 LINE 憑證"}
-                    </span>
-                  </button>
-                </>
-              ) : (
-                <div className="space-y-4">
-                  <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2">
-                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <CreditCard size={14} className="text-amber-400" />
-                      SSL 256-bit 加密線上刷卡 / Apple Pay
-                    </div>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      點擊下方按鈕將導向第三方 PCI-DSS 認證安全收銀台，本站不經手或儲存任何信用卡號。
-                    </p>
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-                      <span className="text-xs text-slate-400">刷卡金額</span>
-                      <span className="text-base font-extrabold text-amber-400 font-mono">
-                        NT$ {checkoutPlan === "pro" ? 299 : 99} / 月
-                      </span>
-                    </div>
                   </div>
+                )}
 
-                  <button
-                    type="button"
-                    onClick={() => handleCardSubscribe(checkoutPlan)}
-                    disabled={subscribingPlan !== null}
-                    className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    <CreditCard size={15} />
-                    <span>
-                      {subscribingPlan === checkoutPlan
-                        ? "正在導向加密收銀台..."
-                        : `前往線上刷卡結帳 (NT$ ${checkoutPlan === "pro" ? 299 : 99})`}
-                    </span>
-                  </button>
+                <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                  <span className="text-xs text-slate-400">本次刷卡金額</span>
+                  <span className="text-base font-extrabold text-amber-400 font-mono">
+                    NT$ {checkoutPlan === "pro" ? 299 : 99} / 月
+                  </span>
+                </div>
+              </div>
+
+              {cardError && (
+                <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-xs text-rose-400 font-bold">
+                  {cardError}
                 </div>
               )}
+
+              <button
+                type="button"
+                onClick={() => handleCardSubscribe(checkoutPlan)}
+                disabled={subscribingPlan !== null}
+                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {subscribingPlan === checkoutPlan ? (
+                  <Loader2 size={15} className="animate-spin" />
+                ) : (
+                  <CreditCard size={15} />
+                )}
+                <span>
+                  {subscribingPlan === checkoutPlan
+                    ? "正在導向加密刷卡收銀台..."
+                    : `前往線上刷卡結帳 (NT$ ${checkoutPlan === "pro" ? 299 : 99})`}
+                </span>
+              </button>
             </div>
           </div>
         </div>
