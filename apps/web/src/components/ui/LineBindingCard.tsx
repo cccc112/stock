@@ -232,7 +232,7 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
       const res = await fetch("/api/payment/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, bindCode }),
       });
       const data = await res.json();
 
@@ -462,14 +462,14 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
                     </span>
                   </div>
                   <p className="text-xs text-secondary leading-relaxed">
-                    每日 15:30 盤後法人籌碼精華推播、大盤多空量化動量與自選股監控。
+                    每日 15:30 盤後法人籌碼彙整通知、市場統計數據與自選股行情推播。
                   </p>
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]/60">
                   <div>
                     <div className="text-base font-extrabold font-mono text-primary">NT$ 99</div>
-                    <div className="text-[10px] text-secondary">/ 月（線上刷卡 / Apple Pay）</div>
+                    <div className="text-[10px] text-secondary">/ 月（信用卡 / Apple Pay / Google Pay）</div>
                   </div>
                   <Button
                     size="sm"
@@ -497,14 +497,14 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
                     </span>
                   </div>
                   <p className="text-xs text-secondary leading-relaxed">
-                    盤中主力大單即時雷達、AI 智能解盤、深度 13F 機構持倉與 ETF 申購穿透。
+                    盤中量價籌碼即時監測、技術圖表軟體分析工具、13F 機構持倉與 ETF 成分追蹤。
                   </p>
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]/60">
                   <div>
                     <div className="text-base font-extrabold font-mono text-primary">NT$ 299</div>
-                    <div className="text-[10px] text-secondary">/ 月（線上刷卡 / Apple Pay）</div>
+                    <div className="text-[10px] text-secondary">/ 月（信用卡 / Apple Pay / Google Pay）</div>
                   </div>
                   <Button
                     size="sm"
@@ -562,16 +562,17 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
                     <CreditCard size={14} className="text-amber-400" />
                     <span>SSL 256-bit 加密線上刷卡</span>
                   </div>
-                  <div className="flex items-center gap-1 text-[10px] font-mono text-slate-300">
+                  <div className="flex items-center gap-1 text-[10px] font-mono text-slate-300 flex-wrap justify-end">
                     <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700">VISA</span>
                     <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700">MC</span>
                     <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700">JCB</span>
                     <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700">Apple Pay</span>
+                    <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700">G Pay</span>
                   </div>
                 </div>
 
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  點擊下方按鈕將導向 PCI-DSS 第三方安全刷卡收銀台完成授權，本站絕不儲存或經手任何信用卡卡號。
+                  點擊下方按鈕將導向第三方安全收銀台完成授權（本站為客觀數據工具訂閱，非投資顧問），我們絕不儲存或經手任何卡號。
                 </p>
 
                 {gatewayStatus && (
@@ -584,8 +585,13 @@ export default function LineBindingCard({ compact = false }: LineBindingCardProp
                   >
                     <div className="font-bold">目前通道：{gatewayStatus.label}</div>
                     {gatewayStatus.mode === "sandbox" && (
-                      <div className="mt-1 text-[10px] text-amber-200/80 font-mono">
-                        尚未填入正式金流前，可使用測試卡號 <span className="font-bold">4311-9522-2222-2222</span>（有效年月任意未來日期、安全碼 <span className="font-bold">222</span>）實測刷卡流程。
+                      <div className="mt-1 text-[10px] text-amber-200/80 space-y-1">
+                        <div className="font-mono">
+                          實測卡號 <span className="font-bold">4311-9522-2222-2222</span>（有效年月任意未來日期、安全碼 <span className="font-bold">222</span>）
+                        </div>
+                        <div>
+                          正式上線請填入 <span className="font-bold">CHECKOUT_*_URL</span>（如 Portaly 傳送門）、<span className="font-bold">Lemon Squeezy</span> 或 <span className="font-bold">Polar.sh</span> 環境變數，可免藍新/綠界審核直接收款。
+                        </div>
                       </div>
                     )}
                   </div>

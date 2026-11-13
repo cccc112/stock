@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildPeriodicalPaymentParams, DEFAULT_ECPAY_CONFIG } from "@/lib/ecpay";
 import { getTaipeiClock } from "@/lib/marketHours";
 import { buildNewebPayCardParams, getNewebPayConfig } from "@/lib/newebpay";
+import {
+  type CheckoutPlan,
+  createLemonSqueezyCheckout,
+  createPolarCheckout,
+  getLemonSqueezyConfig,
+  getPolarConfig,
+} from "@/lib/morBilling";
 
 export const dynamic = "force-dynamic";
 
-function resolveHostedCheckoutUrl(plan: "standard" | "pro"): string | undefined {
+function resolveHostedCheckoutUrl(plan: CheckoutPlan): string | undefined {
   if (plan === "pro") {
     return (
       process.env.CHECKOUT_PRO_URL?.trim() ||
@@ -31,6 +38,26 @@ function getActiveCardGatewayStatus() {
     };
   }
 
+  const lsCfg = getLemonSqueezyConfig();
+  if (lsCfg) {
+    return {
+      provider: "lemonsqueezy" as const,
+      mode: "production" as const,
+      label: "Lemon Squeezy 全球 MoR 收銀台（信用卡 / Apple Pay / Google Pay）",
+    };
+  }
+
+  const polarCfg = getPolarConfig();
+  if (polarCfg) {
+    return {
+      provider: "polar" as const,
+      mode: polarCfg.isSandbox ? ("sandbox" as const) : ("production" as const),
+      label: polarCfg.isSandbox
+        ? "Polar.sh 收銀台（Sandbox 測試環境）"
+        : "Polar.sh 全球 MoR 收銀台（信用卡 / Apple Pay / Google Pay）",
+    };
+  }
+
   const newebCfg = getNewebPayConfig();
   if (newebCfg) {
     return {
@@ -47,7 +74,7 @@ function getActiveCardGatewayStatus() {
     provider: "ecpay" as const,
     mode: ecpaySandbox ? ("sandbox" as const) : ("production" as const),
     label: ecpaySandbox
-      ? "綠界科技 ECPay（線上刷卡測試沙盒）"
+      ? "尚未綁定正式個人收銀台（目前為 ECPay 沙盒實測流程）"
       : "綠界科技 ECPay 正式信用卡定期定額",
   };
 }
@@ -67,16 +94,19 @@ export async function POST(req: NextRequest) {
       "https://stock-green-ten.vercel.app";
 
     const body = await req.json().catch(() => ({}));
-    const plan: "standard" | "pro" = body?.plan === "standard" ? "standard" : "pro";
+    const plan: CheckoutPlan = body?.plan === "standard" ? "standard" : "pro";
+    const bindCode = typeof body?.bindCode === "string" ? body.bindCode.trim() : undefined;
+    const customerEmail = typeof body?.email === "string" ? body.email.trim() : undefined;
+
     const totalAmount = plan === "standard" ? 99 : 299;
     const itemName =
       plan === "standard"
-        ? "OmniTick 標準版 每日籌碼精華月費方案"
-        : "OmniTick Pro 旗艦版 盤中主力雷達月費方案";
+        ? "OmniTick 標準版 數據追蹤與看盤軟體月費訂閱"
+        : "OmniTick Pro 旗艦版 進階圖表與籌碼儀表板月費訂閱";
     const tradeDesc = plan === "standard" ? "OmniTick Standard" : "OmniTick Pro";
     const tradeNo = `OT${Date.now().toString().slice(-14)}`;
 
-    // 1. 優先：伺服器端或公開環境變數之託管刷卡結帳連結 (Portaly / Lemon Squeezy / PAYUNi Payment Link 等)
+    // 1. 優先：託管刷卡結帳連結 (Portaly 傳送門 / Lemon Squeezy Link / Polar Link 等，個人免統編即可收款)
     const hostedUrl = resolveHostedCheckoutUrl(plan);
     if (hostedUrl) {
       return NextResponse.json({
@@ -88,7 +118,42 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 2. 次優先：藍新金流 NewebPay 線上刷卡 MPG (Credit / Apple Pay / Google Pay)
+    // 2. 次優先：Lemon Squeezy API Checkout (全球 MoR，台灣個人可透過銀行電匯 / PayPal 出金，支援信用卡 + Apple Pay + Google Pay)
+    if (getLemonSqueezyConfig(plan)) {
+      const { checkoutUrl } = await createLemonSqueezyCheckout({
+        plan,
+        origin,
+        bindCode,
+        customerEmail,
+      });
+      return NextResponse.json({
+        success: true,
+        provider: "lemonsqueezy",
+        mode: "production",
+        orderId: tradeNo,
+        checkoutUrl,
+      });
+    }
+
+    // 3. 第三優先：Polar.sh API Checkout (全球 MoR，透過 Stripe Connect Express 出金台灣，支援信用卡 + Apple Pay + Google Pay)
+    const polarCfg = getPolarConfig(plan);
+    if (polarCfg) {
+      const { checkoutUrl, checkoutId } = await createPolarCheckout({
+        plan,
+        origin,
+        bindCode,
+        customerEmail,
+      });
+      return NextResponse.json({
+        success: true,
+        provider: "polar",
+        mode: polarCfg.isSandbox ? "sandbox" : "production",
+        orderId: checkoutId || tradeNo,
+        checkoutUrl,
+      });
+    }
+
+    // 4. 第四優先：藍新金流 NewebPay 線上刷卡 MPG (僅在已設定商店代號與金鑰時啟用)
     const newebCfg = getNewebPayConfig();
     if (newebCfg) {
       const { actionUrl, params } = buildNewebPayCardParams(
@@ -113,7 +178,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 3. 保底：綠界 ECPay 信用卡定期定額（未設 ECPAY_MERCHANT_ID 時預設連線測試沙盒 3002607）
+    // 5. 保底演示：綠界 ECPay 測試沙盒 3002607（未接入正式金流前供測試刷卡流程用）
     const tw = getTaipeiClock();
     const tradeDate = `${tw.year}/${tw.month}/${tw.day} ${tw.formattedTime}`;
 
