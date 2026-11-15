@@ -1,16 +1,16 @@
 {
   "0050": {
-    "date": "2026-11-13",
+    "date": "2026-11-12",
     "holdings": {
       "1216": {
         "name": "統一",
-        "sharesLots": 129042,
-        "weight": 0.39
+        "sharesLots": 128306,
+        "weight": 0.35
       },
       "1303": {
         "name": "南亞",
-        "sharesLots": 128367,
-        "weight": 1.52
+        "sharesLots": 127450,
+        "weight": 1.47
       },
       "2059": {
         "name": "川湖",
@@ -19,53 +19,53 @@
       },
       "2301": {
         "name": "光寶科",
-        "sharesLots": 50982,
-        "weight": 0.46
+        "sharesLots": 50619,
+        "weight": 0.41
       },
       "2303": {
         "name": "聯電",
-        "sharesLots": 303838,
-        "weight": 1.2
+        "sharesLots": 301451,
+        "weight": 1.15
       },
       "2308": {
         "name": "台達電",
-        "sharesLots": 50290,
-        "weight": 2.43
+        "sharesLots": 50056,
+        "weight": 2.4
       },
       "2317": {
         "name": "鴻海",
-        "sharesLots": 318080,
-        "weight": 2.99
+        "sharesLots": 315584,
+        "weight": 2.94
       },
       "2327": {
         "name": "國巨*",
-        "sharesLots": 41033,
-        "weight": 0.66
+        "sharesLots": 41535,
+        "weight": 0.74
       },
       "2330": {
         "name": "台積電",
-        "sharesLots": 637144,
-        "weight": 58.46
+        "sharesLots": 643066,
+        "weight": 58.52
       },
       "2344": {
         "name": "華邦電",
-        "sharesLots": 80621,
-        "weight": 0.39
+        "sharesLots": 81604,
+        "weight": 0.47
       },
       "2345": {
         "name": "智邦",
-        "sharesLots": 12909,
-        "weight": 0.77
+        "sharesLots": 13046,
+        "weight": 0.84
       },
       "2357": {
         "name": "華碩",
-        "sharesLots": 17583,
-        "weight": 0.61
+        "sharesLots": 17468,
+        "weight": 0.57
       },
       "2360": {
         "name": "致茂",
-        "sharesLots": 9603,
-        "weight": 0.52
+        "sharesLots": 9538,
+        "weight": 0.47
       },
       "2368": {
         "name": "金像電",
@@ -74,13 +74,13 @@
       },
       "2382": {
         "name": "廣達",
-        "sharesLots": 68913,
-        "weight": 0.74
+        "sharesLots": 68468,
+        "weight": 0.7
       },
       "2383": {
         "name": "台光電",
-        "sharesLots": 7566,
-        "weight": 1.25
+        "sharesLots": 7655,
+        "weight": 1.33
       },
       "2395": {
         "name": "研華",
@@ -89,13 +89,13 @@
       },
       "2408": {
         "name": "南亞科",
-        "sharesLots": 33626,
-        "weight": 0.49
+        "sharesLots": 33940,
+        "weight": 0.55
       },
       "2412": {
         "name": "中華電",
-        "sharesLots": 99488,
-        "weight": 0.64
+        "sharesLots": 98857,
+        "weight": 0.6
       },
       "2449": {
         "name": "京元電子",
@@ -109,38 +109,38 @@
       },
       "2603": {
         "name": "長榮",
-        "sharesLots": 28415,
-        "weight": 0.29
+        "sharesLots": 28327,
+        "weight": 0.27
       },
       "2880": {
         "name": "華南金",
-        "sharesLots": 242107,
-        "weight": 0.49
+        "sharesLots": 240984,
+        "weight": 0.46
       },
       "2881": {
         "name": "富邦金",
-        "sharesLots": 217340,
-        "weight": 1.37
+        "sharesLots": 216173,
+        "weight": 1.33
       },
       "2882": {
         "name": "國泰金",
-        "sharesLots": 248533,
-        "weight": 1.11
+        "sharesLots": 247357,
+        "weight": 1.08
       },
       "2883": {
         "name": "凱基金",
-        "sharesLots": 410280,
-        "weight": 0.58
+        "sharesLots": 408762,
+        "weight": 0.56
       },
       "2884": {
         "name": "玉山金",
-        "sharesLots": 416481,
-        "weight": 0.79
+        "sharesLots": 420360,
+        "weight": 0.85
       },
       "2885": {
         "name": "元大金",
-        "sharesLots": 298871,
-        "weight": 0.85
+        "sharesLots": 302243,
+        "weight": 0.93
       },
       "2886": {
         "name": "兆豐金",
@@ -149,23 +149,23 @@
       },
       "2887": {
         "name": "台新新光金",
-        "sharesLots": 610439,
-        "weight": 0.97
+        "sharesLots": 616139,
+        "weight": 1.03
       },
       "2890": {
         "name": "永豐金",
-        "sharesLots": 352974,
-        "weight": 0.6
+        "sharesLots": 351057,
+        "weight": 0.56
       },
       "2891": {
         "name": "中信金",
-        "sharesLots": 460929,
-        "weight": 1.42
+        "sharesLots": 457409,
+        "weight": 1.37
       },
       "2892": {
         "name": "第一金",
-        "sharesLots": 292052,
-        "weight": 0.5
+        "sharesLots": 295321,
+        "weight": 0.57
       },
       "3008": {
         "name": "大立光",
@@ -174,18 +174,18 @@
       },
       "3017": {
         "name": "奇鋐",
-        "sharesLots": 8335,
-        "weight": 0.99
+        "sharesLots": 8412,
+        "weight": 1.05
       },
       "3037": {
         "name": "欣興",
-        "sharesLots": 34363,
-        "weight": 1.05
+        "sharesLots": 34090,
+        "weight": 1
       },
       "3045": {
         "name": "台灣大",
-        "sharesLots": 36938,
-        "weight": 0.19
+        "sharesLots": 36753,
+        "weight": 0.16
       },
       "3231": {
         "name": "緯創",
@@ -194,8 +194,8 @@
       },
       "3443": {
         "name": "創意",
-        "sharesLots": 2090,
-        "weight": 0.7
+        "sharesLots": 2114,
+        "weight": 0.78
       },
       "3653": {
         "name": "健策",
@@ -204,48 +204,48 @@
       },
       "3665": {
         "name": "貿聯-KY",
-        "sharesLots": 4660,
-        "weight": 0.28
+        "sharesLots": 4709,
+        "weight": 0.35
       },
       "3711": {
         "name": "日月光投控",
-        "sharesLots": 86436,
-        "weight": 2.02
+        "sharesLots": 85871,
+        "weight": 1.98
       },
       "4904": {
         "name": "遠傳",
-        "sharesLots": 46267,
-        "weight": 0.2
+        "sharesLots": 46748,
+        "weight": 0.27
       },
       "4958": {
         "name": "臻鼎-KY",
-        "sharesLots": 20580,
-        "weight": 0.35
+        "sharesLots": 20791,
+        "weight": 0.42
       },
       "5880": {
         "name": "合庫金",
-        "sharesLots": 280529,
-        "weight": 0.31
+        "sharesLots": 282849,
+        "weight": 0.37
       },
       "6446": {
         "name": "藥華藥",
-        "sharesLots": 8185,
-        "weight": 0.44
+        "sharesLots": 8255,
+        "weight": 0.5
       },
       "6505": {
         "name": "台塑化",
-        "sharesLots": 30088,
-        "weight": 0.11
+        "sharesLots": 29952,
+        "weight": 0.08
       },
       "6669": {
         "name": "緯穎",
-        "sharesLots": 8075,
-        "weight": 0.52
+        "sharesLots": 8173,
+        "weight": 0.6
       },
       "7769": {
         "name": "鴻勁",
-        "sharesLots": 1483,
-        "weight": 0.24
+        "sharesLots": 1474,
+        "weight": 0.2
       },
       "8046": {
         "name": "南電",
@@ -255,7 +255,7 @@
     }
   },
   "0056": {
-    "date": "2026-11-13",
+    "date": "2026-11-12",
     "holdings": {
       "1102": {
         "name": "亞泥",
@@ -264,23 +264,23 @@
       },
       "1216": {
         "name": "統一",
-        "sharesLots": 266820,
-        "weight": 2.59
+        "sharesLots": 265821,
+        "weight": 2.57
       },
       "1303": {
         "name": "南亞",
-        "sharesLots": 271646,
-        "weight": 10.25
+        "sharesLots": 274979,
+        "weight": 10.33
       },
       "1513": {
         "name": "中興電",
-        "sharesLots": 23636,
-        "weight": 0.43
+        "sharesLots": 23532,
+        "weight": 0.4
       },
       "2027": {
         "name": "大成鋼",
-        "sharesLots": 112531,
-        "weight": 0.62
+        "sharesLots": 113769,
+        "weight": 0.69
       },
       "2105": {
         "name": "正新",
@@ -289,13 +289,13 @@
       },
       "2301": {
         "name": "光寶科",
-        "sharesLots": 73784,
-        "weight": 2.12
+        "sharesLots": 74544,
+        "weight": 2.19
       },
       "2303": {
         "name": "聯電",
-        "sharesLots": 110974,
-        "weight": 1.4
+        "sharesLots": 112133,
+        "weight": 1.47
       },
       "2317": {
         "name": "鴻海",
@@ -304,53 +304,53 @@
       },
       "2324": {
         "name": "仁寶",
-        "sharesLots": 208445,
-        "weight": 0.78
+        "sharesLots": 207792,
+        "weight": 0.76
       },
       "2344": {
         "name": "華邦電",
-        "sharesLots": 178655,
-        "weight": 2.77
+        "sharesLots": 177943,
+        "weight": 2.74
       },
       "2347": {
         "name": "聯強",
-        "sharesLots": 82499,
-        "weight": 0.78
+        "sharesLots": 83197,
+        "weight": 0.84
       },
       "2353": {
         "name": "宏碁",
-        "sharesLots": 143817,
-        "weight": 0.53
+        "sharesLots": 143152,
+        "weight": 0.5
       },
       "2356": {
         "name": "英業達",
-        "sharesLots": 163258,
-        "weight": 0.93
+        "sharesLots": 162700,
+        "weight": 0.91
       },
       "2357": {
         "name": "華碩",
-        "sharesLots": 36501,
-        "weight": 4
+        "sharesLots": 36239,
+        "weight": 3.95
       },
       "2376": {
         "name": "技嘉",
-        "sharesLots": 32314,
-        "weight": 1.14
+        "sharesLots": 32178,
+        "weight": 1.11
       },
       "2377": {
         "name": "微星",
-        "sharesLots": 40418,
-        "weight": 0.69
+        "sharesLots": 40145,
+        "weight": 0.64
       },
       "2379": {
         "name": "瑞昱",
-        "sharesLots": 25190,
-        "weight": 2.37
+        "sharesLots": 25021,
+        "weight": 2.33
       },
       "2382": {
         "name": "廣達",
-        "sharesLots": 89416,
-        "weight": 3.07
+        "sharesLots": 88957,
+        "weight": 3.04
       },
       "2385": {
         "name": "群光",
@@ -359,13 +359,13 @@
       },
       "2408": {
         "name": "南亞科",
-        "sharesLots": 70356,
-        "weight": 3.29
+        "sharesLots": 70928,
+        "weight": 3.34
       },
       "2449": {
         "name": "京元電子",
-        "sharesLots": 33628,
-        "weight": 0.89
+        "sharesLots": 33414,
+        "weight": 0.85
       },
       "2454": {
         "name": "聯發科",
@@ -384,33 +384,33 @@
       },
       "2618": {
         "name": "長榮航",
-        "sharesLots": 258356,
-        "weight": 1.53
+        "sharesLots": 256862,
+        "weight": 1.49
       },
       "2645": {
         "name": "長榮航太",
-        "sharesLots": 13867,
-        "weight": 0.29
+        "sharesLots": 13997,
+        "weight": 0.35
       },
       "2880": {
         "name": "華南金",
-        "sharesLots": 747827,
-        "weight": 4.82
+        "sharesLots": 742212,
+        "weight": 4.77
       },
       "2883": {
         "name": "凱基金",
-        "sharesLots": 647780,
-        "weight": 2.92
+        "sharesLots": 654732,
+        "weight": 2.99
       },
       "2884": {
         "name": "玉山金",
-        "sharesLots": 473790,
-        "weight": 2.84
+        "sharesLots": 478816,
+        "weight": 2.91
       },
       "2885": {
         "name": "元大金",
-        "sharesLots": 305233,
-        "weight": 2.76
+        "sharesLots": 308483,
+        "weight": 2.83
       },
       "2886": {
         "name": "兆豐金",
@@ -424,38 +424,38 @@
       },
       "2890": {
         "name": "永豐金",
-        "sharesLots": 807004,
-        "weight": 4.39
+        "sharesLots": 802558,
+        "weight": 4.35
       },
       "2891": {
         "name": "中信金",
-        "sharesLots": 462753,
-        "weight": 4.52
+        "sharesLots": 459175,
+        "weight": 4.47
       },
       "3005": {
         "name": "神基",
-        "sharesLots": 30419,
-        "weight": 0.41
+        "sharesLots": 30727,
+        "weight": 0.48
       },
       "3023": {
         "name": "信邦",
-        "sharesLots": 11486,
-        "weight": 0.37
+        "sharesLots": 11628,
+        "weight": 0.45
       },
       "3034": {
         "name": "聯詠",
-        "sharesLots": 29277,
-        "weight": 1.72
+        "sharesLots": 29533,
+        "weight": 1.78
       },
       "3036": {
         "name": "文曄",
-        "sharesLots": 62156,
-        "weight": 1.44
+        "sharesLots": 61737,
+        "weight": 1.4
       },
       "3044": {
         "name": "健鼎",
-        "sharesLots": 25292,
-        "weight": 1.67
+        "sharesLots": 25566,
+        "weight": 1.74
       },
       "3045": {
         "name": "台灣大",
@@ -464,13 +464,13 @@
       },
       "3231": {
         "name": "緯創",
-        "sharesLots": 164994,
-        "weight": 3.5
+        "sharesLots": 163686,
+        "weight": 3.45
       },
       "3702": {
         "name": "大聯大",
-        "sharesLots": 77635,
-        "weight": 0.83
+        "sharesLots": 77224,
+        "weight": 0.79
       },
       "3711": {
         "name": "日月光投控",
@@ -479,23 +479,23 @@
       },
       "4904": {
         "name": "遠傳",
-        "sharesLots": 171660,
-        "weight": 2.33
+        "sharesLots": 173274,
+        "weight": 2.39
       },
       "4938": {
         "name": "和碩",
-        "sharesLots": 128312,
-        "weight": 1.42
+        "sharesLots": 129364,
+        "weight": 1.47
       },
       "5876": {
         "name": "上海商銀",
-        "sharesLots": 226938,
-        "weight": 1.5
+        "sharesLots": 226099,
+        "weight": 1.48
       },
       "6239": {
         "name": "力成",
-        "sharesLots": 35669,
-        "weight": 1.11
+        "sharesLots": 36095,
+        "weight": 1.19
       },
       "6285": {
         "name": "啟碁",
@@ -504,13 +504,13 @@
       },
       "9904": {
         "name": "寶成",
-        "sharesLots": 112681,
-        "weight": 0.36
+        "sharesLots": 113950,
+        "weight": 0.44
       }
     }
   },
   "00878": {
-    "date": "2026-11-13",
+    "date": "2026-11-12",
     "holdings": {
       "1216": {
         "name": "統一",
@@ -524,8 +524,8 @@
       },
       "2303": {
         "name": "聯電",
-        "sharesLots": 197492,
-        "weight": 3.02
+        "sharesLots": 196533,
+        "weight": 2.99
       },
       "2356": {
         "name": "英業達",
@@ -534,83 +534,83 @@
       },
       "2357": {
         "name": "華碩",
-        "sharesLots": 41050,
-        "weight": 5.45
+        "sharesLots": 40825,
+        "weight": 5.41
       },
       "2376": {
         "name": "技嘉",
-        "sharesLots": 37390,
-        "weight": 1.6
+        "sharesLots": 37169,
+        "weight": 1.56
       },
       "2379": {
         "name": "瑞昱",
-        "sharesLots": 28627,
-        "weight": 3.26
+        "sharesLots": 28518,
+        "weight": 3.23
       },
       "2382": {
         "name": "廣達",
-        "sharesLots": 187567,
-        "weight": 7.8
+        "sharesLots": 186580,
+        "weight": 7.76
       },
       "2412": {
         "name": "中華電",
-        "sharesLots": 106891,
-        "weight": 2.65
+        "sharesLots": 107786,
+        "weight": 2.71
       },
       "2454": {
         "name": "聯發科",
-        "sharesLots": 5380,
-        "weight": 3.33
+        "sharesLots": 5352,
+        "weight": 3.3
       },
       "2603": {
         "name": "長榮",
-        "sharesLots": 115023,
-        "weight": 4.45
+        "sharesLots": 114392,
+        "weight": 4.41
       },
       "2618": {
         "name": "長榮航",
-        "sharesLots": 279592,
-        "weight": 2.01
+        "sharesLots": 278028,
+        "weight": 1.97
       },
       "2880": {
         "name": "華南金",
-        "sharesLots": 464269,
-        "weight": 3.62
+        "sharesLots": 460826,
+        "weight": 3.57
       },
       "2881": {
         "name": "富邦金",
-        "sharesLots": 142371,
-        "weight": 3.46
+        "sharesLots": 141632,
+        "weight": 3.43
       },
       "2882": {
         "name": "國泰金",
-        "sharesLots": 399358,
-        "weight": 6.88
+        "sharesLots": 397305,
+        "weight": 6.85
       },
       "2885": {
         "name": "元大金",
-        "sharesLots": 243836,
-        "weight": 2.67
+        "sharesLots": 246509,
+        "weight": 2.74
       },
       "2886": {
         "name": "兆豐金",
-        "sharesLots": 366111,
-        "weight": 3.05
+        "sharesLots": 369648,
+        "weight": 3.11
       },
       "2887": {
         "name": "台新新光金",
-        "sharesLots": 639311,
-        "weight": 3.91
+        "sharesLots": 646139,
+        "weight": 3.98
       },
       "2891": {
         "name": "中信金",
-        "sharesLots": 974354,
-        "weight": 11.53
+        "sharesLots": 971222,
+        "weight": 11.51
       },
       "2912": {
         "name": "統一超",
-        "sharesLots": 53612,
-        "weight": 1.74
+        "sharesLots": 53205,
+        "weight": 1.69
       },
       "3034": {
         "name": "聯詠",
@@ -619,13 +619,13 @@
       },
       "3045": {
         "name": "台灣大",
-        "sharesLots": 140126,
-        "weight": 2.76
+        "sharesLots": 139205,
+        "weight": 2.72
       },
       "3231": {
         "name": "緯創",
-        "sharesLots": 87596,
-        "weight": 2.25
+        "sharesLots": 88329,
+        "weight": 2.31
       },
       "3711": {
         "name": "日月光投控",
@@ -639,53 +639,53 @@
       },
       "4958": {
         "name": "臻鼎-KY",
-        "sharesLots": 30604,
-        "weight": 2.03
+        "sharesLots": 30947,
+        "weight": 2.1
       },
       "5347": {
         "name": "世界",
-        "sharesLots": 103324,
-        "weight": 2.1
+        "sharesLots": 104390,
+        "weight": 2.17
       },
       "5871": {
         "name": "中租-KY",
-        "sharesLots": 91978,
-        "weight": 1.43
+        "sharesLots": 92720,
+        "weight": 1.48
       },
       "5876": {
         "name": "上海商銀",
-        "sharesLots": 257954,
-        "weight": 2.07
+        "sharesLots": 256293,
+        "weight": 2.03
       }
     }
   },
   "00919": {
-    "date": "2026-11-13",
+    "date": "2026-11-12",
     "holdings": {
       "1210": {
         "name": "大成",
-        "sharesLots": 41700,
-        "weight": 0.35
+        "sharesLots": 41387,
+        "weight": 0.3
       },
       "1319": {
         "name": "東陽",
-        "sharesLots": 28310,
-        "weight": 0.32
+        "sharesLots": 28193,
+        "weight": 0.29
       },
       "1402": {
         "name": "遠東新",
-        "sharesLots": 211310,
-        "weight": 0.94
+        "sharesLots": 209815,
+        "weight": 0.89
       },
       "1477": {
         "name": "聚陽",
-        "sharesLots": 14500,
-        "weight": 0.53
+        "sharesLots": 14630,
+        "weight": 0.59
       },
       "2105": {
         "name": "正新",
-        "sharesLots": 120360,
-        "weight": 0.57
+        "sharesLots": 121610,
+        "weight": 0.64
       },
       "2211": {
         "name": "長榮鋼",
@@ -699,83 +699,83 @@
       },
       "2357": {
         "name": "華碩",
-        "sharesLots": 38750,
-        "weight": 5.55
+        "sharesLots": 39176,
+        "weight": 5.62
       },
       "2379": {
         "name": "瑞昱",
-        "sharesLots": 24210,
-        "weight": 2.98
+        "sharesLots": 24077,
+        "weight": 2.94
       },
       "2382": {
         "name": "廣達",
-        "sharesLots": 195940,
-        "weight": 8.8
+        "sharesLots": 194878,
+        "weight": 8.76
       },
       "2385": {
         "name": "群光",
-        "sharesLots": 36460,
-        "weight": 0.54
+        "sharesLots": 36298,
+        "weight": 0.51
       },
       "2458": {
         "name": "義隆",
-        "sharesLots": 15970,
-        "weight": 0.31
+        "sharesLots": 16162,
+        "weight": 0.39
       },
       "2474": {
         "name": "可成",
-        "sharesLots": 25920,
-        "weight": 0.82
+        "sharesLots": 25804,
+        "weight": 0.79
       },
       "2504": {
         "name": "國產",
-        "sharesLots": 117699,
-        "weight": 0.6
+        "sharesLots": 118772,
+        "weight": 0.66
       },
       "2542": {
         "name": "興富發",
-        "sharesLots": 81240,
-        "weight": 0.51
+        "sharesLots": 80955,
+        "weight": 0.49
       },
       "2597": {
         "name": "潤弘",
-        "sharesLots": 14650,
-        "weight": 0.42
+        "sharesLots": 14792,
+        "weight": 0.48
       },
       "2603": {
         "name": "長榮",
-        "sharesLots": 107943,
-        "weight": 4.52
+        "sharesLots": 107555,
+        "weight": 4.5
       },
       "2606": {
         "name": "裕民",
-        "sharesLots": 40313,
-        "weight": 0.48
+        "sharesLots": 40813,
+        "weight": 0.56
       },
       "2618": {
         "name": "長榮航",
-        "sharesLots": 256904,
-        "weight": 1.99
+        "sharesLots": 259272,
+        "weight": 2.05
       },
       "2637": {
         "name": "慧洋-KY",
-        "sharesLots": 35140,
-        "weight": 0.56
+        "sharesLots": 34963,
+        "weight": 0.53
       },
       "2855": {
         "name": "統一證",
-        "sharesLots": 106380,
-        "weight": 0.91
+        "sharesLots": 107711,
+        "weight": 0.99
       },
       "2881": {
         "name": "富邦金",
-        "sharesLots": 614950,
-        "weight": 16.13
+        "sharesLots": 622391,
+        "weight": 16.21
       },
       "2882": {
         "name": "國泰金",
-        "sharesLots": 704140,
-        "weight": 13.1
+        "sharesLots": 712701,
+        "weight": 13.18
       },
       "2883": {
         "name": "凱基金",
@@ -794,48 +794,48 @@
       },
       "3034": {
         "name": "聯詠",
-        "sharesLots": 36385,
-        "weight": 2.8
+        "sharesLots": 36794,
+        "weight": 2.87
       },
       "3293": {
         "name": "鈊象",
-        "sharesLots": 12570,
-        "weight": 1.63
+        "sharesLots": 12696,
+        "weight": 1.7
       },
       "4763": {
         "name": "材料*-KY",
-        "sharesLots": 41500,
-        "weight": 0.29
+        "sharesLots": 41856,
+        "weight": 0.35
       },
       "4915": {
         "name": "致伸",
-        "sharesLots": 29796,
-        "weight": 0.24
+        "sharesLots": 29578,
+        "weight": 0.19
       },
       "4938": {
         "name": "和碩",
-        "sharesLots": 153760,
-        "weight": 2.23
+        "sharesLots": 155482,
+        "weight": 2.3
       },
       "5522": {
         "name": "遠雄",
-        "sharesLots": 71989,
-        "weight": 0.68
+        "sharesLots": 71625,
+        "weight": 0.65
       },
       "5871": {
         "name": "中租-KY",
-        "sharesLots": 80630,
-        "weight": 1.36
+        "sharesLots": 80377,
+        "weight": 1.34
       },
       "6121": {
         "name": "新普",
-        "sharesLots": 8564,
-        "weight": 0.43
+        "sharesLots": 8522,
+        "weight": 0.4
       },
       "6670": {
         "name": "復盛應用",
-        "sharesLots": 8330,
-        "weight": 0.37
+        "sharesLots": 8297,
+        "weight": 0.34
       },
       "6890": {
         "name": "來億-KY",
@@ -844,28 +844,28 @@
       },
       "8112": {
         "name": "至上",
-        "sharesLots": 30513,
-        "weight": 0.4
+        "sharesLots": 30825,
+        "weight": 0.47
       },
       "8454": {
         "name": "富邦媒",
-        "sharesLots": 12488,
-        "weight": 0.48
+        "sharesLots": 12423,
+        "weight": 0.45
       },
       "9910": {
         "name": "豐泰",
-        "sharesLots": 37190,
-        "weight": 0.4
+        "sharesLots": 36974,
+        "weight": 0.36
       },
       "9941": {
         "name": "裕融",
-        "sharesLots": 31139,
-        "weight": 0.38
+        "sharesLots": 31512,
+        "weight": 0.46
       }
     }
   },
   "00929": {
-    "date": "2026-11-13",
+    "date": "2026-11-12",
     "holdings": {
       "2301": {
         "name": "光寶科",
@@ -874,18 +874,18 @@
       },
       "2303": {
         "name": "聯電",
-        "sharesLots": 19733,
-        "weight": 1.29
+        "sharesLots": 19673,
+        "weight": 1.27
       },
       "2317": {
         "name": "鴻海",
-        "sharesLots": 11827,
-        "weight": 1.84
+        "sharesLots": 11951,
+        "weight": 1.91
       },
       "2347": {
         "name": "聯強",
-        "sharesLots": 58436,
-        "weight": 2.87
+        "sharesLots": 58226,
+        "weight": 2.85
       },
       "2352": {
         "name": "佳世達",
@@ -894,73 +894,73 @@
       },
       "2356": {
         "name": "英業達",
-        "sharesLots": 46305,
-        "weight": 1.38
+        "sharesLots": 45980,
+        "weight": 1.33
       },
       "2357": {
         "name": "華碩",
-        "sharesLots": 7335,
-        "weight": 4.18
+        "sharesLots": 7308,
+        "weight": 4.16
       },
       "2376": {
         "name": "技嘉",
-        "sharesLots": 11777,
-        "weight": 2.16
+        "sharesLots": 11698,
+        "weight": 2.12
       },
       "2377": {
         "name": "微星",
-        "sharesLots": 26642,
-        "weight": 2.38
+        "sharesLots": 26857,
+        "weight": 2.43
       },
       "2379": {
         "name": "瑞昱",
-        "sharesLots": 7166,
-        "weight": 3.51
+        "sharesLots": 7110,
+        "weight": 3.46
       },
       "2382": {
         "name": "廣達",
-        "sharesLots": 14880,
-        "weight": 2.66
+        "sharesLots": 14810,
+        "weight": 2.63
       },
       "2404": {
         "name": "漢唐",
-        "sharesLots": 3519,
-        "weight": 2.27
+        "sharesLots": 3563,
+        "weight": 2.35
       },
       "2412": {
         "name": "中華電",
-        "sharesLots": 32620,
-        "weight": 3.48
+        "sharesLots": 33026,
+        "weight": 3.56
       },
       "2458": {
         "name": "義隆",
-        "sharesLots": 15340,
-        "weight": 1.18
+        "sharesLots": 15291,
+        "weight": 1.16
       },
       "2474": {
         "name": "可成",
-        "sharesLots": 25796,
-        "weight": 3.25
+        "sharesLots": 25612,
+        "weight": 3.2
       },
       "3008": {
         "name": "大立光",
-        "sharesLots": 670,
-        "weight": 2.3
+        "sharesLots": 666,
+        "weight": 2.26
       },
       "3023": {
         "name": "信邦",
-        "sharesLots": 10435,
-        "weight": 1.75
+        "sharesLots": 10358,
+        "weight": 1.7
       },
       "3034": {
         "name": "聯詠",
-        "sharesLots": 12565,
-        "weight": 3.85
+        "sharesLots": 12708,
+        "weight": 3.93
       },
       "3044": {
         "name": "健鼎",
-        "sharesLots": 6271,
-        "weight": 2.16
+        "sharesLots": 6334,
+        "weight": 2.23
       },
       "3045": {
         "name": "台灣大",
@@ -974,28 +974,28 @@
       },
       "3211": {
         "name": "順達",
-        "sharesLots": 7891,
-        "weight": 1.3
+        "sharesLots": 7983,
+        "weight": 1.38
       },
       "3227": {
         "name": "原相",
-        "sharesLots": 6733,
-        "weight": 0.79
+        "sharesLots": 6683,
+        "weight": 0.74
       },
       "3231": {
         "name": "緯創",
-        "sharesLots": 25125,
-        "weight": 2.78
+        "sharesLots": 25397,
+        "weight": 2.85
       },
       "3260": {
         "name": "威剛",
-        "sharesLots": 11961,
-        "weight": 2.33
+        "sharesLots": 11915,
+        "weight": 2.3
       },
       "3264": {
         "name": "欣銓",
-        "sharesLots": 11164,
-        "weight": 1.39
+        "sharesLots": 11292,
+        "weight": 1.47
       },
       "3563": {
         "name": "牧德",
@@ -1004,33 +1004,33 @@
       },
       "3702": {
         "name": "大聯大",
-        "sharesLots": 39255,
-        "weight": 2.19
+        "sharesLots": 39701,
+        "weight": 2.27
       },
       "3706": {
         "name": "神達",
-        "sharesLots": 47144,
-        "weight": 2.03
+        "sharesLots": 46915,
+        "weight": 2
       },
       "4904": {
         "name": "遠傳",
-        "sharesLots": 43291,
-        "weight": 3.06
+        "sharesLots": 42995,
+        "weight": 3.01
       },
       "4915": {
         "name": "致伸",
-        "sharesLots": 20037,
-        "weight": 0.65
+        "sharesLots": 20211,
+        "weight": 0.71
       },
       "4966": {
         "name": "譜瑞-KY",
-        "sharesLots": 4035,
-        "weight": 1.05
+        "sharesLots": 4017,
+        "weight": 1.02
       },
       "5269": {
         "name": "祥碩",
-        "sharesLots": 2618,
-        "weight": 1.97
+        "sharesLots": 2649,
+        "weight": 2.05
       },
       "5347": {
         "name": "世界",
@@ -1039,43 +1039,43 @@
       },
       "5434": {
         "name": "崇越",
-        "sharesLots": 8014,
-        "weight": 2.64
+        "sharesLots": 7952,
+        "weight": 2.59
       },
       "5469": {
         "name": "瀚宇博",
-        "sharesLots": 17681,
-        "weight": 0.89
+        "sharesLots": 17891,
+        "weight": 0.97
       },
       "5483": {
         "name": "中美晶",
-        "sharesLots": 17759,
-        "weight": 1.86
+        "sharesLots": 17926,
+        "weight": 1.92
       },
       "5536": {
         "name": "聖暉*",
-        "sharesLots": 2040,
-        "weight": 0.97
+        "sharesLots": 2062,
+        "weight": 1.04
       },
       "6121": {
         "name": "新普",
-        "sharesLots": 7595,
-        "weight": 1.53
+        "sharesLots": 7658,
+        "weight": 1.59
       },
       "6139": {
         "name": "亞翔",
-        "sharesLots": 4969,
-        "weight": 1.99
+        "sharesLots": 4933,
+        "weight": 1.94
       },
       "6191": {
         "name": "精成科",
-        "sharesLots": 23694,
-        "weight": 1.28
+        "sharesLots": 23586,
+        "weight": 1.25
       },
       "6257": {
         "name": "矽格",
-        "sharesLots": 12355,
-        "weight": 1.45
+        "sharesLots": 12456,
+        "weight": 1.5
       },
       "6278": {
         "name": "台表科",
@@ -1084,48 +1084,48 @@
       },
       "6409": {
         "name": "旭隼",
-        "sharesLots": 4258,
-        "weight": 2.25
+        "sharesLots": 4241,
+        "weight": 2.22
       },
       "6548": {
         "name": "長科*",
-        "sharesLots": 22225,
-        "weight": 0.99
+        "sharesLots": 22077,
+        "weight": 0.95
       },
       "6691": {
         "name": "洋基工程",
-        "sharesLots": 5497,
-        "weight": 2.02
+        "sharesLots": 5564,
+        "weight": 2.1
       },
       "8069": {
         "name": "元太",
-        "sharesLots": 16551,
-        "weight": 1.56
+        "sharesLots": 16721,
+        "weight": 1.63
       },
       "8070": {
         "name": "長華*",
-        "sharesLots": 20956,
-        "weight": 0.66
+        "sharesLots": 20801,
+        "weight": 0.61
       },
       "8112": {
         "name": "至上",
-        "sharesLots": 26620,
-        "weight": 1.39
+        "sharesLots": 26439,
+        "weight": 1.34
       },
       "8422": {
         "name": "可寧衛*",
-        "sharesLots": 54146,
-        "weight": 0.83
+        "sharesLots": 53739,
+        "weight": 0.78
       }
     }
   },
   "00940": {
-    "date": "2026-11-13",
+    "date": "2026-11-12",
     "holdings": {
       "1102": {
         "name": "亞泥",
-        "sharesLots": 28531,
-        "weight": 1.66
+        "sharesLots": 28781,
+        "weight": 1.72
       },
       "1216": {
         "name": "統一",
@@ -1134,23 +1134,23 @@
       },
       "1319": {
         "name": "東陽",
-        "sharesLots": 8413,
-        "weight": 0.97
+        "sharesLots": 8382,
+        "weight": 0.95
       },
       "1513": {
         "name": "中興電",
-        "sharesLots": 10007,
-        "weight": 2.38
+        "sharesLots": 9946,
+        "weight": 2.34
       },
       "2303": {
         "name": "聯電",
-        "sharesLots": 12367,
-        "weight": 2.04
+        "sharesLots": 12506,
+        "weight": 2.11
       },
       "2356": {
         "name": "英業達",
-        "sharesLots": 24631,
-        "weight": 1.84
+        "sharesLots": 24883,
+        "weight": 1.91
       },
       "2357": {
         "name": "華碩",
@@ -1159,33 +1159,33 @@
       },
       "2379": {
         "name": "瑞昱",
-        "sharesLots": 2495,
-        "weight": 3.08
+        "sharesLots": 2485,
+        "weight": 3.05
       },
       "2385": {
         "name": "群光",
-        "sharesLots": 11680,
-        "weight": 1.72
+        "sharesLots": 11803,
+        "weight": 1.79
       },
       "2393": {
         "name": "億光",
-        "sharesLots": 10542,
-        "weight": 1.07
+        "sharesLots": 10643,
+        "weight": 1.13
       },
       "2404": {
         "name": "漢唐",
-        "sharesLots": 1358,
-        "weight": 2.2
+        "sharesLots": 1373,
+        "weight": 2.27
       },
       "2421": {
         "name": "建準",
-        "sharesLots": 5654,
-        "weight": 1.23
+        "sharesLots": 5636,
+        "weight": 1.21
       },
       "2454": {
         "name": "聯發科",
-        "sharesLots": 102,
-        "weight": 0.68
+        "sharesLots": 103,
+        "weight": 0.76
       },
       "2458": {
         "name": "義隆",
@@ -1194,18 +1194,18 @@
       },
       "2474": {
         "name": "可成",
-        "sharesLots": 4372,
-        "weight": 1.39
+        "sharesLots": 4421,
+        "weight": 1.46
       },
       "2610": {
         "name": "華航",
-        "sharesLots": 72935,
-        "weight": 2.75
+        "sharesLots": 72641,
+        "weight": 2.72
       },
       "2615": {
         "name": "萬海",
-        "sharesLots": 14423,
-        "weight": 2.52
+        "sharesLots": 14545,
+        "weight": 2.58
       },
       "2618": {
         "name": "長榮航",
@@ -1214,18 +1214,18 @@
       },
       "2801": {
         "name": "彰銀",
-        "sharesLots": 53000,
-        "weight": 2.5
+        "sharesLots": 53582,
+        "weight": 2.57
       },
       "2881": {
         "name": "富邦金",
-        "sharesLots": 14295,
-        "weight": 3.75
+        "sharesLots": 14240,
+        "weight": 3.72
       },
       "2883": {
         "name": "凱基金",
-        "sharesLots": 37058,
-        "weight": 2.19
+        "sharesLots": 36775,
+        "weight": 2.14
       },
       "2885": {
         "name": "元大金",
@@ -1234,13 +1234,13 @@
       },
       "2887": {
         "name": "台新新光金",
-        "sharesLots": 24363,
-        "weight": 1.61
+        "sharesLots": 24593,
+        "weight": 1.67
       },
       "2890": {
         "name": "永豐金",
-        "sharesLots": 38746,
-        "weight": 2.76
+        "sharesLots": 38578,
+        "weight": 2.73
       },
       "2891": {
         "name": "中信金",
@@ -1249,53 +1249,53 @@
       },
       "2892": {
         "name": "第一金",
-        "sharesLots": 45869,
-        "weight": 3.24
+        "sharesLots": 46296,
+        "weight": 3.3
       },
       "2912": {
         "name": "統一超",
-        "sharesLots": 6498,
-        "weight": 2.28
+        "sharesLots": 6457,
+        "weight": 2.24
       },
       "2915": {
         "name": "潤泰全",
-        "sharesLots": 4578,
-        "weight": 0.42
+        "sharesLots": 4554,
+        "weight": 0.38
       },
       "3023": {
         "name": "信邦",
-        "sharesLots": 3417,
-        "weight": 1.44
+        "sharesLots": 3393,
+        "weight": 1.39
       },
       "3034": {
         "name": "聯詠",
-        "sharesLots": 4329,
-        "weight": 3.34
+        "sharesLots": 4378,
+        "weight": 3.41
       },
       "3036": {
         "name": "文曄",
-        "sharesLots": 4681,
-        "weight": 1.42
+        "sharesLots": 4723,
+        "weight": 1.48
       },
       "3042": {
         "name": "晶技",
-        "sharesLots": 4331,
-        "weight": 1.01
+        "sharesLots": 4313,
+        "weight": 0.98
       },
       "3044": {
         "name": "健鼎",
-        "sharesLots": 1696,
-        "weight": 1.47
+        "sharesLots": 1715,
+        "weight": 1.54
       },
       "3045": {
         "name": "台灣大",
-        "sharesLots": 12601,
-        "weight": 2.68
+        "sharesLots": 12550,
+        "weight": 2.65
       },
       "3293": {
         "name": "鈊象",
-        "sharesLots": 1993,
-        "weight": 2.59
+        "sharesLots": 2011,
+        "weight": 2.65
       },
       "3406": {
         "name": "玉晶光",
@@ -1304,23 +1304,23 @@
       },
       "3702": {
         "name": "大聯大",
-        "sharesLots": 7700,
-        "weight": 1.08
+        "sharesLots": 7763,
+        "weight": 1.13
       },
       "3706": {
         "name": "神達",
-        "sharesLots": 13208,
-        "weight": 1.43
+        "sharesLots": 13322,
+        "weight": 1.49
       },
       "4915": {
         "name": "致伸",
-        "sharesLots": 9928,
-        "weight": 0.8
+        "sharesLots": 10020,
+        "weight": 0.86
       },
       "4938": {
         "name": "和碩",
-        "sharesLots": 15632,
-        "weight": 2.27
+        "sharesLots": 15524,
+        "weight": 2.22
       },
       "5269": {
         "name": "祥碩",
@@ -1329,13 +1329,13 @@
       },
       "5469": {
         "name": "瀚宇博",
-        "sharesLots": 3376,
-        "weight": 0.43
+        "sharesLots": 3351,
+        "weight": 0.38
       },
       "6139": {
         "name": "亞翔",
-        "sharesLots": 1413,
-        "weight": 1.42
+        "sharesLots": 1403,
+        "weight": 1.37
       },
       "6176": {
         "name": "瑞儀",
@@ -1344,73 +1344,73 @@
       },
       "6196": {
         "name": "帆宣",
-        "sharesLots": 1101,
-        "weight": 0.71
+        "sharesLots": 1111,
+        "weight": 0.77
       },
       "6278": {
         "name": "台表科",
-        "sharesLots": 3642,
-        "weight": 1.37
+        "sharesLots": 3628,
+        "weight": 1.34
       },
       "6414": {
         "name": "樺漢",
-        "sharesLots": 2825,
-        "weight": 1.55
+        "sharesLots": 2856,
+        "weight": 1.62
       },
       "8016": {
         "name": "矽創",
-        "sharesLots": 1343,
-        "weight": 0.56
+        "sharesLots": 1355,
+        "weight": 0.62
       },
       "8069": {
         "name": "元太",
-        "sharesLots": 9538,
-        "weight": 2.26
+        "sharesLots": 9477,
+        "weight": 2.22
       },
       "9904": {
         "name": "寶成",
-        "sharesLots": 37002,
-        "weight": 1.56
+        "sharesLots": 37404,
+        "weight": 1.63
       }
     }
   },
   "006208": {
-    "date": "2026-11-13",
+    "date": "2026-11-12",
     "holdings": {
       "1216": {
         "name": "統一",
-        "sharesLots": 22763,
-        "weight": 0.39
+        "sharesLots": 23018,
+        "weight": 0.46
       },
       "1303": {
         "name": "南亞",
-        "sharesLots": 22692,
-        "weight": 1.52
+        "sharesLots": 22567,
+        "weight": 1.48
       },
       "2059": {
         "name": "川湖",
-        "sharesLots": 254,
-        "weight": 0.44
+        "sharesLots": 253,
+        "weight": 0.41
       },
       "2301": {
         "name": "光寶科",
-        "sharesLots": 9009,
-        "weight": 0.46
+        "sharesLots": 8971,
+        "weight": 0.43
       },
       "2303": {
         "name": "聯電",
-        "sharesLots": 53733,
-        "weight": 1.2
+        "sharesLots": 53406,
+        "weight": 1.16
       },
       "2308": {
         "name": "台達電",
-        "sharesLots": 8895,
-        "weight": 2.43
+        "sharesLots": 9005,
+        "weight": 2.51
       },
       "2317": {
         "name": "鴻海",
-        "sharesLots": 56249,
-        "weight": 2.99
+        "sharesLots": 55980,
+        "weight": 2.96
       },
       "2327": {
         "name": "國巨*",
@@ -1419,18 +1419,18 @@
       },
       "2330": {
         "name": "台積電",
-        "sharesLots": 112794,
-        "weight": 58.45
+        "sharesLots": 112374,
+        "weight": 58.43
       },
       "2344": {
         "name": "華邦電",
-        "sharesLots": 14250,
-        "weight": 0.39
+        "sharesLots": 14421,
+        "weight": 0.47
       },
       "2345": {
         "name": "智邦",
-        "sharesLots": 2282,
-        "weight": 0.76
+        "sharesLots": 2264,
+        "weight": 0.71
       },
       "2357": {
         "name": "華碩",
@@ -1439,13 +1439,13 @@
       },
       "2360": {
         "name": "致茂",
-        "sharesLots": 1698,
-        "weight": 0.52
+        "sharesLots": 1718,
+        "weight": 0.6
       },
       "2368": {
         "name": "金像電",
-        "sharesLots": 1603,
-        "weight": 0.36
+        "sharesLots": 1590,
+        "weight": 0.31
       },
       "2382": {
         "name": "廣達",
@@ -1459,13 +1459,13 @@
       },
       "2395": {
         "name": "研華",
-        "sharesLots": 2124,
-        "weight": 0.28
+        "sharesLots": 2115,
+        "weight": 0.25
       },
       "2408": {
         "name": "南亞科",
-        "sharesLots": 5942,
-        "weight": 0.49
+        "sharesLots": 5914,
+        "weight": 0.46
       },
       "2412": {
         "name": "中華電",
@@ -1474,73 +1474,73 @@
       },
       "2449": {
         "name": "京元電子",
-        "sharesLots": 5259,
-        "weight": 0.25
+        "sharesLots": 5238,
+        "weight": 0.22
       },
       "2454": {
         "name": "聯發科",
-        "sharesLots": 6781,
-        "weight": 6.16
+        "sharesLots": 6749,
+        "weight": 6.13
       },
       "2603": {
         "name": "長榮",
-        "sharesLots": 5004,
-        "weight": 0.28
+        "sharesLots": 4978,
+        "weight": 0.25
       },
       "2880": {
         "name": "華南金",
-        "sharesLots": 42771,
-        "weight": 0.49
+        "sharesLots": 43253,
+        "weight": 0.57
       },
       "2881": {
         "name": "富邦金",
-        "sharesLots": 38422,
-        "weight": 1.37
+        "sharesLots": 38169,
+        "weight": 1.33
       },
       "2882": {
         "name": "國泰金",
-        "sharesLots": 43933,
-        "weight": 1.11
+        "sharesLots": 43777,
+        "weight": 1.09
       },
       "2883": {
         "name": "凱基金",
-        "sharesLots": 72545,
-        "weight": 0.58
+        "sharesLots": 72193,
+        "weight": 0.55
       },
       "2884": {
         "name": "玉山金",
-        "sharesLots": 73623,
-        "weight": 0.78
+        "sharesLots": 74219,
+        "weight": 0.83
       },
       "2885": {
         "name": "元大金",
-        "sharesLots": 52823,
-        "weight": 0.85
+        "sharesLots": 52453,
+        "weight": 0.8
       },
       "2886": {
         "name": "兆豐金",
-        "sharesLots": 54446,
-        "weight": 0.67
+        "sharesLots": 54930,
+        "weight": 0.73
       },
       "2887": {
         "name": "台新新光金",
-        "sharesLots": 107954,
-        "weight": 0.97
+        "sharesLots": 109274,
+        "weight": 1.05
       },
       "2890": {
         "name": "永豐金",
-        "sharesLots": 62428,
-        "weight": 0.6
+        "sharesLots": 63072,
+        "weight": 0.67
       },
       "2891": {
         "name": "中信金",
-        "sharesLots": 81496,
-        "weight": 1.41
+        "sharesLots": 80843,
+        "weight": 1.36
       },
       "2892": {
         "name": "第一金",
-        "sharesLots": 51593,
-        "weight": 0.49
+        "sharesLots": 52037,
+        "weight": 0.55
       },
       "3008": {
         "name": "大立光",
@@ -1554,8 +1554,8 @@
       },
       "3037": {
         "name": "欣興",
-        "sharesLots": 6077,
-        "weight": 1.05
+        "sharesLots": 6031,
+        "weight": 1
       },
       "3045": {
         "name": "台灣大",
@@ -1564,8 +1564,8 @@
       },
       "3231": {
         "name": "緯創",
-        "sharesLots": 13910,
-        "weight": 0.52
+        "sharesLots": 14068,
+        "weight": 0.6
       },
       "3443": {
         "name": "創意",
@@ -1574,38 +1574,38 @@
       },
       "3653": {
         "name": "健策",
-        "sharesLots": 401,
-        "weight": 0.47
+        "sharesLots": 399,
+        "weight": 0.43
       },
       "3665": {
         "name": "貿聯-KY",
-        "sharesLots": 823,
-        "weight": 0.28
+        "sharesLots": 817,
+        "weight": 0.23
       },
       "3711": {
         "name": "日月光投控",
-        "sharesLots": 15284,
-        "weight": 2.02
+        "sharesLots": 15413,
+        "weight": 2.08
       },
       "4904": {
         "name": "遠傳",
-        "sharesLots": 8172,
-        "weight": 0.2
+        "sharesLots": 8255,
+        "weight": 0.27
       },
       "4958": {
         "name": "臻鼎-KY",
-        "sharesLots": 3638,
-        "weight": 0.35
+        "sharesLots": 3677,
+        "weight": 0.42
       },
       "5880": {
         "name": "合庫金",
-        "sharesLots": 49429,
-        "weight": 0.31
+        "sharesLots": 50004,
+        "weight": 0.39
       },
       "6446": {
         "name": "藥華藥",
-        "sharesLots": 1452,
-        "weight": 0.44
+        "sharesLots": 1467,
+        "weight": 0.51
       },
       "6505": {
         "name": "台塑化",
@@ -1614,38 +1614,38 @@
       },
       "6669": {
         "name": "緯穎",
-        "sharesLots": 1428,
-        "weight": 0.51
+        "sharesLots": 1445,
+        "weight": 0.59
       },
       "7769": {
         "name": "鴻勁",
-        "sharesLots": 262,
-        "weight": 0.24
+        "sharesLots": 265,
+        "weight": 0.31
       },
       "8046": {
         "name": "南電",
-        "sharesLots": 1154,
-        "weight": 0.25
+        "sharesLots": 1149,
+        "weight": 0.22
       }
     }
   },
   "00713": {
-    "date": "2026-11-13",
+    "date": "2026-11-12",
     "holdings": {
       "1210": {
         "name": "大成",
-        "sharesLots": 21718,
-        "weight": 1.05
+        "sharesLots": 21985,
+        "weight": 1.13
       },
       "1215": {
         "name": "卜蜂",
-        "sharesLots": 13112,
-        "weight": 1.28
+        "sharesLots": 13271,
+        "weight": 1.36
       },
       "1216": {
         "name": "統一",
-        "sharesLots": 118888,
-        "weight": 8.62
+        "sharesLots": 120023,
+        "weight": 8.68
       },
       "1402": {
         "name": "遠東新",
@@ -1654,28 +1654,28 @@
       },
       "1476": {
         "name": "儒鴻",
-        "sharesLots": 3388,
-        "weight": 1.21
+        "sharesLots": 3363,
+        "weight": 1.16
       },
       "1477": {
         "name": "聚陽",
-        "sharesLots": 5435,
-        "weight": 1.13
+        "sharesLots": 5494,
+        "weight": 1.2
       },
       "2006": {
         "name": "東和鋼鐵",
-        "sharesLots": 19320,
-        "weight": 1.53
+        "sharesLots": 19511,
+        "weight": 1.6
       },
       "2015": {
         "name": "豐興",
-        "sharesLots": 9024,
-        "weight": 0.53
+        "sharesLots": 8990,
+        "weight": 0.51
       },
       "2206": {
         "name": "三陽工業",
-        "sharesLots": 17752,
-        "weight": 1.02
+        "sharesLots": 17626,
+        "weight": 0.97
       },
       "2207": {
         "name": "和泰車",
@@ -1684,23 +1684,23 @@
       },
       "2303": {
         "name": "聯電",
-        "sharesLots": 9013,
-        "weight": 0.85
+        "sharesLots": 9100,
+        "weight": 0.91
       },
       "2347": {
         "name": "聯強",
-        "sharesLots": 11575,
-        "weight": 0.81
+        "sharesLots": 11673,
+        "weight": 0.87
       },
       "2357": {
         "name": "華碩",
-        "sharesLots": 1025,
-        "weight": 0.84
+        "sharesLots": 1018,
+        "weight": 0.79
       },
       "2376": {
         "name": "技嘉",
-        "sharesLots": 2967,
-        "weight": 0.78
+        "sharesLots": 2995,
+        "weight": 0.84
       },
       "2377": {
         "name": "微星",
@@ -1709,13 +1709,13 @@
       },
       "2379": {
         "name": "瑞昱",
-        "sharesLots": 2438,
-        "weight": 1.71
+        "sharesLots": 2468,
+        "weight": 1.79
       },
       "2382": {
         "name": "廣達",
-        "sharesLots": 6776,
-        "weight": 1.73
+        "sharesLots": 6726,
+        "weight": 1.68
       },
       "2385": {
         "name": "群光",
@@ -1724,13 +1724,13 @@
       },
       "2458": {
         "name": "義隆",
-        "sharesLots": 7396,
-        "weight": 0.81
+        "sharesLots": 7488,
+        "weight": 0.89
       },
       "2504": {
         "name": "國產",
-        "sharesLots": 24799,
-        "weight": 0.72
+        "sharesLots": 24697,
+        "weight": 0.69
       },
       "2606": {
         "name": "裕民",
@@ -1739,18 +1739,18 @@
       },
       "2610": {
         "name": "華航",
-        "sharesLots": 56479,
-        "weight": 1.21
+        "sharesLots": 56059,
+        "weight": 1.16
       },
       "2618": {
         "name": "長榮航",
-        "sharesLots": 27911,
-        "weight": 1.23
+        "sharesLots": 27731,
+        "weight": 1.19
       },
       "2633": {
         "name": "台灣高鐵",
-        "sharesLots": 86866,
-        "weight": 2.08
+        "sharesLots": 86462,
+        "weight": 2.05
       },
       "2845": {
         "name": "遠東銀",
@@ -1764,68 +1764,68 @@
       },
       "2880": {
         "name": "華南金",
-        "sharesLots": 103558,
-        "weight": 4.98
+        "sharesLots": 103130,
+        "weight": 4.95
       },
       "2882": {
         "name": "國泰金",
-        "sharesLots": 7718,
-        "weight": 0.82
+        "sharesLots": 7684,
+        "weight": 0.79
       },
       "2884": {
         "name": "玉山金",
-        "sharesLots": 128551,
-        "weight": 5.75
+        "sharesLots": 127789,
+        "weight": 5.71
       },
       "2885": {
         "name": "元大金",
-        "sharesLots": 15781,
-        "weight": 1.06
+        "sharesLots": 15950,
+        "weight": 1.13
       },
       "2887": {
         "name": "台新新光金",
-        "sharesLots": 34169,
-        "weight": 1.29
+        "sharesLots": 34591,
+        "weight": 1.37
       },
       "2890": {
         "name": "永豐金",
-        "sharesLots": 38606,
-        "weight": 1.57
+        "sharesLots": 39085,
+        "weight": 1.65
       },
       "2891": {
         "name": "中信金",
-        "sharesLots": 16273,
-        "weight": 1.19
+        "sharesLots": 16450,
+        "weight": 1.26
       },
       "2892": {
         "name": "第一金",
-        "sharesLots": 190330,
-        "weight": 7.66
+        "sharesLots": 192600,
+        "weight": 7.74
       },
       "2903": {
         "name": "遠百",
-        "sharesLots": 36534,
-        "weight": 0.72
+        "sharesLots": 36278,
+        "weight": 0.67
       },
       "2912": {
         "name": "統一超",
-        "sharesLots": 31415,
-        "weight": 6.27
+        "sharesLots": 31213,
+        "weight": 6.23
       },
       "3034": {
         "name": "聯詠",
-        "sharesLots": 2360,
-        "weight": 1.04
+        "sharesLots": 2349,
+        "weight": 1.01
       },
       "3036": {
         "name": "文曄",
-        "sharesLots": 2886,
-        "weight": 0.5
+        "sharesLots": 2876,
+        "weight": 0.48
       },
       "3045": {
         "name": "台灣大",
-        "sharesLots": 82544,
-        "weight": 10.01
+        "sharesLots": 82256,
+        "weight": 9.99
       },
       "3596": {
         "name": "智易",
@@ -1844,8 +1844,8 @@
       },
       "4915": {
         "name": "致伸",
-        "sharesLots": 14287,
-        "weight": 0.66
+        "sharesLots": 14176,
+        "weight": 0.61
       },
       "5434": {
         "name": "崇越",
@@ -1854,18 +1854,18 @@
       },
       "5876": {
         "name": "上海商銀",
-        "sharesLots": 73519,
-        "weight": 3.64
+        "sharesLots": 72978,
+        "weight": 3.59
       },
       "6670": {
         "name": "復盛應用",
-        "sharesLots": 3881,
-        "weight": 0.97
+        "sharesLots": 3925,
+        "weight": 1.05
       },
       "8464": {
         "name": "億豐",
-        "sharesLots": 3513,
-        "weight": 1.17
+        "sharesLots": 3554,
+        "weight": 1.25
       },
       "8926": {
         "name": "台汽電",
@@ -1885,12 +1885,12 @@
     }
   },
   "00406A": {
-    "date": "2026-11-13",
+    "date": "2026-11-12",
     "holdings": {
       "1303": {
         "name": "南亞",
-        "sharesLots": 12907,
-        "weight": 2.51
+        "sharesLots": 13012,
+        "weight": 2.56
       },
       "1326": {
         "name": "台化",
@@ -1899,8 +1899,8 @@
       },
       "1560": {
         "name": "中砂",
-        "sharesLots": 425,
-        "weight": 0.2
+        "sharesLots": 429,
+        "weight": 0.27
       },
       "1727": {
         "name": "中華化",
@@ -1909,13 +1909,13 @@
       },
       "1815": {
         "name": "富喬",
-        "sharesLots": 7000,
-        "weight": 0.64
+        "sharesLots": 7057,
+        "weight": 0.69
       },
       "2059": {
         "name": "川湖",
-        "sharesLots": 323,
-        "weight": 1.63
+        "sharesLots": 321,
+        "weight": 1.59
       },
       "2303": {
         "name": "聯電",
@@ -1924,28 +1924,28 @@
       },
       "2308": {
         "name": "台達電",
-        "sharesLots": 1973,
-        "weight": 1.57
+        "sharesLots": 1993,
+        "weight": 1.64
       },
       "2317": {
         "name": "鴻海",
-        "sharesLots": 1400,
-        "weight": 0.22
+        "sharesLots": 1416,
+        "weight": 0.3
       },
       "2327": {
         "name": "國巨*",
-        "sharesLots": 4840,
-        "weight": 1.27
+        "sharesLots": 4816,
+        "weight": 1.24
       },
       "2330": {
         "name": "台積電",
-        "sharesLots": 6234,
-        "weight": 9.39
+        "sharesLots": 6296,
+        "weight": 9.46
       },
       "2344": {
         "name": "華邦電",
-        "sharesLots": 208,
-        "weight": 0.02
+        "sharesLots": 206,
+        "weight": 0.01
       },
       "2345": {
         "name": "智邦",
@@ -1954,8 +1954,8 @@
       },
       "2368": {
         "name": "金像電",
-        "sharesLots": 3738,
-        "weight": 2.47
+        "sharesLots": 3778,
+        "weight": 2.54
       },
       "2383": {
         "name": "台光電",
@@ -1969,18 +1969,18 @@
       },
       "2449": {
         "name": "京元電子",
-        "sharesLots": 2410,
-        "weight": 0.33
+        "sharesLots": 2398,
+        "weight": 0.3
       },
       "2454": {
         "name": "聯發科",
-        "sharesLots": 2443,
-        "weight": 6.45
+        "sharesLots": 2430,
+        "weight": 6.42
       },
       "2481": {
         "name": "強茂",
-        "sharesLots": 3810,
-        "weight": 0.3
+        "sharesLots": 3844,
+        "weight": 0.36
       },
       "2486": {
         "name": "一詮",
@@ -1989,18 +1989,18 @@
       },
       "2881": {
         "name": "富邦金",
-        "sharesLots": 6200,
-        "weight": 0.64
+        "sharesLots": 6252,
+        "weight": 0.7
       },
       "2882": {
         "name": "國泰金",
-        "sharesLots": 8565,
-        "weight": 0.63
+        "sharesLots": 8531,
+        "weight": 0.6
       },
       "2884": {
         "name": "玉山金",
-        "sharesLots": 9000,
-        "weight": 0.28
+        "sharesLots": 8939,
+        "weight": 0.23
       },
       "2885": {
         "name": "元大金",
@@ -2009,38 +2009,38 @@
       },
       "2886": {
         "name": "兆豐金",
-        "sharesLots": 12030,
-        "weight": 0.43
+        "sharesLots": 12145,
+        "weight": 0.49
       },
       "2887": {
         "name": "台新新光金",
-        "sharesLots": 16760,
-        "weight": 0.44
+        "sharesLots": 16675,
+        "weight": 0.41
       },
       "2890": {
         "name": "永豐金",
-        "sharesLots": 10300,
-        "weight": 0.29
+        "sharesLots": 10385,
+        "weight": 0.35
       },
       "3008": {
         "name": "大立光",
-        "sharesLots": 295,
-        "weight": 1
+        "sharesLots": 294,
+        "weight": 0.97
       },
       "3017": {
         "name": "奇鋐",
-        "sharesLots": 3004,
-        "weight": 5.85
+        "sharesLots": 3036,
+        "weight": 5.92
       },
       "3037": {
         "name": "欣興",
-        "sharesLots": 9885,
-        "weight": 4.97
+        "sharesLots": 9992,
+        "weight": 5.04
       },
       "3081": {
         "name": "聯亞",
-        "sharesLots": 821,
-        "weight": 1.11
+        "sharesLots": 830,
+        "weight": 1.18
       },
       "3105": {
         "name": "穩懋",
@@ -2049,113 +2049,113 @@
       },
       "3167": {
         "name": "大量",
-        "sharesLots": 950,
-        "weight": 0.5
+        "sharesLots": 946,
+        "weight": 0.47
       },
       "3189": {
         "name": "景碩",
-        "sharesLots": 3306,
-        "weight": 1.41
+        "sharesLots": 3337,
+        "weight": 1.47
       },
       "3231": {
         "name": "緯創",
-        "sharesLots": 2800,
-        "weight": 0.31
+        "sharesLots": 2828,
+        "weight": 0.38
       },
       "3264": {
         "name": "欣銓",
-        "sharesLots": 2198,
-        "weight": 0.27
+        "sharesLots": 2220,
+        "weight": 0.34
       },
       "3443": {
         "name": "創意",
-        "sharesLots": 444,
-        "weight": 2.45
+        "sharesLots": 449,
+        "weight": 2.52
       },
       "3491": {
         "name": "昇達科",
-        "sharesLots": 330,
-        "weight": 0.3
+        "sharesLots": 328,
+        "weight": 0.26
       },
       "3653": {
         "name": "健策",
-        "sharesLots": 1277,
-        "weight": 4.37
+        "sharesLots": 1270,
+        "weight": 4.33
       },
       "3661": {
         "name": "世芯-KY",
-        "sharesLots": 320,
-        "weight": 0.82
+        "sharesLots": 324,
+        "weight": 0.9
       },
       "3665": {
         "name": "貿聯-KY",
-        "sharesLots": 1028,
-        "weight": 1
+        "sharesLots": 1023,
+        "weight": 0.97
       },
       "3711": {
         "name": "日月光投控",
-        "sharesLots": 5545,
-        "weight": 2.12
+        "sharesLots": 5507,
+        "weight": 2.07
       },
       "4938": {
         "name": "和碩",
-        "sharesLots": 7000,
-        "weight": 0.4
+        "sharesLots": 7083,
+        "weight": 0.48
       },
       "4958": {
         "name": "臻鼎-KY",
-        "sharesLots": 2979,
-        "weight": 0.84
+        "sharesLots": 3010,
+        "weight": 0.91
       },
       "5274": {
         "name": "信驊",
-        "sharesLots": 155,
-        "weight": 1.19
+        "sharesLots": 154,
+        "weight": 1.16
       },
       "6147": {
         "name": "頎邦",
-        "sharesLots": 5677,
-        "weight": 0.62
+        "sharesLots": 5726,
+        "weight": 0.68
       },
       "6187": {
         "name": "萬潤",
-        "sharesLots": 160,
-        "weight": 0.1
+        "sharesLots": 159,
+        "weight": 0.08
       },
       "6213": {
         "name": "聯茂",
-        "sharesLots": 1001,
-        "weight": 0.34
+        "sharesLots": 1013,
+        "weight": 0.42
       },
       "6223": {
         "name": "旺矽",
-        "sharesLots": 1052,
-        "weight": 3.15
+        "sharesLots": 1045,
+        "weight": 3.1
       },
       "6274": {
         "name": "台燿",
-        "sharesLots": 2730,
-        "weight": 1.7
+        "sharesLots": 2752,
+        "weight": 1.75
       },
       "6278": {
         "name": "台表科",
-        "sharesLots": 1428,
-        "weight": 0.21
+        "sharesLots": 1417,
+        "weight": 0.16
       },
       "6285": {
         "name": "啟碁",
-        "sharesLots": 325,
-        "weight": 0.04
+        "sharesLots": 323,
+        "weight": 0.01
       },
       "6446": {
         "name": "藥華藥",
-        "sharesLots": 903,
-        "weight": 0.8
+        "sharesLots": 897,
+        "weight": 0.76
       },
       "6510": {
         "name": "精測",
-        "sharesLots": 275,
-        "weight": 0.59
+        "sharesLots": 274,
+        "weight": 0.57
       },
       "6531": {
         "name": "愛普*",
@@ -2164,13 +2164,13 @@
       },
       "6669": {
         "name": "緯穎",
-        "sharesLots": 872,
-        "weight": 0.91
+        "sharesLots": 882,
+        "weight": 0.99
       },
       "6715": {
         "name": "嘉基",
-        "sharesLots": 2810,
-        "weight": 0.8
+        "sharesLots": 2843,
+        "weight": 0.88
       },
       "6805": {
         "name": "富世達",
@@ -2179,63 +2179,63 @@
       },
       "8046": {
         "name": "南電",
-        "sharesLots": 4746,
-        "weight": 2.97
+        "sharesLots": 4712,
+        "weight": 2.92
       },
       "8150": {
         "name": "南茂",
-        "sharesLots": 455,
-        "weight": 0.02
+        "sharesLots": 461,
+        "weight": 0.1
       },
       "8358": {
         "name": "金居",
-        "sharesLots": 235,
-        "weight": 0.06
+        "sharesLots": 237,
+        "weight": 0.12
       },
       "8996": {
         "name": "高力",
-        "sharesLots": 752,
-        "weight": 0.69
+        "sharesLots": 747,
+        "weight": 0.65
       }
     }
   },
   "00981A": {
-    "date": "2026-11-13",
+    "date": "2026-11-12",
     "holdings": {
       "1802": {
         "name": "台玻",
-        "sharesLots": 9679,
-        "weight": 0.3
+        "sharesLots": 9794,
+        "weight": 0.38
       },
       "2002": {
         "name": "中鋼",
-        "sharesLots": 5163,
-        "weight": 0.03
+        "sharesLots": 5136,
+        "weight": 0.01
       },
       "2303": {
         "name": "聯電",
-        "sharesLots": 68628,
-        "weight": 2.53
+        "sharesLots": 69262,
+        "weight": 2.59
       },
       "2308": {
         "name": "台達電",
-        "sharesLots": 7582,
-        "weight": 3.42
+        "sharesLots": 7535,
+        "weight": 3.38
       },
       "2313": {
         "name": "華通",
-        "sharesLots": 501,
-        "weight": 0.04
+        "sharesLots": 506,
+        "weight": 0.1
       },
       "2317": {
         "name": "鴻海",
-        "sharesLots": 4637,
-        "weight": 0.41
+        "sharesLots": 4695,
+        "weight": 0.49
       },
       "2327": {
         "name": "國巨*",
-        "sharesLots": 23519,
-        "weight": 3.51
+        "sharesLots": 23737,
+        "weight": 3.57
       },
       "2330": {
         "name": "台積電",
@@ -2244,28 +2244,28 @@
       },
       "2345": {
         "name": "智邦",
-        "sharesLots": 7093,
-        "weight": 3.92
+        "sharesLots": 7066,
+        "weight": 3.89
       },
       "2368": {
         "name": "金像電",
-        "sharesLots": 8053,
-        "weight": 3.01
+        "sharesLots": 8013,
+        "weight": 2.98
       },
       "2383": {
         "name": "台光電",
-        "sharesLots": 4328,
-        "weight": 6.63
+        "sharesLots": 4380,
+        "weight": 6.71
       },
       "2449": {
         "name": "京元電子",
-        "sharesLots": 7756,
-        "weight": 0.6
+        "sharesLots": 7696,
+        "weight": 0.55
       },
       "2454": {
         "name": "聯發科",
-        "sharesLots": 5712,
-        "weight": 8.55
+        "sharesLots": 5758,
+        "weight": 8.6
       },
       "2891": {
         "name": "中信金",
@@ -2279,23 +2279,23 @@
       },
       "3037": {
         "name": "欣興",
-        "sharesLots": 19739,
-        "weight": 5.63
+        "sharesLots": 19981,
+        "weight": 5.71
       },
       "3231": {
         "name": "緯創",
-        "sharesLots": 11967,
-        "weight": 0.74
+        "sharesLots": 12081,
+        "weight": 0.8
       },
       "3264": {
         "name": "欣銓",
-        "sharesLots": 5027,
-        "weight": 0.35
+        "sharesLots": 4988,
+        "weight": 0.3
       },
       "3443": {
         "name": "創意",
-        "sharesLots": 1015,
-        "weight": 3.18
+        "sharesLots": 1024,
+        "weight": 3.24
       },
       "3653": {
         "name": "健策",
@@ -2309,33 +2309,33 @@
       },
       "3711": {
         "name": "日月光投控",
-        "sharesLots": 17522,
-        "weight": 3.81
+        "sharesLots": 17431,
+        "weight": 3.78
       },
       "4979": {
         "name": "華星光",
-        "sharesLots": 957,
-        "weight": 0.13
+        "sharesLots": 953,
+        "weight": 0.1
       },
       "5274": {
         "name": "信驊",
-        "sharesLots": 239,
-        "weight": 1.04
+        "sharesLots": 242,
+        "weight": 1.11
       },
       "6187": {
         "name": "萬潤",
-        "sharesLots": 121,
-        "weight": 0.04
+        "sharesLots": 122,
+        "weight": 0.12
       },
       "6191": {
         "name": "精成科",
-        "sharesLots": 3921,
-        "weight": 0.12
+        "sharesLots": 3965,
+        "weight": 0.2
       },
       "6223": {
         "name": "旺矽",
-        "sharesLots": 2657,
-        "weight": 4.51
+        "sharesLots": 2679,
+        "weight": 4.56
       },
       "6271": {
         "name": "同欣電",
@@ -2344,43 +2344,43 @@
       },
       "6274": {
         "name": "台燿",
-        "sharesLots": 7342,
-        "weight": 2.6
+        "sharesLots": 7301,
+        "weight": 2.56
       },
       "6510": {
         "name": "精測",
-        "sharesLots": 470,
-        "weight": 0.57
+        "sharesLots": 468,
+        "weight": 0.54
       },
       "6515": {
         "name": "穎崴",
-        "sharesLots": 69,
-        "weight": 0.1
+        "sharesLots": 68,
+        "weight": 0.06
       },
       "6669": {
         "name": "緯穎",
-        "sharesLots": 2362,
-        "weight": 1.4
+        "sharesLots": 2344,
+        "weight": 1.35
       },
       "6805": {
         "name": "富世達",
-        "sharesLots": 1676,
-        "weight": 1.2
+        "sharesLots": 1693,
+        "weight": 1.27
       },
       "8046": {
         "name": "南電",
-        "sharesLots": 8987,
-        "weight": 3.19
+        "sharesLots": 8958,
+        "weight": 3.17
       },
       "8358": {
         "name": "金居",
-        "sharesLots": 654,
-        "weight": 0.09
+        "sharesLots": 650,
+        "weight": 0.05
       },
       "8996": {
         "name": "高力",
-        "sharesLots": 981,
-        "weight": 0.51
+        "sharesLots": 974,
+        "weight": 0.46
       }
     }
   },
@@ -2389,153 +2389,153 @@
     "holdings": {
       "2059": {
         "name": "川湖",
-        "sharesLots": 143,
-        "weight": 2.6
+        "sharesLots": 145,
+        "weight": 2.67
       },
       "2301": {
         "name": "光寶科",
-        "sharesLots": 3340,
-        "weight": 1.7
+        "sharesLots": 3369,
+        "weight": 1.76
       },
       "2303": {
         "name": "聯電",
-        "sharesLots": 5444,
-        "weight": 1.23
+        "sharesLots": 5402,
+        "weight": 1.18
       },
       "2330": {
         "name": "台積電",
-        "sharesLots": 1609,
-        "weight": 8.4
+        "sharesLots": 1627,
+        "weight": 8.47
       },
       "2360": {
         "name": "致茂",
-        "sharesLots": 1010,
-        "weight": 3.2
+        "sharesLots": 1006,
+        "weight": 3.18
       },
       "2376": {
         "name": "技嘉",
-        "sharesLots": 1843,
-        "weight": 1.19
+        "sharesLots": 1863,
+        "weight": 1.26
       },
       "2377": {
         "name": "微星",
-        "sharesLots": 1221,
-        "weight": 0.38
+        "sharesLots": 1232,
+        "weight": 0.44
       },
       "2383": {
         "name": "台光電",
-        "sharesLots": 328,
-        "weight": 3
+        "sharesLots": 332,
+        "weight": 3.07
       },
       "2395": {
         "name": "研華",
-        "sharesLots": 1013,
-        "weight": 1.36
+        "sharesLots": 1023,
+        "weight": 1.43
       },
       "2428": {
         "name": "興勤",
-        "sharesLots": 2432,
-        "weight": 0.98
+        "sharesLots": 2423,
+        "weight": 0.96
       },
       "2454": {
         "name": "聯發科",
-        "sharesLots": 957,
-        "weight": 8.22
+        "sharesLots": 965,
+        "weight": 8.28
       },
       "2455": {
         "name": "全新",
-        "sharesLots": 1619,
-        "weight": 1.36
+        "sharesLots": 1637,
+        "weight": 1.43
       },
       "2467": {
         "name": "志聖",
-        "sharesLots": 332,
-        "weight": 0.23
+        "sharesLots": 330,
+        "weight": 0.19
       },
       "2476": {
         "name": "鉅祥",
-        "sharesLots": 1465,
-        "weight": 0.32
+        "sharesLots": 1482,
+        "weight": 0.4
       },
       "2478": {
         "name": "大毅",
-        "sharesLots": 1502,
-        "weight": 0.33
+        "sharesLots": 1520,
+        "weight": 0.41
       },
       "2486": {
         "name": "一詮",
-        "sharesLots": 1071,
-        "weight": 0.4
+        "sharesLots": 1083,
+        "weight": 0.47
       },
       "2885": {
         "name": "元大金",
-        "sharesLots": 2214,
-        "weight": 0.35
+        "sharesLots": 2200,
+        "weight": 0.31
       },
       "3008": {
         "name": "大立光",
-        "sharesLots": 264,
-        "weight": 2.98
+        "sharesLots": 267,
+        "weight": 3.05
       },
       "3017": {
         "name": "奇鋐",
-        "sharesLots": 389,
-        "weight": 2.41
+        "sharesLots": 393,
+        "weight": 2.47
       },
       "3037": {
         "name": "欣興",
-        "sharesLots": 400,
-        "weight": 0.71
+        "sharesLots": 405,
+        "weight": 0.79
       },
       "3045": {
         "name": "台灣大",
-        "sharesLots": 2856,
-        "weight": 0.83
+        "sharesLots": 2886,
+        "weight": 0.9
       },
       "3090": {
         "name": "日電貿",
-        "sharesLots": 1179,
-        "weight": 0.35
+        "sharesLots": 1190,
+        "weight": 0.41
       },
       "3105": {
         "name": "穩懋",
-        "sharesLots": 7059,
-        "weight": 8.14
+        "sharesLots": 7023,
+        "weight": 8.11
       },
       "3231": {
         "name": "緯創",
-        "sharesLots": 5008,
-        "weight": 1.9
+        "sharesLots": 4970,
+        "weight": 1.85
       },
       "3265": {
         "name": "台星科",
-        "sharesLots": 3546,
-        "weight": 1.22
+        "sharesLots": 3527,
+        "weight": 1.18
       },
       "3443": {
         "name": "創意",
-        "sharesLots": 1,
-        "weight": 0.02
+        "sharesLots": 2,
+        "weight": 0.1
       },
       "3491": {
         "name": "昇達科",
-        "sharesLots": 1180,
-        "weight": 3.83
+        "sharesLots": 1190,
+        "weight": 3.89
       },
       "3583": {
         "name": "辛耘",
-        "sharesLots": 183,
-        "weight": 0.2
+        "sharesLots": 182,
+        "weight": 0.17
       },
       "3617": {
         "name": "碩天",
-        "sharesLots": 655,
-        "weight": 0.39
+        "sharesLots": 662,
+        "weight": 0.46
       },
       "3711": {
         "name": "日月光投控",
-        "sharesLots": 1898,
-        "weight": 2.48
+        "sharesLots": 1884,
+        "weight": 2.43
       },
       "4958": {
         "name": "臻鼎-KY",
@@ -2544,13 +2544,13 @@
       },
       "5274": {
         "name": "信驊",
-        "sharesLots": 50,
-        "weight": 1.33
+        "sharesLots": 51,
+        "weight": 1.41
       },
       "5425": {
         "name": "台半",
-        "sharesLots": 6543,
-        "weight": 1.15
+        "sharesLots": 6521,
+        "weight": 1.13
       },
       "5483": {
         "name": "中美晶",
@@ -2559,33 +2559,33 @@
       },
       "5536": {
         "name": "聖暉*",
-        "sharesLots": 560,
-        "weight": 0.92
+        "sharesLots": 556,
+        "weight": 0.87
       },
       "6139": {
         "name": "亞翔",
-        "sharesLots": 3922,
-        "weight": 5.29
+        "sharesLots": 3955,
+        "weight": 5.35
       },
       "6177": {
         "name": "達麗",
-        "sharesLots": 194,
-        "weight": 0.02
+        "sharesLots": 196,
+        "weight": 0.1
       },
       "6196": {
         "name": "帆宣",
-        "sharesLots": 324,
-        "weight": 0.28
+        "sharesLots": 321,
+        "weight": 0.23
       },
       "6213": {
         "name": "聯茂",
-        "sharesLots": 1251,
-        "weight": 1.46
+        "sharesLots": 1246,
+        "weight": 1.43
       },
       "6214": {
         "name": "精誠",
-        "sharesLots": 105,
-        "weight": 0.04
+        "sharesLots": 104,
+        "weight": 0.01
       },
       "6223": {
         "name": "旺矽",
@@ -2594,23 +2594,23 @@
       },
       "6239": {
         "name": "力成",
-        "sharesLots": 3610,
-        "weight": 1.94
+        "sharesLots": 3649,
+        "weight": 2.01
       },
       "6274": {
         "name": "台燿",
-        "sharesLots": 451,
-        "weight": 0.96
+        "sharesLots": 449,
+        "weight": 0.93
       },
       "6446": {
         "name": "藥華藥",
-        "sharesLots": 42,
-        "weight": 0.13
+        "sharesLots": 43,
+        "weight": 0.2
       },
       "6472": {
         "name": "保瑞",
-        "sharesLots": 1055,
-        "weight": 0.94
+        "sharesLots": 1065,
+        "weight": 1
       },
       "6488": {
         "name": "環球晶",
@@ -2619,18 +2619,18 @@
       },
       "6510": {
         "name": "精測",
-        "sharesLots": 150,
-        "weight": 1.07
+        "sharesLots": 152,
+        "weight": 1.15
       },
       "6531": {
         "name": "愛普*",
-        "sharesLots": 4637,
-        "weight": 7
+        "sharesLots": 4686,
+        "weight": 7.07
       },
       "6640": {
         "name": "均華",
-        "sharesLots": 111,
-        "weight": 0.2
+        "sharesLots": 112,
+        "weight": 0.28
       },
       "6669": {
         "name": "緯穎",
@@ -2639,18 +2639,18 @@
       },
       "6672": {
         "name": "騰輝電子-KY",
-        "sharesLots": 2311,
-        "weight": 2.56
+        "sharesLots": 2295,
+        "weight": 2.51
       },
       "8070": {
         "name": "長華*",
-        "sharesLots": 6554,
-        "weight": 0.69
+        "sharesLots": 6627,
+        "weight": 0.76
       },
       "8996": {
         "name": "高力",
-        "sharesLots": 382,
-        "weight": 1.21
+        "sharesLots": 381,
+        "weight": 1.19
       }
     }
   }

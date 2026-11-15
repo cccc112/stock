@@ -2456,53 +2456,53 @@ export default function EtfCapitalFlowTracker({
               </div>
             </div>
 
-            {/* 券商 App 經典成分股變動三欄式排版 (標的 | 持股規模(市值) | 權重) */}
-            <div className="rounded-xl border border-[var(--border)] overflow-hidden bg-[var(--bg-secondary)]">
-              <div className="grid grid-cols-12 px-3 sm:px-4 py-3 bg-[var(--bg-tertiary)] border-b border-[var(--border)] text-xs text-secondary font-medium">
-                <div className="col-span-5 flex items-center">
-                  <span>標的</span>
+            {/* 金融機構級深色終端成分股網格 (標的 | 現價/漲跌 | 今日增減張數 | 持股總量 | 持股市值 | 權重/變動) */}
+            <div className="rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--bg-secondary)] font-mono">
+              <div className="grid grid-cols-12 px-3 sm:px-4 py-2.5 bg-[var(--bg-tertiary)]/75 border-b border-[var(--border)] text-[11px] text-secondary font-medium">
+                <div className="col-span-5 md:col-span-4 lg:col-span-3 flex items-center">
+                  <span>標的 (名稱 / 代號)</span>
                 </div>
-                <div className="col-span-4 text-right pr-2">
+                <div className="col-span-2 hidden md:block text-right">
+                  <span>現價 / 漲跌</span>
+                </div>
+                <div className="col-span-4 md:col-span-3 lg:col-span-2 text-right">
                   <button
                     onClick={() => {
                       if (holdingsSortMode === "BUY_FIRST") setHoldingsSortMode("SELL_FIRST");
                       else setHoldingsSortMode("BUY_FIRST");
                     }}
-                    className="inline-flex flex-col items-end cursor-pointer group text-right ml-auto"
+                    className="inline-flex items-center gap-1 cursor-pointer group text-right hover:text-primary transition-colors ml-auto"
                     title="點擊切換加碼最多或減碼最多"
                   >
-                    <div className="flex items-center justify-end gap-1 group-hover:text-primary transition-colors">
-                      <span>持股規模(市值)</span>
-                      <span
-                        className="text-[10px] text-muted cursor-help"
-                        title={`快照日期：${currentPortfolio.snapshotDate || "最新"} / 比對基準：${currentPortfolio.baselineDate || "前日"}`}
-                      >
-                        ⓘ
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-muted font-normal group-hover:text-accent">
-                      {currentPortfolio.comparisonLabel} {holdingsSortMode === "BUY_FIRST" ? "↑加碼" : holdingsSortMode === "SELL_FIRST" ? "↓減碼" : "⇅"}
-                    </div>
+                    <span className="text-primary font-bold">今日增減 (張數)</span>
+                    <span className="text-accent text-[10px]">
+                      {holdingsSortMode === "BUY_FIRST" ? "↑加碼" : holdingsSortMode === "SELL_FIRST" ? "↓減碼" : "⇅"}
+                    </span>
                   </button>
                 </div>
-                <div className="col-span-3 text-right">
+                <div className="col-span-2 text-right hidden sm:block">
+                  <span>持股總量 (張)</span>
+                </div>
+                <div className="col-span-1 text-right hidden lg:block">
+                  <span>持股市值</span>
+                </div>
+                <div className="col-span-3 md:col-span-3 lg:col-span-2 text-right">
                   <button
                     onClick={() => {
                       if (holdingsSortMode === "WEIGHT_DESC") setHoldingsSortMode("WEIGHT_ASC");
                       else setHoldingsSortMode("WEIGHT_DESC");
                     }}
-                    className="inline-flex flex-col items-end cursor-pointer group text-right ml-auto"
-                    title="點擊依權重比例高低排序"
+                    className="inline-flex items-center gap-1 cursor-pointer group text-right hover:text-primary transition-colors ml-auto"
+                    title="點擊依權重高低排序"
                   >
-                    <span className="group-hover:text-primary transition-colors flex items-center gap-0.5 justify-end">
-                      權重 {holdingsSortMode === "WEIGHT_ASC" ? "↑" : "↓"}
-                    </span>
-                    <span className="text-[10px] text-muted font-normal">與前日變動</span>
+                    <span>權重</span>
+                    <span className="font-bold text-accent">{holdingsSortMode === "WEIGHT_ASC" ? "↑" : "↓"}</span>
+                    <span className="text-[10px] text-muted font-normal">(變動)</span>
                   </button>
                 </div>
               </div>
 
-              <div className="divide-y divide-[var(--border)]">
+              <div className="divide-y divide-[var(--border)] text-xs">
                 {filteredHoldings.length === 0 ? (
                   <div className="text-center py-12 text-muted text-xs">
                     沒有符合篩選條件的成分股記錄
@@ -2516,75 +2516,119 @@ export default function EtfCapitalFlowTracker({
                     return (
                       <div
                         key={`${h.symbol}-${idx}`}
-                        className="grid grid-cols-12 px-3 sm:px-4 py-3 items-start hover:bg-[var(--bg-tertiary)]/50 transition-colors"
+                        className="grid grid-cols-12 px-3 sm:px-4 py-2.5 items-center hover:bg-[var(--bg-tertiary)]/40 transition-colors"
                       >
-                        {/* 欄 1: 標的名稱 (單行完整呈現) + 股票代號與狀態標籤 (固定雙行對齊不亂跳) */}
-                        <div className="col-span-5 pr-2 min-w-0">
-                          <div className="text-primary font-bold text-sm tracking-tight truncate" title={h.name}>
+                        {/* 欄 1: 標的名稱 + 代號 + 狀態標籤 */}
+                        <div className="col-span-5 md:col-span-4 lg:col-span-3 pr-2 min-w-0 font-sans">
+                          <div className="text-primary font-semibold text-xs tracking-tight truncate" title={h.name}>
                             {h.name}
                           </div>
-                          <div className="mt-1 flex items-center gap-1.5 flex-nowrap">
+                          <div className="mt-0.5 flex items-center gap-1.5 flex-nowrap font-mono">
                             <Link
                               href={`/stock/${encodeURIComponent(h.symbol)}`}
-                              className="font-mono text-xs text-muted hover:text-accent hover:underline shrink-0"
+                              className="text-[11px] text-muted hover:text-accent hover:underline shrink-0"
                             >
                               {h.symbol}
                             </Link>
                             {isNew && (
-                              <span className="px-1.5 py-0.5 text-[10px] font-semibold leading-none rounded bg-blue-500/15 text-blue-500 dark:text-blue-400 border border-blue-500/30 shrink-0">
+                              <span className="px-1 py-0.2 text-[9px] font-bold rounded bg-blue-500/15 text-blue-400 border border-blue-500/30 shrink-0">
                                 新增
                               </span>
                             )}
                             {isAdd && (
-                              <span className="px-1.5 py-0.5 text-[10px] font-semibold leading-none rounded bg-red-500/15 text-red-500 dark:text-red-400 border border-red-500/30 shrink-0">
+                              <span className="px-1 py-0.2 text-[9px] font-bold rounded bg-red-500/15 text-red-400 border border-red-500/30 shrink-0">
                                 加碼
                               </span>
                             )}
                             {isReduce && (
-                              <span className="px-1.5 py-0.5 text-[10px] font-semibold leading-none rounded bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
+                              <span className="px-1 py-0.2 text-[9px] font-bold rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
                                 減碼
                               </span>
                             )}
-                            {h.price && h.price > 0 && (
-                              <span className="text-[11px] font-mono text-secondary hidden sm:inline shrink-0">
-                                NT${h.price.toFixed(2)}
+                            {!isNew && !isAdd && !isReduce && (
+                              <span className="px-1 py-0.2 text-[9px] text-muted/50 rounded shrink-0">
+                                維持
                               </span>
                             )}
                           </div>
                         </div>
 
-                        {/* 欄 2: 持股規模 (市值) + 與前日變動 (張數) */}
-                        <div className="col-span-4 text-right pr-2 min-w-0">
-                          <div className="font-mono text-sm font-bold text-primary tabular-nums whitespace-nowrap">
-                            {h.marketValueText}
-                          </div>
-                          <div className="text-xs font-mono font-medium tabular-nums min-h-[16px] mt-1 whitespace-nowrap">
-                            {isNew ? (
-                              <span className="text-blue-500 dark:text-blue-400 font-semibold">{h.sharesChangeText}</span>
-                            ) : isAdd ? (
-                              <span className="text-red-500 dark:text-red-400">{h.sharesChangeText}</span>
-                            ) : isReduce ? (
-                              <span className="text-emerald-500 dark:text-emerald-400">{h.sharesChangeText}</span>
-                            ) : (
-                              <span className="text-muted text-[11px]">{h.sharesChangeText}</span>
-                            )}
+                        {/* 欄 2: 現價 / 漲跌 (桌機) */}
+                        <div className="col-span-2 hidden md:block text-right pr-2">
+                          {h.price && h.price > 0 ? (
+                            <div>
+                              <div className="text-primary font-bold tabular-nums">
+                                NT$${h.price.toFixed(2)}
+                              </div>
+                              <div
+                                className={`text-[11px] tabular-nums ${
+                                  (h.change_pct || 0) > 0
+                                    ? "text-red-400"
+                                    : (h.change_pct || 0) < 0
+                                    ? "text-emerald-400"
+                                    : "text-muted"
+                                }`}
+                              >
+                                {(h.change_pct || 0) > 0 ? "+" : ""}
+                                {(h.change_pct || 0).toFixed(2)}%
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-muted text-[11px]">—</span>
+                          )}
+                        </div>
+
+                        {/* 欄 3: 今日增減 (張數) — 核心數值，紅綠分明 */}
+                        <div className="col-span-4 md:col-span-3 lg:col-span-2 text-right pr-2">
+                          {isAdd && h.shares_change > 0 ? (
+                            <div className="font-bold text-red-500 dark:text-red-400 tabular-nums text-xs sm:text-sm">
+                              +{h.shares_change.toLocaleString()} 張
+                            </div>
+                          ) : isReduce && h.shares_change < 0 ? (
+                            <div className="font-bold text-emerald-500 dark:text-emerald-400 tabular-nums text-xs sm:text-sm">
+                              {h.shares_change.toLocaleString()} 張
+                            </div>
+                          ) : isNew ? (
+                            <div className="font-bold text-blue-500 dark:text-blue-400 tabular-nums text-xs sm:text-sm">
+                              +{h.shares_held.toLocaleString()} 張
+                            </div>
+                          ) : (
+                            <div className="text-muted/60 text-xs tabular-nums">—</div>
+                          )}
+                          {/* 手機版補齊總持股張數 */}
+                          <div className="text-[10px] text-muted sm:hidden mt-0.5 tabular-nums">
+                            持 {h.shares_held.toLocaleString()}張
                           </div>
                         </div>
 
-                        {/* 欄 3: 權重 + 與前日變動 (%) */}
-                        <div className="col-span-3 text-right min-w-0">
-                          <div className="font-mono text-sm font-bold text-primary tabular-nums whitespace-nowrap">
+                        {/* 欄 4: 持股總量 (張數) */}
+                        <div className="col-span-2 text-right pr-2 hidden sm:block">
+                          <div className="font-medium text-primary tabular-nums">
+                            {h.shares_held.toLocaleString()} 張
+                          </div>
+                        </div>
+
+                        {/* 欄 5: 持股市值 */}
+                        <div className="col-span-1 text-right pr-2 hidden lg:block">
+                          <div className="text-secondary tabular-nums">
+                            {h.marketValueText}
+                          </div>
+                        </div>
+
+                        {/* 欄 6: 權重 (%) 與變動 */}
+                        <div className="col-span-3 md:col-span-3 lg:col-span-2 text-right">
+                          <div className="font-bold text-primary tabular-nums text-xs">
                             {h.weight.toFixed(2)}%
                           </div>
-                          <div className="text-xs font-mono font-medium tabular-nums min-h-[16px] mt-1 whitespace-nowrap">
+                          <div className="text-[11px] tabular-nums font-medium mt-0.5">
                             {isNew ? (
-                              <span className="text-muted/40">—</span>
+                              <span className="text-blue-400">新進榜</span>
                             ) : h.weight_change > 0 ? (
-                              <span className="text-red-500 dark:text-red-400">{h.weightChangeText}</span>
+                              <span className="text-red-400 font-semibold">{h.weightChangeText}</span>
                             ) : h.weight_change < 0 ? (
-                              <span className="text-emerald-500 dark:text-emerald-400">{h.weightChangeText}</span>
+                              <span className="text-emerald-400 font-semibold">{h.weightChangeText}</span>
                             ) : (
-                              <span className="text-muted/60">—</span>
+                              <span className="text-muted/60">0.00%</span>
                             )}
                           </div>
                         </div>
@@ -2598,24 +2642,24 @@ export default function EtfCapitalFlowTracker({
         </div>
       )}
 
-      {/* 4. 每日 ETF 資金流向與法人解讀 Summary (全市場即時動態運算) */}
-      <div className="p-4 sm:p-5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)]">
-        <div className="flex items-center gap-2 mb-2 text-primary font-bold text-sm">
-          <Sparkles size={16} className="text-accent" />
-          <span>法人研究部：{dynamicResearch.focusedTitle ? `${dynamicResearch.focusedTitle} 專屬` : "今日 ETF "}資金動向核心解讀與籌碼透視 (即時動態分析)</span>
+      {/* 4. 每日 ETF 資金流向與法人解讀 Summary (專業終端簡報條) */}
+      <div className="rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] p-4">
+        <div className="flex items-center gap-2 mb-2.5 pb-2 border-b border-[var(--border)] text-primary font-bold text-xs tracking-wider uppercase font-mono">
+          <span className="w-2 h-2 rounded-full bg-accent" />
+          <span>法人研究部：{dynamicResearch.focusedTitle ? `${dynamicResearch.focusedTitle} 專屬` : "今日 ETF "}資金動向核心解讀與籌碼透視</span>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-secondary leading-relaxed pt-2">
-          <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)]">
-            <strong className="text-primary block mb-1">{dynamicResearch.part1Title}</strong>
-            <p>{dynamicResearch.part1Text}</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-secondary leading-relaxed font-sans">
+          <div className="p-2.5 rounded bg-[var(--bg-tertiary)]/60 border border-[var(--border)]">
+            <strong className="text-primary font-mono text-[11px] block mb-1">{dynamicResearch.part1Title}</strong>
+            <p className="text-[11px] text-secondary leading-normal">{dynamicResearch.part1Text}</p>
           </div>
-          <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)]">
-            <strong className="text-primary block mb-1">{dynamicResearch.part2Title}</strong>
-            <p>{dynamicResearch.part2Text}</p>
+          <div className="p-2.5 rounded bg-[var(--bg-tertiary)]/60 border border-[var(--border)]">
+            <strong className="text-primary font-mono text-[11px] block mb-1">{dynamicResearch.part2Title}</strong>
+            <p className="text-[11px] text-secondary leading-normal">{dynamicResearch.part2Text}</p>
           </div>
-          <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border)]">
-            <strong className="text-primary block mb-1">{dynamicResearch.part3Title}</strong>
-            <p>{dynamicResearch.part3Text}</p>
+          <div className="p-2.5 rounded bg-[var(--bg-tertiary)]/60 border border-[var(--border)]">
+            <strong className="text-primary font-mono text-[11px] block mb-1">{dynamicResearch.part3Title}</strong>
+            <p className="text-[11px] text-secondary leading-normal">{dynamicResearch.part3Text}</p>
           </div>
         </div>
       </div>

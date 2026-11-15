@@ -22,6 +22,7 @@ import {
   Award,
   ChevronLeft,
   ChevronRight,
+  EyeOff,
 } from "lucide-react";
 
 type BearMood = "BULLISH" | "FEAR" | "NEUTRAL";
@@ -94,6 +95,7 @@ const Bear3DModel = dynamic(() => import("@/components/ui/Bear3DModel"), {
 export default function TaiwanBearMascot() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("insight");
   const [hasAlert, setHasAlert] = useState(false);
   const [sentimentScore, setSentimentScore] = useState<number>(55);
@@ -102,11 +104,15 @@ export default function TaiwanBearMascot() {
   useEffect(() => {
     const id = window.requestAnimationFrame(() => {
       try {
+        if (localStorage.getItem("bear_mascot_hidden") === "1") {
+          setIsHidden(true);
+          return;
+        }
         const saved = localStorage.getItem("bear_mascot_minimized");
         if (saved === "1") setIsMinimized(true);
         else if (saved === "0") setIsMinimized(false);
         else if (window.innerWidth < 768) {
-          // 手機版預設收合為右側邊緣小標籤，避免遮擋表格右側數據
+          // 手機版預設收合為右側極薄邊緣小標籤，避免遮擋任何表格數字
           setIsMinimized(true);
         }
       } catch {
@@ -287,6 +293,10 @@ export default function TaiwanBearMascot() {
     }, 750);
   };
 
+  if (isHidden) {
+    return null;
+  }
+
   if (isMinimized && !isOpen) {
     return (
       <button
@@ -298,10 +308,10 @@ export default function TaiwanBearMascot() {
         }}
         title="展開熊霸看盤助手"
         aria-label="展開熊霸看盤助手"
-        className="fixed right-0 bottom-20 md:bottom-6 z-40 print:hidden flex flex-col items-center gap-1 px-1.5 py-2.5 rounded-l-lg bg-[var(--bg-secondary)] border border-r-0 border-[var(--border)] hover:border-[var(--border-hover)] text-secondary hover:text-primary transition-colors cursor-pointer"
+        className="fixed right-0 bottom-28 md:bottom-6 z-30 print:hidden flex flex-col items-center gap-1 px-1 py-2 rounded-l bg-[var(--bg-secondary)]/90 backdrop-blur border border-r-0 border-[var(--border)] hover:border-accent text-secondary hover:text-primary opacity-60 hover:opacity-100 transition-all cursor-pointer shadow-sm text-[9px] font-mono"
       >
-        <ChevronLeft size={13} className="text-amber-400" />
-        <span className="text-[10px] font-bold tracking-widest [writing-mode:vertical-rl]">
+        <ChevronLeft size={11} className="text-amber-400" />
+        <span className="[writing-mode:vertical-rl] font-bold tracking-tighter">
           熊霸
         </span>
         {hasAlert && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />}
@@ -310,7 +320,7 @@ export default function TaiwanBearMascot() {
   }
 
   return (
-    <div className="fixed bottom-20 md:bottom-5 right-3 md:right-5 z-40 select-none print:hidden flex flex-col items-end">
+    <div className="fixed bottom-28 md:bottom-5 right-2 md:right-5 z-40 select-none print:hidden flex flex-col items-end">
       {/* 1. 互動彈出式對話視窗 (Pop-over) */}
       {isOpen && (
         <div className="mb-3 w-[min(92vw,360px)] rounded-xl border border-[var(--border)] bg-[var(--bg-glass)] shadow-2xl backdrop-blur-xl p-4 animate-spring-pop origin-bottom-right text-primary">
@@ -335,6 +345,19 @@ export default function TaiwanBearMascot() {
                 {soundEnabled ? <Volume2 size={14} className="text-accent" /> : <VolumeX size={14} className="text-secondary" />}
               </button>
               <button
+                onClick={() => {
+                  setIsHidden(true);
+                  setIsOpen(false);
+                  try {
+                    localStorage.setItem("bear_mascot_hidden", "1");
+                  } catch {}
+                }}
+                className="text-secondary hover:text-primary p-1 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+                title="完全隱藏吉祥物（不顯示）"
+              >
+                <EyeOff size={14} />
+              </button>
+              <button
                 onClick={() => setMinimizedPersist(true)}
                 className="text-secondary hover:text-primary p-1 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
                 title="收合至右側邊緣（不遮擋畫面）"
@@ -342,7 +365,12 @@ export default function TaiwanBearMascot() {
                 <ChevronRight size={15} />
               </button>
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={() => {
+                  setIsOpen(false);
+                  if (typeof window !== "undefined" && window.innerWidth < 768) {
+                    setIsMinimized(true);
+                  }
+                }}
                 className="text-secondary hover:text-primary p-1 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
                 title="關閉視窗"
               >
