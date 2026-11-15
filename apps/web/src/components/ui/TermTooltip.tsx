@@ -257,6 +257,11 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
     plain: "跟「去年同一個月或同一季」相比，成長或衰退了多少百分比。",
     guide: "因為產業有淡旺季，看 YoY 可以避開季節影響，是判斷公司是否真正成長最重要的指標（正數代表成長）。",
   },
+  rev_yoy: {
+    title: "營收年增率 (Revenue YoY %)",
+    plain: "公司單月或單季營收與去年同一個月份（或季度）相比的成長百分比。",
+    guide: "營收年增率大於 0 代表生意比去年同期擴張，若連續數月維持 20% 以上高成長，往往是股價展開波段大行情的催化劑。",
+  },
   qoq: {
     title: "QoQ 季增率 (Quarter-over-Quarter)",
     plain: "跟「上一季」相比，成長或衰退了多少百分比。",
@@ -493,6 +498,31 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
   },
 
   // ================= ETF 與跨資產專有名詞 =================
+  etf_price: {
+    title: "即時市價 (Market Price)",
+    plain: "投資人在次級市場（台股或美股集中市場）依照即時撮合成交的每股市價。",
+    guide: "買賣 ETF 時，應優先比對市價與官方淨值 (NAV) 是否有折溢價；若市價大幅溢價（>0.3%~0.5%），代表買進成本偏高，需小心造市商套利導致市價收斂。",
+  },
+  etf_nav: {
+    title: "官方實質淨值 (Net Asset Value / NAV)",
+    plain: "依據 ETF 持有的所有成分股最新現價、現金與其他資產，扣除內扣費用後計算出的每單位真實資產淨值。",
+    guide: "淨值代表 ETF 每單位的真實內在價值。一般由發行券商/投信每日盤中持續估算，收盤後公告精確值。",
+  },
+  nav_discount: {
+    title: "折溢價率 (Premium / Discount %)",
+    plain: "即時市價偏離官方淨值的幅度百分比。計算公式為：(市價 − 淨值) ÷ 淨值 × 100%。",
+    guide: "數值大於 0 代表溢價（市價比淨值貴），小於 0 代表折價（市價比淨值便宜）。正常流動性良好的 ETF 折溢價應維持在 ±0.3% 合理造市區間內；溢價過大不宜追高，折價過深常有安全邊際。",
+  },
+  etf_creation: {
+    title: "初級市場淨申贖 (Creation / Redemption)",
+    plain: "機構法人或造市商在初級市場向投信公司增設（申購）或銷除（贖回）ETF 股份單位的每日淨張數。",
+    guide: "初級市場淨申購（正數）代表有大額法人或被動資金持續流入，造市商需買入成分股；淨贖回（負數）代表資金自該 ETF 撤出，造市商需拋售成分股。",
+  },
+  etf_expense: {
+    title: "資產類別與費用結構 (Asset Class & Expense)",
+    plain: "ETF 所追蹤的市場主題（如台股高股息、美股科技、債券等）與每年自淨值中扣除的經理費、保管費等總成本。",
+    guide: "ETF 的費用是直接由淨值內扣，不需要投資人另外掏錢，但費用率越低越有利於長期複利報酬。",
+  },
   etf_index: {
     title: "追蹤指數 (Tracking Index)",
     plain: "這檔 ETF 背後完全複製、照著買進的一籃子股票選股規則（例如 0050 就是照著臺灣50指數買進前50大公司）。",
@@ -550,6 +580,11 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
     plain: "證券公司自己拿自有資金操作，或為了民眾買權證而進行的避險買賣。",
     guide: "自營商操作週期極短（常隔日沖或幾天就賣），參考權重低於外資與投信。",
   },
+  institutional_net: {
+    title: "三大法人合計買賣超 (Institutional Net)",
+    plain: "外資、投信、自營商三大機構投資人當日或近期在該股票上的淨買入或淨賣出張數合計。",
+    guide: "三大法人同步買超代表機構籌碼集中、主力偏多看好；若法人連續多日同步賣超，需提防短線賣壓與籌碼鬆動。",
+  },
 };
 
 export function InfoTip({
@@ -565,50 +600,100 @@ export function InfoTip({
 }) {
   const { beginnerMode } = useBeginnerMode();
   const [open, setOpen] = useState(false);
+  const [pinned, setPinned] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number; placeAbove: boolean }>({
     top: 0,
     left: 0,
     placeAbove: true,
   });
   const btnRef = useRef<HTMLButtonElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
+  const isTouchRef = useRef(false);
 
   const entry: GlossaryEntry | undefined = term ? GLOSSARY[term] : undefined;
-  const title = customTitle || entry?.title;
+  const title = customTitle || entry?.title || (term ? String(term) : "名詞說明");
   const plain = customPlain || entry?.plain;
   const guide = customGuide || entry?.guide;
 
   const updatePosition = () => {
     if (!btnRef.current) return;
     const rect = btnRef.current.getBoundingClientRect();
-    const tooltipWidth = 288;
-    const vw = window.innerWidth;
-    const left = Math.min(
-      Math.max(12, rect.left + rect.width / 2 - tooltipWidth / 2),
-      vw - tooltipWidth - 12
-    );
-    const placeAbove = rect.top > 190;
-    const top = placeAbove ? rect.top - 8 : rect.bottom + 8;
+    const tooltipWidth = 300;
+    const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
+    const vh = typeof window !== "undefined" ? window.innerHeight : 768;
+
+    // 水平位置：以按鈕中心為基準，並限制在左右內距 12px 內
+    let left = rect.left + rect.width / 2 - tooltipWidth / 2;
+    left = Math.max(12, Math.min(left, vw - tooltipWidth - 12));
+
+    // 垂直空間判斷
+    const spaceAbove = rect.top;
+    const spaceBelow = vh - rect.bottom;
+    const estimatedHeight = portalRef.current?.offsetHeight || 160;
+
+    const placeAbove =
+      spaceAbove >= estimatedHeight + 12 || (spaceAbove > spaceBelow && spaceAbove > 120);
+
+    const top = placeAbove
+      ? Math.max(12, rect.top - 8)
+      : Math.min(vh - 12, rect.bottom + 8);
+
     setCoords({ top, left, placeAbove });
   };
 
   useEffect(() => {
     if (!open) return;
+
+    // 延遲單幀以獲取 portal 渲染後的真實 DOM 高度
+    updatePosition();
+    const animFrame = requestAnimationFrame(updatePosition);
+
     const onOutside = (e: MouseEvent | TouchEvent) => {
-      if (btnRef.current && btnRef.current.contains(e.target as Node)) return;
+      const target = e.target as Node;
+      if (btnRef.current?.contains(target)) return;
+      if (portalRef.current?.contains(target)) return;
       setOpen(false);
+      setPinned(false);
     };
-    const onScroll = () => setOpen(false);
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        setPinned(false);
+      }
+    };
+
+    const onScrollOrResize = () => {
+      if (!btnRef.current) return;
+      const rect = btnRef.current.getBoundingClientRect();
+      // 若按鈕已完全離開視窗範圍，才關閉
+      if (rect.bottom < 0 || rect.top > window.innerHeight) {
+        setOpen(false);
+        setPinned(false);
+        return;
+      }
+      updatePosition();
+    };
+
     document.addEventListener("mousedown", onOutside);
-    document.addEventListener("touchstart", onOutside);
-    window.addEventListener("scroll", onScroll, true);
+    document.addEventListener("touchstart", onOutside, { passive: true });
+    document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("scroll", onScrollOrResize, { passive: true });
+    window.addEventListener("resize", onScrollOrResize, { passive: true });
+
     return () => {
+      cancelAnimationFrame(animFrame);
       document.removeEventListener("mousedown", onOutside);
       document.removeEventListener("touchstart", onOutside);
-      window.removeEventListener("scroll", onScroll, true);
+      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("scroll", onScrollOrResize);
+      window.removeEventListener("resize", onScrollOrResize);
     };
   }, [open]);
 
-  if (!beginnerMode || !plain) return null;
+  if (!beginnerMode || (!plain && !term)) return null;
+  const displayPlain =
+    plain || "此指標的白話解說建檔中，您可切換專業模式或查看各模組量化數值。";
 
   return (
     <>
@@ -616,18 +701,39 @@ export function InfoTip({
         ref={btnRef}
         type="button"
         aria-label={`名詞說明：${title}`}
+        onTouchStart={() => {
+          isTouchRef.current = true;
+        }}
         onMouseEnter={() => {
+          if (isTouchRef.current) return;
           updatePosition();
           setOpen(true);
         }}
-        onMouseLeave={() => setOpen(false)}
+        onMouseLeave={() => {
+          if (isTouchRef.current) return;
+          if (!pinned) {
+            setOpen(false);
+          }
+        }}
         onClick={(e) => {
           e.stopPropagation();
           e.preventDefault();
           updatePosition();
-          setOpen((prev) => !prev);
+          if (open && !pinned && !isTouchRef.current) {
+            // 桌機 Hover 展開後點擊，鎖定釘選狀態方便瀏覽
+            setPinned(true);
+          } else {
+            // 切換開啟/關閉
+            const next = !open;
+            setOpen(next);
+            setPinned(next);
+          }
         }}
-        className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/40 text-[10px] font-mono font-bold leading-none ml-1 align-middle cursor-help hover:bg-amber-500 hover:text-slate-950 transition-colors flex-shrink-0"
+        className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-mono font-bold leading-none ml-1 align-middle cursor-pointer transition-all flex-shrink-0 select-none ${
+          open
+            ? "bg-amber-500 text-slate-950 ring-2 ring-amber-500/40 scale-110 shadow-sm"
+            : "bg-amber-500/20 text-amber-500 border border-amber-500/40 hover:bg-amber-500 hover:text-slate-950"
+        }`}
       >
         !
       </button>
@@ -635,26 +741,46 @@ export function InfoTip({
         typeof document !== "undefined" &&
         createPortal(
           <div
+            ref={portalRef}
             style={{
               position: "fixed",
               top: coords.top,
               left: coords.left,
               transform: coords.placeAbove ? "translateY(-100%)" : "none",
-              width: 296,
+              width: "min(calc(100vw - 24px), 300px)",
               zIndex: 9999,
             }}
             onClick={(e) => e.stopPropagation()}
             className="rounded-xl bg-[var(--bg-secondary)] border border-amber-500/50 shadow-2xl p-3.5 text-left pointer-events-auto animate-fade-in backdrop-blur-xl"
           >
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-slate-950 text-[10px] font-bold">
-                !
-              </span>
-              <span className="text-xs font-bold text-amber-500 leading-snug">{title}</span>
+            <div className="flex items-center justify-between gap-1.5 mb-1.5">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-slate-950 text-[10px] font-bold shrink-0">
+                  !
+                </span>
+                <span className="text-xs font-bold text-amber-500 leading-snug truncate">
+                  {title}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen(false);
+                  setPinned(false);
+                }}
+                className="text-muted hover:text-primary p-0.5 rounded transition-colors text-xs shrink-0 cursor-pointer"
+                aria-label="關閉提示"
+                title="關閉"
+              >
+                ✕
+              </button>
             </div>
-            <p className="text-xs text-primary leading-relaxed mb-2">{plain}</p>
+            <p className="text-xs text-primary leading-relaxed mb-2 select-text">
+              {displayPlain}
+            </p>
             {guide && (
-              <div className="pt-2 border-t border-[var(--border)] text-[11px] text-secondary leading-relaxed">
+              <div className="pt-2 border-t border-[var(--border)] text-[11px] text-secondary leading-relaxed select-text">
                 <span className="text-emerald-500 font-semibold mr-1">[實戰判讀]</span>
                 {guide}
               </div>
