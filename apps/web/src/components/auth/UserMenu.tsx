@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuthManager, parseJwt } from "@/hooks/useAuth";
+import { useAuthManager, parseJwt, OPEN_AUTH_MODAL_EVENT } from "@/hooks/useAuth";
 import AuthModal from "@/components/auth/AuthModal";
 import {
   User,
@@ -48,8 +48,15 @@ export default function UserMenu() {
         setMenuOpen(false);
       }
     };
+    const handleOpenAuthModal = () => {
+      setAuthModalOpen(true);
+    };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    window.addEventListener(OPEN_AUTH_MODAL_EVENT, handleOpenAuthModal);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener(OPEN_AUTH_MODAL_EVENT, handleOpenAuthModal);
+    };
   }, []);
 
   const handleDirectGoogleLogin = () => {

@@ -214,7 +214,7 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
 
       if (navItem && Number(navItem.nav) > 0) {
         setEtfNav(navItem);
-      } else if (quote?.price || (navItem && Number(navItem.price) > 0)) {
+      } else if (quote?.price || (navItem && Number(navItem.price) > 0) || navItem?.snapshot_date) {
         const p = Number(quote?.price || navItem?.price || 0);
         setEtfNav({
           symbol: code,
@@ -224,6 +224,8 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
           discount_pct: Number(navItem?.discount_pct || 0),
           shares_net: Number(navItem?.shares_net || 0),
           status: navItem?.status || "平價",
+          snapshot_date: navItem?.snapshot_date,
+          baseline_date: navItem?.baseline_date,
         });
       }
 
@@ -407,7 +409,7 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
 
       const marketValueText = marketValB >= 1 ? `${marketValB}億` : `${Math.round(marketValB * 10000)}萬`;
 
-      // 與前日變動 (張數) 字串：新增顯示 +X張，加碼顯示 +X張，減碼顯示 -X張，無變動顯示「—」
+      // 與前日變動 (張數) 字串：新增/加碼/減碼顯示真實增減張數；維持/無異動則顯示目前真實持股張數
       let sharesChangeText = "—";
       if (status === "ADD" && sharesChangeLots > 0) {
         sharesChangeText = `+${sharesChangeLots.toLocaleString()}張`;
@@ -415,8 +417,8 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
         sharesChangeText = `${sharesChangeLots.toLocaleString()}張`;
       } else if (status === "NEW") {
         sharesChangeText = sharesHeldLots > 0 ? `+${sharesHeldLots.toLocaleString()}張` : "—";
-      } else {
-        sharesChangeText = "—";
+      } else if (sharesHeldLots > 0) {
+        sharesChangeText = `持 ${sharesHeldLots.toLocaleString()}張`;
       }
 
       // 與前日變動 (權重) 字串：新增時帶符號，其餘帶符號且格式化到後兩位
@@ -774,19 +776,32 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
             </div>
 
             {/* 券商 App 經典成分股變動三欄式排版 (標的 | 持股規模(市值) | 權重) */}
-            <div className="rounded-xl border border-[var(--border)] overflow-hidden bg-[var(--bg-card)]">
-              <div className="grid grid-cols-12 px-4 py-3 bg-[var(--bg-tertiary)] border-b border-[var(--border)] text-xs text-secondary font-medium">
-                <div className="col-span-5 sm:col-span-5 flex items-center">
+            <div className="rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--bg-secondary)]">
+            {(() => {
+              const snapDate = String(etfNav?.snapshot_date || etfNav?.date || "");
+              const baseDate = String(etfNav?.baseline_date || snapDate);
+              let deltaSubtitle = "與前日變動(張數)";
+              if (snapDate && baseDate && snapDate === baseDate) {
+                deltaSubtitle = `持股張數 (${snapDate.slice(5).replace("-", "/")})`;
+              } else if (snapDate && baseDate) {
+                const daysGap = Math.round((new Date(snapDate).getTime() - new Date(baseDate).getTime()) / 86400000);
+                if (daysGap > 4) {
+                  deltaSubtitle = `較 ${baseDate.slice(5).replace("-", "/")} 變動(張數)`;
+                }
+              }
+              return (
+              <div className="grid grid-cols-12 px-3 sm:px-4 py-2.5 bg-[var(--bg-tertiary)] border-b border-[var(--border)] text-xs text-secondary font-medium">
+                <div className="col-span-5 flex items-center">
                   <span>標的</span>
                 </div>
-                <div className="col-span-4 sm:col-span-4 text-right pr-2">
+                <div className="col-span-4 text-right pr-2">
                   <div className="flex items-center justify-end gap-1">
                     <span>持股規模(市值)</span>
-                    <span className="text-[10px] text-muted cursor-help" title="依 ETF 最新基金規模與權重計算之約當市值；下方為與前一日相較之實際持股張數變動">ⓘ</span>
+                    <span className="text-[10px] text-muted cursor-help" title={`快照日期：${snapDate || "最新"} / 比對基準：${baseDate || "前日"}；依真實申報張數比對變動，無異動時顯示目前總張數`}>ⓘ</span>
                   </div>
-                  <div className="text-[10px] text-muted font-normal">與前日變動(張數)</div>
+                  <div className="text-[10px] text-muted font-normal">{deltaSubtitle}</div>
                 </div>
-                <div className="col-span-3 sm:col-span-3 text-right">
+                <div className="col-span-3 text-right">
                   <button
                     onClick={() => setSortByWeightAsc((prev) => !prev)}
                     className="inline-flex flex-col items-end cursor-pointer group text-right"
@@ -795,10 +810,14 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
                     <span className="group-hover:text-primary transition-colors flex items-center gap-0.5 justify-end">
                       權重 {sortByWeightAsc ? "↑" : "↓"}
                     </span>
-                    <span className="text-[10px] text-muted font-normal">與前日變動</span>
+                    <span className="text-[10px] text-muted font-normal">
+                      {snapDate && baseDate && snapDate === baseDate ? "同日基準" : "與前日變動"}
+                    </span>
                   </button>
                 </div>
               </div>
+              );
+            })()}
 
               <div className="divide-y divide-[var(--border)]">
                 {filteredHoldings.length === 0 ? (
@@ -814,39 +833,37 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
                     return (
                       <div
                         key={`${h.symbol}-${idx}`}
-                        className="grid grid-cols-12 px-4 py-3 items-center hover:bg-[var(--bg-tertiary)]/50 transition-colors"
+                        className="grid grid-cols-12 px-3 sm:px-4 py-3 items-start hover:bg-[var(--bg-tertiary)]/50 transition-colors"
                       >
-                        {/* 欄 1: 標的名稱 + 狀態標籤 + 股票代號 */}
-                        <div className="col-span-5 sm:col-span-5 pr-2">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-primary font-bold text-sm tracking-tight truncate max-w-[130px] sm:max-w-[200px]" title={h.name}>
-                              {h.name}
-                            </span>
+                        {/* 欄 1: 標的名稱 (單行完整呈現) + 股票代號與狀態標籤 (固定雙行對齊不亂跳) */}
+                        <div className="col-span-5 pr-2 min-w-0">
+                          <div className="text-primary font-bold text-sm tracking-tight truncate" title={h.name}>
+                            {h.name}
+                          </div>
+                          <div className="mt-1 flex items-center gap-1.5 flex-nowrap">
+                            <Link
+                              href={`/stock/${encodeURIComponent(h.symbol)}`}
+                              className="font-mono text-xs text-muted hover:text-accent hover:underline shrink-0"
+                            >
+                              {h.symbol}
+                            </Link>
                             {isNew && (
-                              <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-blue-500/15 text-blue-500 dark:text-blue-400 border border-blue-500/30">
+                              <span className="px-1.5 py-0.5 text-[10px] font-semibold leading-none rounded bg-blue-500/15 text-blue-500 dark:text-blue-400 border border-blue-500/30 shrink-0">
                                 新增
                               </span>
                             )}
                             {isAdd && (
-                              <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-red-500/15 text-red-500 dark:text-red-400 border border-red-500/30">
+                              <span className="px-1.5 py-0.5 text-[10px] font-semibold leading-none rounded bg-red-500/15 text-red-500 dark:text-red-400 border border-red-500/30 shrink-0">
                                 加碼
                               </span>
                             )}
                             {isReduce && (
-                              <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border border-emerald-500/30">
+                              <span className="px-1.5 py-0.5 text-[10px] font-semibold leading-none rounded bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
                                 減碼
                               </span>
                             )}
-                          </div>
-                          <div className="mt-0.5 flex items-center gap-2">
-                            <Link
-                              href={`/stock/${encodeURIComponent(h.symbol)}`}
-                              className="font-mono text-xs text-muted hover:text-accent hover:underline"
-                            >
-                              {h.symbol}
-                            </Link>
                             {h.has_live_price && (
-                              <span className="text-[11px] font-mono text-secondary hidden sm:inline">
+                              <span className="text-[11px] font-mono text-secondary hidden sm:inline shrink-0">
                                 NT${h.price.toFixed(2)}
                               </span>
                             )}
@@ -854,11 +871,11 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
                         </div>
 
                         {/* 欄 2: 持股規模 (市值) + 與前日變動 (張數) */}
-                        <div className="col-span-4 sm:col-span-4 text-right pr-2">
-                          <div className="font-mono text-sm font-bold text-primary tabular-nums">
+                        <div className="col-span-4 text-right pr-2 min-w-0">
+                          <div className="font-mono text-sm font-bold text-primary tabular-nums whitespace-nowrap">
                             {h.marketValueText}
                           </div>
-                          <div className="text-xs font-mono font-medium tabular-nums min-h-[16px] mt-0.5">
+                          <div className="text-xs font-mono font-medium tabular-nums min-h-[16px] mt-1 whitespace-nowrap">
                             {isNew ? (
                               <span className="text-blue-500 dark:text-blue-400 font-semibold">{h.sharesChangeText}</span>
                             ) : isAdd ? (
@@ -866,17 +883,17 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
                             ) : isReduce ? (
                               <span className="text-emerald-500 dark:text-emerald-400">{h.sharesChangeText}</span>
                             ) : (
-                              <span className="text-muted/60">—</span>
+                              <span className="text-muted text-[11px]">{h.sharesChangeText}</span>
                             )}
                           </div>
                         </div>
 
                         {/* 欄 3: 權重 + 與前日變動 (%) */}
-                        <div className="col-span-3 sm:col-span-3 text-right">
-                          <div className="font-mono text-sm font-bold text-primary tabular-nums">
+                        <div className="col-span-3 text-right min-w-0">
+                          <div className="font-mono text-sm font-bold text-primary tabular-nums whitespace-nowrap">
                             {h.weight.toFixed(2)}%
                           </div>
-                          <div className="text-xs font-mono font-medium tabular-nums min-h-[16px] mt-0.5">
+                          <div className="text-xs font-mono font-medium tabular-nums min-h-[16px] mt-1 whitespace-nowrap">
                             {isNew ? (
                               <span className="text-blue-500 dark:text-blue-400 font-semibold">{h.weightChangeText}</span>
                             ) : h.weight_change > 0 ? (
@@ -887,9 +904,9 @@ export default function ETFInfoSection({ symbol }: { symbol: string }) {
                               <span className="text-muted/60">—</span>
                             )}
                           </div>
-                          <div className="w-14 h-1 rounded-full bg-[var(--bg-tertiary)] overflow-hidden ml-auto mt-1 opacity-70 group-hover:opacity-100 transition-opacity">
+                          <div className="w-14 h-1 rounded-full bg-[var(--bg-tertiary)] overflow-hidden ml-auto mt-1 opacity-80">
                             <div
-                              className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-700 ease-out"
+                              className="h-full bg-[var(--accent)]/85 rounded-full transition-all duration-500 ease-out"
                               style={{ width: `${Math.min(100, (h.weight / 12) * 100)}%` }}
                             />
                           </div>

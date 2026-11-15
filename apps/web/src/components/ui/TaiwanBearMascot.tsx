@@ -20,7 +20,8 @@ import {
   Zap,
   RotateCcw,
   Award,
-  Layers,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 type BearMood = "BULLISH" | "FEAR" | "NEUTRAL";
@@ -92,10 +93,38 @@ const Bear3DModel = dynamic(() => import("@/components/ui/Bear3DModel"), {
 
 export default function TaiwanBearMascot() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("insight");
   const [hasAlert, setHasAlert] = useState(false);
   const [sentimentScore, setSentimentScore] = useState<number>(55);
   const [speechBubble, setSpeechBubble] = useState<string>("盤中即時掃描中...");
+
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() => {
+      try {
+        const saved = localStorage.getItem("bear_mascot_minimized");
+        if (saved === "1") setIsMinimized(true);
+        else if (saved === "0") setIsMinimized(false);
+        else if (window.innerWidth < 768) {
+          // 手機版預設收合為右側邊緣小標籤，避免遮擋表格右側數據
+          setIsMinimized(true);
+        }
+      } catch {
+        // ignore
+      }
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, []);
+
+  const setMinimizedPersist = useCallback((next: boolean) => {
+    setIsMinimized(next);
+    if (next) setIsOpen(false);
+    try {
+      localStorage.setItem("bear_mascot_minimized", next ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }, []);
   
   // 互動狀態
   const [isBlinking, setIsBlinking] = useState(false);
@@ -258,19 +287,41 @@ export default function TaiwanBearMascot() {
     }, 750);
   };
 
+  if (isMinimized && !isOpen) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setMinimizedPersist(false);
+          setIsOpen(true);
+          setHasAlert(false);
+        }}
+        title="展開熊霸看盤助手"
+        aria-label="展開熊霸看盤助手"
+        className="fixed right-0 bottom-20 md:bottom-6 z-40 print:hidden flex flex-col items-center gap-1 px-1.5 py-2.5 rounded-l-lg bg-[var(--bg-secondary)] border border-r-0 border-[var(--border)] hover:border-[var(--border-hover)] text-secondary hover:text-primary transition-colors cursor-pointer"
+      >
+        <ChevronLeft size={13} className="text-amber-400" />
+        <span className="text-[10px] font-bold tracking-widest [writing-mode:vertical-rl]">
+          熊霸
+        </span>
+        {hasAlert && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />}
+      </button>
+    );
+  }
+
   return (
-    <div className="fixed bottom-20 md:bottom-5 right-4 md:right-5 z-40 select-none print:hidden flex flex-col items-end">
+    <div className="fixed bottom-20 md:bottom-5 right-3 md:right-5 z-40 select-none print:hidden flex flex-col items-end">
       {/* 1. 互動彈出式對話視窗 (Pop-over) */}
       {isOpen && (
-        <div className="mb-3 w-84 sm:w-92 rounded-2xl border border-[var(--border)] bg-[var(--bg-glass)] shadow-2xl backdrop-blur-xl p-4 animate-spring-pop origin-bottom-right text-primary">
+        <div className="mb-3 w-[min(92vw,360px)] rounded-xl border border-[var(--border)] bg-[var(--bg-glass)] shadow-2xl backdrop-blur-xl p-4 animate-spring-pop origin-bottom-right text-primary">
           {/* 視窗頂部欄 */}
           <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-[var(--border)]">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-sm text-primary">熊霸 (V-Bear)</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-500 font-semibold border border-amber-500/30">
-                  AI 守護吉祥物
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 font-semibold border border-amber-500/30">
+                  看盤助手
                 </span>
               </div>
             </div>
@@ -284,9 +335,16 @@ export default function TaiwanBearMascot() {
                 {soundEnabled ? <Volume2 size={14} className="text-accent" /> : <VolumeX size={14} className="text-secondary" />}
               </button>
               <button
+                onClick={() => setMinimizedPersist(true)}
+                className="text-secondary hover:text-primary p-1 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+                title="收合至右側邊緣（不遮擋畫面）"
+              >
+                <ChevronRight size={15} />
+              </button>
+              <button
                 onClick={() => setIsOpen(false)}
                 className="text-secondary hover:text-primary p-1 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
-                title="收合"
+                title="關閉視窗"
               >
                 <X size={15} />
               </button>
@@ -529,11 +587,11 @@ export default function TaiwanBearMascot() {
 
       {/* 2. 懸浮常駐吉祥物圖示 (Formosan Black Bear) */}
       <div className="relative group">
-        {/* 常駐小氣泡提醒（未點開時偶爾冒泡） */}
+        {/* 桌機版輕量氣泡提醒（手機版隱藏，避免遮擋表格數字） */}
         {!isOpen && (
           <div
             onClick={() => setIsOpen(true)}
-            className="absolute -top-10 right-0 whitespace-nowrap bg-[var(--bg-glass)] text-primary text-[11px] font-bold py-1 px-2.5 rounded-full border border-[var(--border)] shadow-md backdrop-blur-md cursor-pointer hover:border-accent transition-all animate-bounce flex items-center gap-1.5"
+            className="hidden md:flex absolute -top-9 right-0 whitespace-nowrap bg-[var(--bg-secondary)] text-primary text-[11px] font-semibold py-1 px-2.5 rounded-md border border-[var(--border)] cursor-pointer hover:border-[var(--border-hover)] transition-colors items-center gap-1.5"
           >
             {hasAlert ? (
               <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
@@ -542,6 +600,22 @@ export default function TaiwanBearMascot() {
             )}
             <span>{hasAlert ? "主力異動！" : "看今日解盤"}</span>
           </div>
+        )}
+
+        {/* 收合至右側邊緣小按鈕 */}
+        {!isOpen && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMinimizedPersist(true);
+            }}
+            title="收合至右側邊緣"
+            aria-label="收合熊霸至右側邊緣"
+            className="absolute -top-1.5 -right-1.5 z-10 w-5 h-5 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border)] text-secondary hover:text-primary flex items-center justify-center cursor-pointer"
+          >
+            <ChevronRight size={12} />
+          </button>
         )}
 
         {/* 浮動點擊粒子特效 (Heart/Star) */}

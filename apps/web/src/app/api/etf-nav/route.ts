@@ -57,6 +57,8 @@ export interface EtfNavRecord {
 
 interface MoneyDjDetail {
   ts: number;
+  snapshot_date?: string;
+  baseline_date?: string;
   profile: EtfProfileMeta;
   holdings: EtfHoldingLive[];
   sector_weights: { sector: string; weight: number }[];
@@ -237,36 +239,89 @@ const BASELINES_MAP = etfBaselinesData as Record<
   }
 >;
 
-// 伺服器持股快照歷史庫 (跨日自動比對)
-const etfHoldingHistoryStore = new Map<string, Record<string, { sharesLots: number; weight: number }>>();
+// 伺服器持股快照歷史庫 (依台北日期保存，不覆蓋同日比對基準)
+interface EtfSnapshotEntry {
+  date: string;
+  holdings: Record<string, { sharesLots: number; weight: number }>;
+}
+
+const etfHoldingHistoryStore = new Map<string, { prev?: EtfSnapshotEntry; today?: EtfSnapshotEntry }>();
+
+function getTaipeiDateStr(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function saveDailyHoldingSnapshot(
+  code: string,
+  snapMap: Record<string, { sharesLots: number; weight: number }>,
+  snapshotDate?: string
+) {
+  const c = code.toUpperCase();
+  const snapStr = snapshotDate && /^\d{4}-\d{2}-\d{2}$/.test(snapshotDate) ? snapshotDate : getTaipeiDateStr();
+  const current = etfHoldingHistoryStore.get(c) || {};
+  if (current.today && current.today.date !== snapStr) {
+    // 跨交易日：將前一個交易日快照移入 prev 作為比對基準
+    current.prev = current.today;
+  }
+  current.today = { date: snapStr, holdings: snapMap };
+  etfHoldingHistoryStore.set(c, current);
+}
+
+function getBaselineComparisonContext(code: string, snapshotDate?: string): {
+  date?: string;
+  holdings?: Record<string, { sharesLots: number; weight: number }>;
+} {
+  const c = code.toUpperCase();
+  const snapStr = snapshotDate && /^\d{4}-\d{2}-\d{2}$/.test(snapshotDate) ? snapshotDate : getTaipeiDateStr();
+
+  const mem = etfHoldingHistoryStore.get(c);
+  if (mem?.prev && mem.prev.date !== snapStr) {
+    return { date: mem.prev.date, holdings: mem.prev.holdings };
+  }
+  if (mem?.today && mem.today.date !== snapStr) {
+    return { date: mem.today.date, holdings: mem.today.holdings };
+  }
+
+  const baseMain = BASELINES_MAP[c];
+  if (baseMain?.holdings && baseMain.date !== snapStr) {
+    return { date: baseMain.date, holdings: baseMain.holdings };
+  }
+  const basePrev = BASELINES_MAP[`${c}_PREV`];
+  if (basePrev?.holdings && basePrev.date !== snapStr) {
+    return { date: basePrev.date, holdings: basePrev.holdings };
+  }
+  if (baseMain?.holdings) {
+    return { date: baseMain.date, holdings: baseMain.holdings };
+  }
+  return {};
+}
 
 /**
  * 官方 PCF / 每日持股實質增減張數運算引擎
  * 核心準則：
  * 1. 嚴格比對真實申報前日與今日張數 (sharesLots - prevSharesLots)
- * 2. 嚴格禁止偽造、假雜湊或隨機推測數據
- * 3. 若無前日申報比對數據，誠實呈現為 HOLD（維持），變動張數為 0，變動顯示「—」
+ * 2. 同日基準或無先前比對基準時，誠實呈現為 HOLD（維持），絕不偽造假變動
  */
 function resolveHoldingPcfDelta(
   code: string,
   sym: string,
   weight: number,
   sharesLots: number,
-  aumBillion: number,
-  isTail: boolean = false
+  snapshotDate?: string,
+  baselineCtx?: { date?: string; holdings?: Record<string, { sharesLots: number; weight: number }> }
 ): HoldingPcfDelta {
-  const c = code.toUpperCase();
+  const ctx = baselineCtx || getBaselineComparisonContext(code, snapshotDate);
+  const snapStr = snapshotDate && /^\d{4}-\d{2}-\d{2}$/.test(snapshotDate) ? snapshotDate : getTaipeiDateStr();
+  const prevSnapshot = ctx.holdings;
 
-  // 1. 取得前一日基準持股快照 (優先讀取記憶體歷史庫，次序讀取持久化預置基線)
-  const prevSnapshot =
-    etfHoldingHistoryStore.get(c) ||
-    BASELINES_MAP[`${c}_PREV`]?.holdings ||
-    BASELINES_MAP[c]?.holdings;
-
-  if (prevSnapshot) {
+  if (prevSnapshot && ctx.date !== snapStr) {
     const prev = prevSnapshot[sym];
     if (!prev) {
-      // 昨天的持股清單中完全無此股票 -> 今日實質新買進納入 (NEW)
       return { status: "NEW", sharesDiff: sharesLots, weightDiff: weight };
     }
     const sDiff = sharesLots - prev.sharesLots;
@@ -276,8 +331,6 @@ function resolveHoldingPcfDelta(
     return { status: "HOLD", sharesDiff: 0, weightDiff: wDiff };
   }
 
-  // 2. 若為全新收錄且無前一日比對基線之 ETF：
-  // 誠實回傳維持現有持股狀態，絕不隨機捏造買賣或加減碼！
   return { status: "HOLD", sharesDiff: 0, weightDiff: 0 };
 }
 
@@ -294,6 +347,11 @@ async function fetchEtfInfoTw(code: string): Promise<MoneyDjDetail | null> {
 
     const info = j.info;
     const market = j.latestMarket || {};
+    const snapshotDate: string =
+      typeof j.holdings?.snapshotDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(j.holdings.snapshotDate)
+        ? j.holdings.snapshotDate
+        : getTaipeiDateStr();
+    const baselineCtx = getBaselineComparisonContext(code, snapshotDate);
     const aumBillion = market.aum > 0 ? Number((market.aum / 1e8).toFixed(2)) : 0;
     const rawList = (j.holdings.holdings || []).filter((h: any) => {
       const sym = String(h.code || "").trim();
@@ -315,15 +373,14 @@ async function fetchEtfInfoTw(code: string): Promise<MoneyDjDetail | null> {
       return Number.isFinite(w) && w > 0;
     });
 
-    const holdings: EtfHoldingLive[] = rawList.map((h: any, idx: number) => {
+    const holdings: EtfHoldingLive[] = rawList.map((h: any) => {
       const sym = String(h.code || "").trim();
       const fullName = TW_FULL_NAME_MAP[sym] || h.name || sym;
       const weight = Number(Number(h.weight).toFixed(2));
       const sharesLots = Number(h.shares) > 0 ? Math.max(1, Math.round(Number(h.shares) / 1000)) : 0;
-      const isTail = idx >= rawList.length - 3;
 
-      // 通用 PCF 引擎：對所有 ETF 與所有成分股全面計算精準加減碼
-      const delta = resolveHoldingPcfDelta(code, sym, weight, sharesLots, aumBillion, isTail);
+      // 通用 PCF 引擎：依實際申報日比對前日持股變動
+      const delta = resolveHoldingPcfDelta(code, sym, weight, sharesLots, snapshotDate, baselineCtx);
       const marketVal = Math.round(aumBillion * (weight / 100));
 
       return {
@@ -339,12 +396,12 @@ async function fetchEtfInfoTw(code: string): Promise<MoneyDjDetail | null> {
       };
     });
 
-    // 儲存持股快照供下一次輪詢即時比對
+    // 儲存快照供下一次跨交易日比對
     const snapMap: Record<string, { sharesLots: number; weight: number }> = {};
     holdings.forEach((h) => {
       snapMap[h.symbol] = { sharesLots: h.shares_lots, weight: h.weight };
     });
-    etfHoldingHistoryStore.set(code.toUpperCase(), snapMap);
+    saveDailyHoldingSnapshot(code, snapMap, snapshotDate);
 
     const dividends: { date: string; amount: number; period_yield: number | null }[] = [];
     if (Array.isArray(j.dividends)) {
@@ -361,6 +418,8 @@ async function fetchEtfInfoTw(code: string): Promise<MoneyDjDetail | null> {
 
     return {
       ts: Date.now(),
+      snapshot_date: snapshotDate,
+      baseline_date: baselineCtx.date || snapshotDate,
       profile: {
         name: info.name || code,
         issuer: info.issuer || "投信機構",
@@ -505,8 +564,8 @@ async function fetchMoneyDjDetail(code: string): Promise<MoneyDjDetail | null> {
         seen.add(key);
 
         const sharesLots = rawShares > 0 ? Math.max(1, Math.round(rawShares / 1000)) : 0;
-        const isTail = list.length >= 25;
-        const delta = resolveHoldingPcfDelta(code, hSym, Number(weight.toFixed(2)), sharesLots, aumBillion, isTail);
+        const snapshotDate = getTaipeiDateStr();
+        const delta = resolveHoldingPcfDelta(code, hSym, Number(weight.toFixed(2)), sharesLots, snapshotDate);
         const fullName = TW_FULL_NAME_MAP[hSym] || hName;
         const marketVal = Math.round(aumBillion * (Number(weight.toFixed(2)) / 100));
 
@@ -559,8 +618,8 @@ async function fetchMoneyDjDetail(code: string): Promise<MoneyDjDetail | null> {
                 seen.add(key);
 
                 const sharesLots = rawShares > 0 ? Math.max(1, Math.round(rawShares / 1000)) : 0;
-                const isTail = list.length >= 25;
-                const delta = resolveHoldingPcfDelta(code, hSym, Number(weight.toFixed(2)), sharesLots, aumBillion, isTail);
+                const snapshotDate = getTaipeiDateStr();
+                const delta = resolveHoldingPcfDelta(code, hSym, Number(weight.toFixed(2)), sharesLots, snapshotDate);
                 const fullName = TW_FULL_NAME_MAP[hSym] || hName;
                 const marketVal = Math.round(aumBillion * (Number(weight.toFixed(2)) / 100));
 
@@ -589,12 +648,14 @@ async function fetchMoneyDjDetail(code: string): Promise<MoneyDjDetail | null> {
       holdings = parseHoldingsHtml(h7);
     }
 
-    // 儲存快照供下次輪詢比對
+    // 儲存快照供下次輪詢比對 (以台北日期作為 MoneyDJ snapshotDate)
+    const snapshotDate = getTaipeiDateStr();
+    const baselineCtx = getBaselineComparisonContext(code, snapshotDate);
     const snapMap: Record<string, { sharesLots: number; weight: number }> = {};
     holdings.forEach((h) => {
       snapMap[h.symbol] = { sharesLots: h.shares_lots, weight: h.weight };
     });
-    etfHoldingHistoryStore.set(code.toUpperCase(), snapMap);
+    saveDailyHoldingSnapshot(code, snapMap, snapshotDate);
     if (holdings.length === 0 && ETF_CATALOG[code]?.holdings?.length) {
       holdings = ETF_CATALOG[code].holdings.map((h) => ({
         symbol: h.symbol,
@@ -626,6 +687,8 @@ async function fetchMoneyDjDetail(code: string): Promise<MoneyDjDetail | null> {
 
     const detail: MoneyDjDetail = {
       ts: now,
+      snapshot_date: snapshotDate,
+      baseline_date: baselineCtx.date || snapshotDate,
       profile: {
         name: rawName,
         issuer,
@@ -769,9 +832,26 @@ async function fetchAllEtfNav(): Promise<EtfNavRecord[]> {
   return Array.from(recordsMap.values());
 }
 
+const RESONANCE_ETF_SPECS = [
+  { code: "0050", label: "元大台灣50", group: "市值型" },
+  { code: "006208", label: "富邦台50", group: "市值型" },
+  { code: "0056", label: "元大高股息", group: "高股息" },
+  { code: "00878", label: "國泰永續高股息", group: "高股息" },
+  { code: "00919", label: "群益台灣精選高息", group: "高股息" },
+  { code: "00929", label: "復華台灣科技優息", group: "高股息" },
+  { code: "00940", label: "元大台灣價值高息", group: "高股息" },
+  { code: "00713", label: "元大台灣高息低波", group: "高股息" },
+  { code: "00981A", label: "主動統一台股增長", group: "主動式" },
+  { code: "00982A", label: "主動群益台灣強棒", group: "主動式" },
+] as const;
+
+let resonanceCache: { ts: number; data: Record<string, unknown> } | null = null;
+const RESONANCE_TTL_MS = 10 * 60 * 1000;
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const symbolParam = (searchParams.get("symbol") || "").trim().toUpperCase();
+  const modeParam = (searchParams.get("mode") || "").trim().toLowerCase();
 
   const now = Date.now();
   if (!cachedRecords || now - cachedRecords.ts > CACHE_TTL_MS || cachedRecords.list.length === 0) {
@@ -786,6 +866,182 @@ export async function GET(req: NextRequest) {
   }
 
   const list = cachedRecords?.list || [];
+
+  if (modeParam === "resonance") {
+    if (resonanceCache && now - resonanceCache.ts < RESONANCE_TTL_MS) {
+      return NextResponse.json(resonanceCache.data);
+    }
+
+    const [detailsList, marketData] = await Promise.all([
+      Promise.all(RESONANCE_ETF_SPECS.map((spec) => fetchMoneyDjDetail(spec.code).catch(() => null))),
+      getCachedTwMarketData().catch(() => null),
+    ]);
+
+    const priceLookup = new Map<string, { price: number; change: number; change_pct: number; volume_lots: number; name: string }>();
+    for (const m of [...(marketData?.twseAll || []), ...(marketData?.tpexAll || [])]) {
+      priceLookup.set(m.symbol.toUpperCase(), {
+        price: m.price,
+        change: m.change,
+        change_pct: m.change_pct,
+        volume_lots: m.volume_lots || 0,
+        name: m.name,
+      });
+    }
+
+    const stockMap = new Map<
+      string,
+      {
+        symbol: string;
+        name: string;
+        price: number;
+        change: number;
+        change_pct: number;
+        volume_lots: number;
+        etf_count: number;
+        total_value_billion: number;
+        total_shares_lots: number;
+        total_weight_sum: number;
+        max_weight: number;
+        add_count: number;
+        reduce_count: number;
+        new_count: number;
+        net_shares_change: number;
+        groups: Set<string>;
+        held_by: {
+          etf_code: string;
+          etf_name: string;
+          group: string;
+          weight: number;
+          shares_lots: number;
+          shares_change: number;
+          weight_change: number;
+          status: "ADD" | "REDUCE" | "HOLD" | "NEW";
+          value_billion: number;
+          snapshot_date?: string;
+          baseline_date?: string;
+        }[];
+      }
+    >();
+
+    const etfSummaries = RESONANCE_ETF_SPECS.map((spec, idx) => {
+      const detail = detailsList[idx];
+      const baseItem = ETF_CATALOG[spec.code];
+      const aumBillion =
+        detail?.profile?.aum_billion && detail.profile.aum_billion > 0
+          ? detail.profile.aum_billion
+          : baseItem?.holdings?.length
+          ? 0
+          : 0;
+      const effectiveAum = aumBillion > 0 ? aumBillion : 1000;
+      const holdings = detail?.holdings || [];
+
+      for (const h of holdings) {
+        const sym = h.symbol.trim().toUpperCase();
+        if (!/^\d{4,6}[A-Z]?$/.test(sym)) continue;
+        const q = priceLookup.get(sym);
+        const stockName = TW_FULL_NAME_MAP[sym] || q?.name || h.name || sym;
+        const valBillion =
+          h.market_value_billion != null && h.market_value_billion > 0
+            ? h.market_value_billion
+            : Number(((effectiveAum * h.weight) / 100).toFixed(2));
+        const status = h.status || "HOLD";
+        const sDiff = h.shares_change ?? 0;
+        const wDiff = h.weight_change ?? 0;
+
+        let entry = stockMap.get(sym);
+        if (!entry) {
+          entry = {
+            symbol: sym,
+            name: stockName,
+            price: q?.price || 0,
+            change: q?.change || 0,
+            change_pct: q?.change_pct || 0,
+            volume_lots: q?.volume_lots || 0,
+            etf_count: 0,
+            total_value_billion: 0,
+            total_shares_lots: 0,
+            total_weight_sum: 0,
+            max_weight: 0,
+            add_count: 0,
+            reduce_count: 0,
+            new_count: 0,
+            net_shares_change: 0,
+            groups: new Set<string>(),
+            held_by: [],
+          };
+          stockMap.set(sym, entry);
+        }
+
+        if (entry.held_by.some((x) => x.etf_code === spec.code)) continue;
+        entry.etf_count += 1;
+        entry.total_value_billion = Number((entry.total_value_billion + valBillion).toFixed(2));
+        entry.total_shares_lots += h.shares_lots || 0;
+        entry.total_weight_sum = Number((entry.total_weight_sum + h.weight).toFixed(2));
+        entry.max_weight = Math.max(entry.max_weight, h.weight);
+        if (status === "ADD") entry.add_count += 1;
+        else if (status === "REDUCE") entry.reduce_count += 1;
+        else if (status === "NEW") entry.new_count += 1;
+        entry.net_shares_change += sDiff;
+        entry.groups.add(spec.group);
+        entry.held_by.push({
+          etf_code: spec.code,
+          etf_name: detail?.profile?.name || spec.label,
+          group: spec.group,
+          weight: h.weight,
+          shares_lots: h.shares_lots || 0,
+          shares_change: sDiff,
+          weight_change: wDiff,
+          status,
+          value_billion: valBillion,
+          snapshot_date: detail?.snapshot_date,
+          baseline_date: detail?.baseline_date,
+        });
+      }
+
+      return {
+        code: spec.code,
+        name: detail?.profile?.name || spec.label,
+        group: spec.group,
+        aum_billion: aumBillion,
+        holdings_count: holdings.length,
+        snapshot_date: detail?.snapshot_date || getTaipeiDateStr(),
+        baseline_date: detail?.baseline_date || detail?.snapshot_date || getTaipeiDateStr(),
+      };
+    });
+
+    const resonanceHoldings = Array.from(stockMap.values())
+      .map((item) => ({
+        symbol: item.symbol,
+        name: item.name,
+        price: item.price,
+        change: item.change,
+        change_pct: item.change_pct,
+        volume_lots: item.volume_lots,
+        etf_count: item.etf_count,
+        total_value_billion: item.total_value_billion,
+        total_shares_lots: item.total_shares_lots,
+        avg_weight: Number((item.total_weight_sum / Math.max(1, item.etf_count)).toFixed(2)),
+        max_weight: Number(item.max_weight.toFixed(2)),
+        add_count: item.add_count,
+        reduce_count: item.reduce_count,
+        new_count: item.new_count,
+        net_shares_change: item.net_shares_change,
+        groups: Array.from(item.groups),
+        held_by: item.held_by.sort((a, b) => b.weight - a.weight),
+      }))
+      .sort((a, b) => {
+        if (b.etf_count !== a.etf_count) return b.etf_count - a.etf_count;
+        return b.total_value_billion - a.total_value_billion;
+      });
+
+    const payload = {
+      updated_at: new Date().toISOString(),
+      etfs: etfSummaries,
+      holdings: resonanceHoldings,
+    };
+    resonanceCache = { ts: now, data: payload };
+    return NextResponse.json(payload);
+  }
 
   if (symbolParam) {
     const clean = symbolParam.replace(/\.(TW|TWO)$/i, "");
@@ -835,6 +1091,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       ...baseRecord,
       name: baseRecord.name !== clean ? baseRecord.name : detail?.profile.name || mQuote?.name || clean,
+      snapshot_date: detail?.snapshot_date || getTaipeiDateStr(),
+      baseline_date: detail?.baseline_date || detail?.snapshot_date || getTaipeiDateStr(),
       profile: detail?.profile,
       holdings: enrichedHoldings,
       sector_weights: detail?.sector_weights || [],

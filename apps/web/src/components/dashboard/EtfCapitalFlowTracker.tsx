@@ -28,6 +28,7 @@ import {
 import { apiStocks, apiMarket, apiInstitutions } from "@/lib/api";
 import { ETF_CATALOG, resolveETFProfile } from "@/lib/etfCatalog";
 import { REAL_STOCK_INSTITUTIONAL_MAP } from "@/lib/realInstitutionalSnapshot";
+import { EtfResonanceBoard } from "./EtfResonanceBoard";
 
 export const ALL_SELECTABLE_ETFS = [
   {
@@ -1303,7 +1304,18 @@ export default function EtfCapitalFlowTracker({
     const prof = ETF_CATALOG[selectedHoldingEtf] || resolveETFProfile(selectedHoldingEtf);
     const etfName = (isMatchedLive && liveHoldingDetail?.name) || prof?.name || selectedHoldingEtf;
     const etfItem = items.find((it) => it.symbol === selectedHoldingEtf);
-    const etfAum = etfItem?.aum ?? 1200;
+    const etfAum = liveHoldingDetail?.profile?.aum_billion || etfItem?.aum || 1200;
+    const snapDate = String((isMatchedLive && (liveHoldingDetail?.snapshot_date || liveHoldingDetail?.date)) || "");
+    const baseDate = String((isMatchedLive && liveHoldingDetail?.baseline_date) || snapDate);
+    let comparisonLabel = "與前日變動(張數)";
+    if (snapDate && baseDate && snapDate === baseDate) {
+      comparisonLabel = `持股張數 (${snapDate.slice(5).replace("-", "/")})`;
+    } else if (snapDate && baseDate) {
+      const daysGap = Math.round((new Date(snapDate).getTime() - new Date(baseDate).getTime()) / 86400000);
+      if (daysGap > 4) {
+        comparisonLabel = `較 ${baseDate.slice(5).replace("-", "/")} 變動(張數)`;
+      }
+    }
 
     const rawHoldings = (
       isMatchedLive && Array.isArray(liveHoldingDetail?.holdings) && liveHoldingDetail.holdings.length > 0
@@ -1372,16 +1384,16 @@ export default function EtfCapitalFlowTracker({
 
       const marketValueText = marketValB >= 1 ? `${marketValB}億` : `${Math.round(marketValB * 10000)}萬`;
 
-      // 與前日變動 (張數) 字串：新增時為空
-      let sharesChangeText = "";
+      // 與前日變動 (張數) 字串：新增/加減碼顯示真實變動張數；維持不變時顯示目前持股張數
+      let sharesChangeText = "—";
       if (status === "ADD") {
-        sharesChangeText = sharesChange > 0 ? `+${sharesChange.toLocaleString()}張` : "+0張";
+        sharesChangeText = sharesChange > 0 ? `+${sharesChange.toLocaleString()}張` : sharesHeld > 0 ? `持 ${sharesHeld.toLocaleString()}張` : "—";
       } else if (status === "REDUCE") {
-        sharesChangeText = sharesChange < 0 ? `${sharesChange.toLocaleString()}張` : "-0張";
-      } else if (status === "HOLD") {
-        sharesChangeText = "0張";
+        sharesChangeText = sharesChange < 0 ? `${sharesChange.toLocaleString()}張` : sharesHeld > 0 ? `持 ${sharesHeld.toLocaleString()}張` : "—";
       } else if (status === "NEW") {
-        sharesChangeText = "";
+        sharesChangeText = sharesHeld > 0 ? `+${sharesHeld.toLocaleString()}張` : "—";
+      } else if (sharesHeld > 0) {
+        sharesChangeText = `持 ${sharesHeld.toLocaleString()}張`;
       }
 
       // 與前日變動 (權重) 字串：新增時為空，其餘帶符號且格式化到後兩位
@@ -1423,7 +1435,12 @@ export default function EtfCapitalFlowTracker({
 
     return {
       etfName,
-      updateDate: isMatchedLive ? "投信官方持股申報與最新即時行情" : "成分股官方權重與籌碼連動",
+      snapshotDate: snapDate,
+      baselineDate: baseDate,
+      comparisonLabel,
+      updateDate: isMatchedLive
+        ? `投信官方持股申報 (${snapDate ? snapDate.slice(5).replace("-", "/") : "最新"})`
+        : "成分股官方權重與籌碼連動",
       holdings: holdingsList,
     };
   }, [selectedHoldingEtf, items, liveQuotes, liveHoldingDetail]);
@@ -2281,64 +2298,8 @@ export default function EtfCapitalFlowTracker({
       ) : (
         /* ================= 2. ETF 每日買了哪些股票・成分股資產變動明細 ================= */
         <div className="space-y-6 animate-fade-in">
-          {/* A. 全市場 ETF 今日合計大買之龍頭個股 */}
-          <div className="p-5 rounded-2xl bg-gradient-to-r from-[var(--bg-secondary)] via-[var(--bg-secondary)] to-amber-500/10 border border-[var(--border)]">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2">
-                <span className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
-                  <ShoppingBag size={18} />
-                </span>
-                <h2 className="text-lg font-bold text-primary">
-                  全市場 ETF 今日聯手大買 TOP 8 個股 (Aggregated ETF Inflow Target)
-                </h2>
-              </div>
-              <span className="text-xs font-mono text-muted bg-[var(--bg-tertiary)] px-2.5 py-1 rounded-lg border border-[var(--border)]">
-                盤後投信官方最新統計
-              </span>
-            </div>
-            <p className="text-xs text-secondary mb-4">
-              彙整全市場上市櫃 ETF 發行投信法人最新買超榜首，並自動穿透比對 0050、00878、00919、0056 等核心持股 ETF
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {aggregatedEtfTopBuys.map((stk, idx) => (
-                <div
-                  key={stk.symbol}
-                  className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border)] hover:border-accent/40 transition-all hover-lift"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-5 h-5 rounded-full bg-accent/20 text-accent text-xs font-bold font-mono flex items-center justify-center">
-                        {idx + 1}
-                      </span>
-                      <Link href={`/stock/${stk.symbol}`} className="font-bold text-accent hover:underline">
-                        {stk.name} ({stk.symbol})
-                      </Link>
-                    </div>
-                    <Badge value={stk.change_pct} market="TW" />
-                  </div>
-
-                  <div className="my-1.5 flex items-baseline justify-between">
-                    <span className="text-xs text-secondary">今日投信/ETF 合計加買:</span>
-                    <span className="text-base font-extrabold font-mono text-red-400">
-                      +{stk.total_shares.toLocaleString()} 張
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs text-muted border-t border-[var(--border)] pt-1.5">
-                    <span>估計買超金額:</span>
-                    <span className="font-mono font-semibold text-rose-400">
-                      約 +{stk.total_amount_m >= 100 ? `${(stk.total_amount_m / 100).toFixed(2)} 億元` : `${stk.total_amount_m} 百萬`}
-                    </span>
-                  </div>
-
-                  <div className="text-[10px] text-muted truncate mt-1">
-                    主要買方: <span className="text-secondary">{stk.buyers.length > 0 ? stk.buyers.join(", ") : "全市場核心 ETF 籃子"}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* A. 台股核心 ETF 成分共振排行 (即時多檔彙總) */}
+          <EtfResonanceBoard compact={true} />
 
           {/* B. 單一 ETF 成分股持倉與今日增減明細 */}
           <Card
@@ -2496,12 +2457,12 @@ export default function EtfCapitalFlowTracker({
             </div>
 
             {/* 券商 App 經典成分股變動三欄式排版 (標的 | 持股規模(市值) | 權重) */}
-            <div className="rounded-xl border border-[var(--border)] overflow-hidden bg-[var(--bg-card)]">
-              <div className="grid grid-cols-12 px-4 py-3 bg-[var(--bg-tertiary)] border-b border-[var(--border)] text-xs text-secondary font-medium">
-                <div className="col-span-5 sm:col-span-5 flex items-center">
+            <div className="rounded-xl border border-[var(--border)] overflow-hidden bg-[var(--bg-secondary)]">
+              <div className="grid grid-cols-12 px-3 sm:px-4 py-3 bg-[var(--bg-tertiary)] border-b border-[var(--border)] text-xs text-secondary font-medium">
+                <div className="col-span-5 flex items-center">
                   <span>標的</span>
                 </div>
-                <div className="col-span-4 sm:col-span-4 text-right pr-2">
+                <div className="col-span-4 text-right pr-2">
                   <button
                     onClick={() => {
                       if (holdingsSortMode === "BUY_FIRST") setHoldingsSortMode("SELL_FIRST");
@@ -2512,14 +2473,19 @@ export default function EtfCapitalFlowTracker({
                   >
                     <div className="flex items-center justify-end gap-1 group-hover:text-primary transition-colors">
                       <span>持股規模(市值)</span>
-                      <span className="text-[10px] text-muted cursor-help" title="依 ETF 最新基金規模與權重計算之約當市值；下方為與前一日相較之實際持股張數變動">ⓘ</span>
+                      <span
+                        className="text-[10px] text-muted cursor-help"
+                        title={`快照日期：${currentPortfolio.snapshotDate || "最新"} / 比對基準：${currentPortfolio.baselineDate || "前日"}`}
+                      >
+                        ⓘ
+                      </span>
                     </div>
                     <div className="text-[10px] text-muted font-normal group-hover:text-accent">
-                      與前日變動(張數) {holdingsSortMode === "BUY_FIRST" ? "↑加碼" : holdingsSortMode === "SELL_FIRST" ? "↓減碼" : "⇅"}
+                      {currentPortfolio.comparisonLabel} {holdingsSortMode === "BUY_FIRST" ? "↑加碼" : holdingsSortMode === "SELL_FIRST" ? "↓減碼" : "⇅"}
                     </div>
                   </button>
                 </div>
-                <div className="col-span-3 sm:col-span-3 text-right">
+                <div className="col-span-3 text-right">
                   <button
                     onClick={() => {
                       if (holdingsSortMode === "WEIGHT_DESC") setHoldingsSortMode("WEIGHT_ASC");
@@ -2550,39 +2516,37 @@ export default function EtfCapitalFlowTracker({
                     return (
                       <div
                         key={`${h.symbol}-${idx}`}
-                        className="grid grid-cols-12 px-4 py-3 items-center hover:bg-[var(--bg-tertiary)]/50 transition-colors"
+                        className="grid grid-cols-12 px-3 sm:px-4 py-3 items-start hover:bg-[var(--bg-tertiary)]/50 transition-colors"
                       >
-                        {/* 欄 1: 標的名稱 + 狀態標籤 + 股票代號 */}
-                        <div className="col-span-5 sm:col-span-5 pr-2">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-primary font-bold text-sm tracking-tight truncate max-w-[130px] sm:max-w-[200px]" title={h.name}>
-                              {h.name}
-                            </span>
+                        {/* 欄 1: 標的名稱 (單行完整呈現) + 股票代號與狀態標籤 (固定雙行對齊不亂跳) */}
+                        <div className="col-span-5 pr-2 min-w-0">
+                          <div className="text-primary font-bold text-sm tracking-tight truncate" title={h.name}>
+                            {h.name}
+                          </div>
+                          <div className="mt-1 flex items-center gap-1.5 flex-nowrap">
+                            <Link
+                              href={`/stock/${encodeURIComponent(h.symbol)}`}
+                              className="font-mono text-xs text-muted hover:text-accent hover:underline shrink-0"
+                            >
+                              {h.symbol}
+                            </Link>
                             {isNew && (
-                              <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-blue-500/15 text-blue-500 dark:text-blue-400 border border-blue-500/30">
+                              <span className="px-1.5 py-0.5 text-[10px] font-semibold leading-none rounded bg-blue-500/15 text-blue-500 dark:text-blue-400 border border-blue-500/30 shrink-0">
                                 新增
                               </span>
                             )}
                             {isAdd && (
-                              <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-red-500/15 text-red-500 dark:text-red-400 border border-red-500/30">
+                              <span className="px-1.5 py-0.5 text-[10px] font-semibold leading-none rounded bg-red-500/15 text-red-500 dark:text-red-400 border border-red-500/30 shrink-0">
                                 加碼
                               </span>
                             )}
                             {isReduce && (
-                              <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border border-emerald-500/30">
+                              <span className="px-1.5 py-0.5 text-[10px] font-semibold leading-none rounded bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
                                 減碼
                               </span>
                             )}
-                          </div>
-                          <div className="mt-0.5 flex items-center gap-2">
-                            <Link
-                              href={`/stock/${encodeURIComponent(h.symbol)}`}
-                              className="font-mono text-xs text-muted hover:text-accent hover:underline"
-                            >
-                              {h.symbol}
-                            </Link>
                             {h.price && h.price > 0 && (
-                              <span className="text-[11px] font-mono text-secondary hidden sm:inline">
+                              <span className="text-[11px] font-mono text-secondary hidden sm:inline shrink-0">
                                 NT${h.price.toFixed(2)}
                               </span>
                             )}
@@ -2590,29 +2554,29 @@ export default function EtfCapitalFlowTracker({
                         </div>
 
                         {/* 欄 2: 持股規模 (市值) + 與前日變動 (張數) */}
-                        <div className="col-span-4 sm:col-span-4 text-right pr-2">
-                          <div className="font-mono text-sm font-bold text-primary tabular-nums">
+                        <div className="col-span-4 text-right pr-2 min-w-0">
+                          <div className="font-mono text-sm font-bold text-primary tabular-nums whitespace-nowrap">
                             {h.marketValueText}
                           </div>
-                          <div className="text-xs font-mono font-medium tabular-nums min-h-[16px] mt-0.5">
+                          <div className="text-xs font-mono font-medium tabular-nums min-h-[16px] mt-1 whitespace-nowrap">
                             {isNew ? (
-                              <span className="text-muted/40">—</span>
+                              <span className="text-blue-500 dark:text-blue-400 font-semibold">{h.sharesChangeText}</span>
                             ) : isAdd ? (
                               <span className="text-red-500 dark:text-red-400">{h.sharesChangeText}</span>
                             ) : isReduce ? (
                               <span className="text-emerald-500 dark:text-emerald-400">{h.sharesChangeText}</span>
                             ) : (
-                              <span className="text-muted">{h.sharesChangeText || "0張"}</span>
+                              <span className="text-muted text-[11px]">{h.sharesChangeText}</span>
                             )}
                           </div>
                         </div>
 
                         {/* 欄 3: 權重 + 與前日變動 (%) */}
-                        <div className="col-span-3 sm:col-span-3 text-right">
-                          <div className="font-mono text-sm font-bold text-primary tabular-nums">
+                        <div className="col-span-3 text-right min-w-0">
+                          <div className="font-mono text-sm font-bold text-primary tabular-nums whitespace-nowrap">
                             {h.weight.toFixed(2)}%
                           </div>
-                          <div className="text-xs font-mono font-medium tabular-nums min-h-[16px] mt-0.5">
+                          <div className="text-xs font-mono font-medium tabular-nums min-h-[16px] mt-1 whitespace-nowrap">
                             {isNew ? (
                               <span className="text-muted/40">—</span>
                             ) : h.weight_change > 0 ? (
@@ -2620,7 +2584,7 @@ export default function EtfCapitalFlowTracker({
                             ) : h.weight_change < 0 ? (
                               <span className="text-emerald-500 dark:text-emerald-400">{h.weightChangeText}</span>
                             ) : (
-                              <span className="text-muted">{h.weightChangeText || "0.00%"}</span>
+                              <span className="text-muted/60">—</span>
                             )}
                           </div>
                         </div>

@@ -3,6 +3,7 @@
 import Tabs from "@/components/ui/Tabs";
 import CapitalFlowChart from "@/components/dashboard/CapitalFlowChart";
 import EtfCapitalFlowTracker from "@/components/dashboard/EtfCapitalFlowTracker";
+import { EtfResonanceBoard } from "@/components/dashboard/EtfResonanceBoard";
 import IndustryPage from "@/app/industry/page";
 
 export default function CapitalFlowPage() {
@@ -26,6 +27,11 @@ export default function CapitalFlowPage() {
             id: "etf-holdings",
             label: "ETF 成分股每日持股變動明細",
             content: <EtfCapitalFlowTracker subView="holdings" />,
+          },
+          {
+            id: "etf-resonance",
+            label: "ETF 成分共振排行",
+            content: <EtfResonanceBoard />,
           },
           {
             id: "flow",

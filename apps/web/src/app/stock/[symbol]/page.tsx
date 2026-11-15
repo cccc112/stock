@@ -28,6 +28,7 @@ import {
   addSymbolToWatchlist,
   removeSymbolFromWatchlist,
 } from "@/hooks/useWatchlist";
+import { isAuthenticatedUser, requestLoginModal } from "@/hooks/useAuth";
 
 const CandlestickChart = dynamic(() => import('@/components/charts/CandlestickChart'), { ssr: false });
 
@@ -132,6 +133,10 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   }, [symbol, fetchQuote]);
 
   const toggleWatchlist = () => {
+    if (!isAuthenticatedUser()) {
+      requestLoginModal();
+      return;
+    }
     if (inWatchlist) {
       removeSymbolFromWatchlist(symbol);
       setInWatchlist(false);

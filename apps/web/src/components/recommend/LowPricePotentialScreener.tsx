@@ -25,6 +25,7 @@ import {
   addSymbolToWatchlist,
   removeSymbolFromWatchlist,
 } from "@/hooks/useWatchlist";
+import { isAuthenticatedUser, requestLoginModal } from "@/hooks/useAuth";
 
 export interface LowPriceStockItem {
   symbol: string;
@@ -608,16 +609,24 @@ export default function LowPricePotentialScreener() {
     refreshWatchlistStatus();
     const handleChanged = () => refreshWatchlistStatus();
     window.addEventListener("watchlist_changed", handleChanged);
-    return () => window.removeEventListener("watchlist_changed", handleChanged);
+    window.addEventListener("stock_auth_changed", handleChanged);
+    return () => {
+      window.removeEventListener("watchlist_changed", handleChanged);
+      window.removeEventListener("stock_auth_changed", handleChanged);
+    };
   }, [refreshWatchlistStatus]);
 
   // 切換自選股
   const toggleWatchlist = (symbol: string) => {
+    if (!isAuthenticatedUser()) {
+      requestLoginModal();
+      return;
+    }
     if (watchlistState[symbol]) {
       removeSymbolFromWatchlist(symbol);
       setWatchlistState((prev) => ({ ...prev, [symbol]: false }));
     } else {
-      addSymbolToWatchlist(symbol, "低價潛力");
+      addSymbolToWatchlist(symbol, "預設");
       setWatchlistState((prev) => ({ ...prev, [symbol]: true }));
     }
   };

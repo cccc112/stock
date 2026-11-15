@@ -223,8 +223,19 @@ export function getCurrentUserNamespace(): string {
     const saved = localStorage.getItem(STORAGE_KEY_USER);
     if (saved) {
       const u = JSON.parse(saved);
-      if (u?.id) return u.id;
+      if (u?.id && u?.email !== "trader.guest@gmail.com") return u.id;
     }
   } catch {}
   return "default";
+}
+
+export function isAuthenticatedUser(): boolean {
+  return getCurrentUserNamespace() !== "default";
+}
+
+export const OPEN_AUTH_MODAL_EVENT = "stock:open_auth_modal";
+
+export function requestLoginModal() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(OPEN_AUTH_MODAL_EVENT));
 }

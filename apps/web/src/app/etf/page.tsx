@@ -10,6 +10,7 @@ import { apiStocks } from "@/lib/api";
 import { Search, Sparkles, Flame, Layers, ShoppingBag } from "lucide-react";
 import { Term } from "@/components/ui/TermTooltip";
 import EtfCapitalFlowTracker from "@/components/dashboard/EtfCapitalFlowTracker";
+import { EtfResonanceBoard } from "@/components/dashboard/EtfResonanceBoard";
 
 interface AssetQuote {
   symbol: string;
@@ -240,7 +241,7 @@ const ALL_CATALOG_ITEMS = Object.values(ASSET_CATEGORIES).flatMap((cat) => cat.i
 
 export default function EtfAndMultiAssetPage() {
   const router = useRouter();
-  const [mainView, setMainView] = useState<"flow" | "catalog">("flow");
+  const [mainView, setMainView] = useState<"flow" | "resonance" | "catalog">("flow");
   const [quotes, setQuotes] = useState<Record<string, AssetQuote>>({});
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("tw_market");
@@ -511,6 +512,18 @@ export default function EtfAndMultiAssetPage() {
         </button>
 
         <button
+          onClick={() => setMainView("resonance")}
+          className={`px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+            mainView === "resonance" && !searchQuery.trim()
+              ? "bg-accent text-white shadow-sm"
+              : "text-secondary hover:text-primary hover:bg-[var(--bg-secondary)]"
+          }`}
+        >
+          <Sparkles size={16} />
+          <span>ETF 成分共振排行</span>
+        </button>
+
+        <button
           onClick={() => setMainView("catalog")}
           className={`px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             mainView === "catalog" || searchQuery.trim()
@@ -525,6 +538,8 @@ export default function EtfAndMultiAssetPage() {
 
       {mainView === "flow" && !searchQuery.trim() ? (
         <EtfCapitalFlowTracker key="flow" defaultSubView="flow" hideSubViewTabs={true} />
+      ) : mainView === "resonance" && !searchQuery.trim() ? (
+        <EtfResonanceBoard />
       ) : (
         <Card className="w-full">
         <div className="border-b border-[var(--border)] flex gap-2 overflow-x-auto hide-scrollbar pb-2 mb-4">

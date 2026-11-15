@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useWatchlist, WatchlistStock } from "@/hooks/useWatchlist";
+import { useAuthManager, requestLoginModal } from "@/hooks/useAuth";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -21,11 +22,13 @@ import {
   ArrowUpRight,
   TrendingUp,
   Tag,
-  Star
+  Star,
+  Lock
 } from "lucide-react";
 
 export default function WatchlistPanel() {
   const { items, removeItem, addStock, categories, addCategory, updateCategory } = useWatchlist();
+  const { user, isLoading: isAuthLoading } = useAuthManager();
   const router = useRouter();
 
   // 排版模式：表格 (table) | 卡片網格 (grid) | 緊湊條列 (compact)
@@ -38,7 +41,7 @@ export default function WatchlistPanel() {
 
   // 快速新增股票
   const [quickSymbol, setQuickSymbol] = useState("");
-  const [quickCategory, setQuickCategory] = useState("核心權值");
+  const [quickCategory, setQuickCategory] = useState("預設");
 
   // 搜尋過濾
   const [searchQuery, setSearchQuery] = useState("");
@@ -46,6 +49,14 @@ export default function WatchlistPanel() {
   // 分頁狀態
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  const availableCategories = useMemo(
+    () => categories.filter((c) => c !== "全部"),
+    [categories]
+  );
+  const effectiveQuickCategory = availableCategories.includes(quickCategory)
+    ? quickCategory
+    : availableCategories[0] || "預設";
 
   // 依據分類與搜尋篩選股票
   const filteredItems = useMemo(() => {
@@ -65,11 +76,15 @@ export default function WatchlistPanel() {
     return filteredItems.slice(start, start + pageSize);
   }, [filteredItems, currentPage, pageSize]);
 
-  // 快速新增處理
+  // 快速新增處理（未登入先喚起登入視窗）
   const handleQuickAdd = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      requestLoginModal();
+      return;
+    }
     if (quickSymbol.trim()) {
-      addStock(quickSymbol.trim().toUpperCase(), quickCategory);
+      addStock(quickSymbol.trim().toUpperCase(), effectiveQuickCategory);
       setQuickSymbol("");
     }
   };
@@ -77,6 +92,10 @@ export default function WatchlistPanel() {
   // 新增分類
   const handleCreateCategory = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      requestLoginModal();
+      return;
+    }
     if (newCatInput.trim()) {
       addCategory(newCatInput.trim());
       setActiveCategory(newCatInput.trim());
@@ -84,6 +103,23 @@ export default function WatchlistPanel() {
       setShowNewCatModal(false);
     }
   };
+
+  if (!isAuthLoading && !user) {
+    return (
+      <Card className="text-center py-16 px-6 border border-[var(--border)]">
+        <div className="w-12 h-12 rounded-2xl bg-[var(--accent)]/10 border border-[var(--accent)]/25 flex items-center justify-center mx-auto mb-3 text-[var(--accent)]">
+          <Lock size={22} />
+        </div>
+        <h3 className="text-base font-bold text-primary mb-1.5">登入後即可建立個人自選股清單</h3>
+        <p className="text-xs text-secondary max-w-md mx-auto leading-relaxed mb-5">
+          為確保您的自選標的與自訂分類能依個人帳號獨立保存，請先登入 Google 帳戶，再加入追蹤標的。
+        </p>
+        <Button size="sm" onClick={requestLoginModal}>
+          使用 Google 帳號登入
+        </Button>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -103,11 +139,11 @@ export default function WatchlistPanel() {
           </div>
 
           <select
-            value={quickCategory}
+            value={effectiveQuickCategory}
             onChange={(e) => setQuickCategory(e.target.value)}
             className="input-field text-xs py-1.5 px-2.5 w-28 rounded-lg cursor-pointer"
           >
-            {categories.filter(c => c !== "全部").map(cat => (
+            {availableCategories.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>

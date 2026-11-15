@@ -164,7 +164,7 @@ export default function TopBar() {
           title="點擊回到戰情首頁"
         >
           <BrandLogo size={24} />
-          <span className="font-extrabold font-mono text-sm tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-300 bg-clip-text text-transparent">
+          <span className="font-bold font-mono text-sm tracking-tight text-primary">
             OmniTick
           </span>
         </Link>
@@ -231,13 +231,15 @@ export default function TopBar() {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
-        <InstallAppButton />
+        <span className="hidden sm:inline-flex">
+          <InstallAppButton />
+        </span>
 
         <button
           type="button"
           onClick={toggleTheme}
-          title={theme === "dark" ? "切換為淺色明亮模式" : "切換為深色科技玻璃模式"}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] text-secondary hover:text-primary hover:border-accent/40 text-xs font-medium transition-all cursor-pointer"
+          title={theme === "dark" ? "切換為淺色明亮模式" : "切換為深色終端模式"}
+          className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] text-secondary hover:text-primary hover:border-[var(--border-hover)] text-xs font-medium transition-colors cursor-pointer"
         >
           {theme === "dark" ? (
             <>
@@ -247,7 +249,7 @@ export default function TopBar() {
           ) : (
             <>
               <Moon size={14} className="text-sky-600" />
-              <span className="hidden sm:inline">深色科技</span>
+              <span className="hidden sm:inline">深色終端</span>
             </>
           )}
         </button>

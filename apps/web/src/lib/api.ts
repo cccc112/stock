@@ -247,6 +247,23 @@ export const apiMarket = {
     }
     return { data: [] };
   },
+  getEtfResonance: async () => {
+    try {
+      const res = await axios.get('/api/etf-nav', { params: { mode: 'resonance' }, timeout: 20000 });
+      if (res?.data) return res;
+    } catch {
+      try {
+        const fetchRes = await fetch('/api/etf-nav?mode=resonance');
+        if (fetchRes.ok) {
+          const json = await fetchRes.json();
+          return { data: json, status: 200, statusText: "OK", headers: {}, config: {} as any };
+        }
+      } catch {
+        // fallback
+      }
+    }
+    return { data: { updated_at: "", etfs: [], holdings: [] } };
+  },
 };
 
 export const apiResearch = {

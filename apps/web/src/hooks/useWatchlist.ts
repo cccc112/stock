@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { apiStocks } from "@/lib/api";
-import { getCurrentUserNamespace } from "@/hooks/useAuth";
+import { getCurrentUserNamespace, isAuthenticatedUser, requestLoginModal } from "@/hooks/useAuth";
 
 export interface WatchlistStock {
   symbol: string;
@@ -20,16 +20,9 @@ export interface WatchlistRecord {
   addedAt?: number;
 }
 
-export const DEFAULT_WATCHLIST_SEEDS: WatchlistRecord[] = [
-  { symbol: "2330", category: "核心權值" },
-  { symbol: "2317", category: "核心權值" },
-  { symbol: "3231", category: "AI伺服器" },
-  { symbol: "2603", category: "航運傳產" },
-  { symbol: "NVDA", category: "美股科技" },
-  { symbol: "AAPL", category: "美股科技" },
-];
+export const DEFAULT_WATCHLIST_SEEDS: WatchlistRecord[] = [];
 
-export const DEFAULT_CATEGORIES = ["全部", "核心權值", "AI伺服器", "航運傳產", "金融存股", "美股科技", "短線觀察"];
+export const DEFAULT_CATEGORIES = ["全部", "預設"];
 
 export function getWatchlistStorageKey(): string {
   if (typeof window === "undefined") return "watchlist_symbols";
@@ -44,47 +37,35 @@ export function getCategoriesStorageKey(): string {
 }
 
 /**
- * 取得自選股記錄（依當前登入帳號完全獨立隔離，新帳號預設為官方種子標的）
+ * 取得自選股記錄（僅限已登入帳號，未登入或新帳號皆為空清單，不預設灌入標的）
  */
 export function getStoredWatchlistRecords(): WatchlistRecord[] {
-  if (typeof window === "undefined") return DEFAULT_WATCHLIST_SEEDS;
+  if (typeof window === "undefined" || !isAuthenticatedUser()) return [];
   const key = getWatchlistStorageKey();
   const raw = localStorage.getItem(key);
-
-  // 若當前使用者本地無任何資料，為該帳號獨立初始化預設標的
-  if (!raw) {
-    const json = JSON.stringify(DEFAULT_WATCHLIST_SEEDS);
-    localStorage.setItem(key, json);
-    return DEFAULT_WATCHLIST_SEEDS;
-  }
+  if (!raw) return [];
 
   try {
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      // 相容舊版純字串陣列 ["2330", "NVDA"]
+    if (Array.isArray(parsed)) {
       return parsed.map((item) => {
         if (typeof item === "string") {
-          const clean = item.trim().toUpperCase();
-          const seed = DEFAULT_WATCHLIST_SEEDS.find((s) => s.symbol === clean);
-          return { symbol: clean, category: seed?.category || "預設" };
+          return { symbol: item.trim().toUpperCase(), category: "預設" };
         }
         return item as WatchlistRecord;
       });
     }
-    // 空陣列也初始化為預設種子股
-    const json = JSON.stringify(DEFAULT_WATCHLIST_SEEDS);
-    localStorage.setItem(key, json);
-    return DEFAULT_WATCHLIST_SEEDS;
+    return [];
   } catch {
-    return DEFAULT_WATCHLIST_SEEDS;
+    return [];
   }
 }
 
 /**
- * 儲存自選股清單（嚴格隔離至當前使用者空間，避免跨帳號污染）
+ * 儲存自選股清單（嚴格隔離至當前登入使用者空間）
  */
 export function saveWatchlistRecords(records: WatchlistRecord[]) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || !isAuthenticatedUser()) return;
   const key = getWatchlistStorageKey();
   const json = JSON.stringify(records);
   localStorage.setItem(key, json);
@@ -92,10 +73,10 @@ export function saveWatchlistRecords(records: WatchlistRecord[]) {
 }
 
 /**
- * 取得自訂分類清單
+ * 取得自訂分類清單（未登入僅回傳預設基本分類）
  */
 export function getStoredCategories(): string[] {
-  if (typeof window === "undefined") return DEFAULT_CATEGORIES;
+  if (typeof window === "undefined" || !isAuthenticatedUser()) return DEFAULT_CATEGORIES;
   const key = getCategoriesStorageKey();
   const raw = localStorage.getItem(key);
   if (raw) {
@@ -110,11 +91,10 @@ export function getStoredCategories(): string[] {
 }
 
 export function saveStoredCategories(cats: string[]) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || !isAuthenticatedUser()) return;
   const key = getCategoriesStorageKey();
-  const unique = Array.from(new Set(cats.filter(c => c && c !== "全部")));
+  const unique = Array.from(new Set(cats.filter((c) => c && c !== "全部")));
   localStorage.setItem(key, JSON.stringify(unique));
-  localStorage.setItem("watchlist_categories", JSON.stringify(unique));
 }
 
 /**
@@ -125,10 +105,14 @@ export function getStoredWatchlistSymbols(): string[] {
 }
 
 /**
- * 新增自選股（支援指定分類）
+ * 新增自選股（需登入後才能加入；未登入將喚起登入視窗）
  */
 export function addSymbolToWatchlist(symbol: string, category = "預設"): boolean {
   if (typeof window === "undefined" || !symbol) return false;
+  if (!isAuthenticatedUser()) {
+    requestLoginModal();
+    return false;
+  }
   const clean = symbol.trim().toUpperCase();
   const list = getStoredWatchlistRecords();
   if (!list.some((r) => r.symbol === clean)) {
@@ -140,10 +124,10 @@ export function addSymbolToWatchlist(symbol: string, category = "預設"): boole
 }
 
 /**
- * 從自選股移除
+ * 從自選股移除（需登入）
  */
 export function removeSymbolFromWatchlist(symbol: string): boolean {
-  if (typeof window === "undefined" || !symbol) return false;
+  if (typeof window === "undefined" || !symbol || !isAuthenticatedUser()) return false;
   const clean = symbol.trim().toUpperCase();
   const list = getStoredWatchlistRecords();
   if (list.some((r) => r.symbol === clean)) {
@@ -155,10 +139,10 @@ export function removeSymbolFromWatchlist(symbol: string): boolean {
 }
 
 /**
- * 修改自選股分類
+ * 修改自選股分類（需登入）
  */
 export function updateSymbolCategory(symbol: string, newCategory: string): boolean {
-  if (typeof window === "undefined" || !symbol) return false;
+  if (typeof window === "undefined" || !symbol || !isAuthenticatedUser()) return false;
   const clean = symbol.trim().toUpperCase();
   const list = getStoredWatchlistRecords();
   const idx = list.findIndex((r) => r.symbol === clean);
@@ -174,7 +158,7 @@ export function updateSymbolCategory(symbol: string, newCategory: string): boole
  * 檢查是否在自選股中
  */
 export function isSymbolInWatchlist(symbol: string): boolean {
-  if (typeof window === "undefined" || !symbol) return false;
+  if (typeof window === "undefined" || !symbol || !isAuthenticatedUser()) return false;
   const clean = symbol.trim().toUpperCase();
   const list = getStoredWatchlistRecords();
   return list.some((r) => r.symbol === clean);
@@ -294,6 +278,10 @@ export function useWatchlist() {
   };
 
   const addCategory = (name: string) => {
+    if (!isAuthenticatedUser()) {
+      requestLoginModal();
+      return;
+    }
     if (!name.trim()) return;
     const clean = name.trim();
     const updated = Array.from(new Set([...categories, clean]));
